@@ -119,7 +119,8 @@ async def rcv(aio: aioserial.AioSerial):
                        # Swap out the receive table
                        # for the error table
                        state_table = err_table
-                       # but keep the state index
+                       state += 1 # You saw an 'E' instead of 'R'
+                       # advance the state index
                     else:
                        response_len = 0 # this hasn't changed
                        response = '' # hasn't changed
