@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# An example program for the REYAX RTLR998
+# An example program for the REYAX RYLR998
 # Written by Florian Lengyel, WM2D
 #
 # Despite the remarkable fact that the software below was
