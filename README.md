@@ -4,6 +4,12 @@ Demo transmit and receive program for the REYAX RYLR998 LoRa module and the Rasp
 
 The python code of this repository was written to work with the REYAX RYLR998 LoRa module, using nothing more than five connections to the GPIO pins of a Raspberry 4 Model B Rev 1.5. No electronic components are needed other than five wires and ten female-female GPIO connectors. (Or connect the module directly to a GPIO head, etc., as you wish.)
 
+## Dependencies
+
+python 3.9+
+pyserial
+[aioserial](https://pypi.org/project/aioserial/)
+
 
 ### GPIO connections
 
