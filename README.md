@@ -1,6 +1,6 @@
 # RYLR998-LoRa
 
-Demo program for the REYAX RYLR998 LoRa module
+Demo transmit and receive program for the REYAX RYLR998 LoRa module
 
 This code below was written to work with the REYAX RYLR998 LoRa module, using nothing more than five connections to the GPIO pins of a Rasperry 4 Model B Rev 1.5. No electronic components are needed other than five wires and ten female-female GPIO connectors. (Or connect the module directly to a GPIO head, etc., as you wish.)
 
