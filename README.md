@@ -6,9 +6,9 @@ The python code of this repository was written to work with the REYAX RYLR998 Lo
 
 ## Dependencies
 
-python 3.9+
-pyserial
-[aioserial](https://pypi.org/project/aioserial/)
+* python 3.9+
+* pyserial
+* [aioserial](https://pypi.org/project/aioserial/)
 
 
 ### GPIO connections
