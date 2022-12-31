@@ -30,4 +30,9 @@ Ensure that the serial port is enabled, but the console is disabled--use `sudo r
 sudo systemctl disable hciuart.service
 ```
 
-You will need to enable `uart1` with the device tree overlay facility before running the code. I do this in `/etc/rc.local` with `sudo dtoverlay uart1`.
+Enable `uart1` with the device tree overlay facility before running the code. I do this in `/etc/rc.local` with 
+
+```bash
+sudo dtoverlay uart1
+```
+
