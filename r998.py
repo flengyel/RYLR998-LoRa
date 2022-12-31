@@ -2,29 +2,45 @@
 # An example program for the REYAX RYLR998
 # Written by Florian Lengyel, WM2D
 #
-# Despite the remarkable fact that the software below was
-# designed to work predictably for me with the intended
-# hardware devices, their software settings and
-# interconnections under their documented operating conditions
-# (except for the missing "AT" in the "+RCV" command, as
-# documented on page 7 of the  "REYAX RYLR998 RYLR498 Lora
-# AT COMMAND GUIDE" (c) 2021 REYAX TECHNOLOGY CO., LTD,
-# and corrected herein) be advised:
-#
 # This software is released under an MIT license.
+# See the accompanying LICENSE txt file.
+
+# This code below was written to work with the REYAX RYLR998 LoRa module, using
+# nothing more than five connections to the GPIO pins of a Rasperry 4 Model B Rev 1.5.
+# No electronic components are needed other than five wires and ten female-female
+# GPIO connectors. (Or connect the module directly to a GPIO head, etc., as you wish.)
+#
+# The GPIO connections are as follows:
+#
+# VDD to 3.3V physical pin 1 on the GPIO
+# RST to GPIO 4, physical pin 7
+# TXD to GPIO 15 RXD1 this is physical pin 10
+# RXD to GPIO 14 TXD1 this is physical pin 8
+# GND to GND physical pin 9.
+
+# NOTE: GPIO pin 4, physical pin 7 is an OUTPUT pin with level one and pull=NONE.
+# TO DO: Switch to the wiringpi library to program GPIO 4 alt5 with the pin pulled UP
+# under normal operation, and pulled DOWN or at least 100ms to reset the module.
+# The current configuration works, but can be improved. You could add a pull up
+# resistor, but then it's five wires and a resistor. See the RYLR998 data sheet.
+#
+# AT commands follow the  "REYAX RYLR998 RYLR498 Lora AT COMMAND GUIDE"
+# (c) 2021 REYAX TECHNOLOGY CO., LTD.
+#
+# Further instructions to be made available in the accompanying README.md document
 #
 # "IT'S A DISGRACE, BUT THERE YOU ARE."
 # -- Pozzo. Samuel Beckett. Waiting for Godot, Act 1.
 
 
 import RPi.GPIO as GPIO
+#import wiringpi
 import asyncio
 import aioserial
 from serial import EIGHTBITS, PARITY_NONE,  STOPBITS_ONE
 import time
 import subprocess # for call to raspi-gpio
 import logging
-#import wiringpi
 
 class RPi:
     TXD1   = 14    #  GPIO.BCM  pin 8
@@ -85,42 +101,41 @@ async def ATcmd(aio: aioserial.AioSerial,  cmd: str = ''):
     print(msg.decode(errors='ignore'))
 
 
+# state "machines" for the response
 rcv_table = [b'+',b'R',b'C',b'V',b'=']
-
-# just in case we want to parse this
-# not absolutely necessary since an error response
-# +ERR=number will be caught in the logic below
 err_table = [b'+',b'E',b'R',b'R',b'=']
 
 async def rcv(aio: aioserial.AioSerial):
     print("In rcv()")
-    count : int  = await aio.write_async(bytes('AT+RCV\r\n', 'utf8'))
-    # Read data from the module
-    # ignore the initial junk, preamble, etc
 
-    # The following four commands brought to you by
-    # INITIAL CONDITIONS
+    # Read data from the module
+
+    # NOTE: AT+RCV is NOT a valid command.
+    # The module emits "+RCV=w,x,y,z" when it has received a packet
+    # To test the +ERR= logic, uncomment the following
+    # count : int  = await aio.write_async(bytes('AT+RCV\r\n', 'utf8'))
+    # This generates the response b'+ERR=4\r\n'. Otherwise, leave commented
 
     response = ''
-    state = 0  # from 0 to 4 corresponding to +RCV
+    state = 0  # from 0 to 4 corresponding to +RCV or +ERR
     state_table = rcv_table
     response_len = 0
 
     while True:
-        if aio.inWaiting() > 0: # number of characters ready
-            data = aio.read(size=1) # read one byte at a time
+        if aio.inWaiting() > 0: # nonzero = number of characters ready
+            # read one byte at a time
+            data = await aio.read_async(size=1)
+            #print("read:{} state:{}".format(data, state))
             # you are in states < 5 or state 5
             if state < len(state_table):
                 if state_table[state] == data:
-                    state += 1 # keep going!
+                    state += 1 # advance the state index
                 else:
                     if state == 1 and data == err_table[1]:
-                       # My God! It's full of errors!
                        # Swap out the receive table
                        # for the error table
                        state_table = err_table
-                       state += 1 # You saw an 'E' instead of 'R'
-                       # advance the state index
+                       state += 1 # advance the state index
                     else:
                        response_len = 0 # this hasn't changed
                        response = '' # hasn't changed
@@ -149,13 +164,16 @@ async def rcv(aio: aioserial.AioSerial):
 
                 # If you made it here, the msg is <= 240 chars
                 if data == b'\n':
+
                     if state_table == err_table:
-                        logging.error("code from RYLR998:{}".format(response))
+                        logging.error("+ERR={}".format(response))
+
                         response = ''
                         response_len = 0
                         state = 0
                         state_table = rcv_table
                         continue
+
                     # The following five lines are adapted from
                     # https://github.com/wybiral/micropython-rylr/blob/master/rylr.py
                     addr, n, response = response.split(',', 2)
@@ -173,40 +191,41 @@ async def rcv(aio: aioserial.AioSerial):
                     state_table = rcv_table
 
 
-async def producer(queue, aio: aioserial.AioSerial):
-    await queue.put(await ATcmd(aio))
-    await queue.put(await ATcmd(aio, 'MODE?'))
-    await queue.put(await ATcmd(aio, 'IPR?'))
-    await queue.put(await ATcmd(aio, 'PARAMETER?'))
-    await queue.put(await ATcmd(aio, 'BAND=915125000'))
-    await queue.put(await ATcmd(aio, 'BAND?'))
-    await queue.put(await ATcmd(aio, 'ADDRESS?'))
-    await queue.put(await ATcmd(aio, 'NETWORKID?'))
-    await queue.put(await ATcmd(aio, 'CPIN?'))
-    await queue.put(await ATcmd(aio, 'CRFOP=1'))
-    await queue.put(await ATcmd(aio, 'CRFOP?'))
-    await queue.put(await ATcmd(aio, 'SEND=0,12,de, CALLSIGN'))
-    await queue.put(await asyncio.sleep(0.01)) # xmt takes time
-    await queue.put(await rcv(aio))
-    await queue.put(None)  # a termination signal
+if __name__ == "__main__":
 
-async def consumer(queue):
-    while True:
-        item = await queue.get()
-        if item is None:
-            break
+    async def producer(queue, aio: aioserial.AioSerial):
+        await queue.put(await ATcmd(aio))
+        await queue.put(await ATcmd(aio, 'MODE?'))
+        await queue.put(await ATcmd(aio, 'IPR?'))
+        await queue.put(await ATcmd(aio, 'PARAMETER?'))
+        await queue.put(await ATcmd(aio, 'BAND=915125000'))
+        await queue.put(await ATcmd(aio, 'BAND?'))
+        await queue.put(await ATcmd(aio, 'ADDRESS?'))
+        await queue.put(await ATcmd(aio, 'NETWORKID?'))
+        await queue.put(await ATcmd(aio, 'CPIN?'))
+        await queue.put(await ATcmd(aio, 'CRFOP=1'))
+        await queue.put(await ATcmd(aio, 'CRFOP?'))
+        await queue.put(await ATcmd(aio, 'SEND=0,12,de, CALLSIGN'))
+        await queue.put(await rcv(aio))
+        await queue.put(None)  # a termination signal
+
+    async def consumer(queue):
+        while True:
+            item = await queue.get()
+            if item is None:
+                break
 
 
-async def main():
-    queue = asyncio.Queue()
-    await asyncio.gather(producer(queue, aio), consumer(queue))
-    await asyncio.sleep(0.01)
+    async def main():
+        queue = asyncio.Queue()
+        await asyncio.gather(producer(queue, aio), consumer(queue))
+        await asyncio.sleep(0.01)
 
-try:
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
 
-except KeyboardInterrupt:
-    print("CTRL-C! Dammit Jim! I'm a doctor, not an interrupt handler! Exiting!")
+    except KeyboardInterrupt:
+        print("CTRL-C! Exiting!")
 
-finally:
-    aio.close()
+    finally:
+        aio.close()
