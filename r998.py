@@ -6,7 +6,7 @@
 # See the accompanying LICENSE txt file.
 
 # This code below was written to work with the REYAX RYLR998 LoRa module, using
-# nothing more than five connections to the GPIO pins of a Rasperry 4 Model B Rev 1.5.
+# nothing more than five connections to the GPIO pins of a Raspberry 4 Model B Rev 1.5.
 # No electronic components are needed other than five wires and ten female-female
 # GPIO connectors. (Or connect the module directly to a GPIO head, etc., as you wish.)
 #
