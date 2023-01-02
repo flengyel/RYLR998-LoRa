@@ -4,14 +4,14 @@ Demo transmit and receive program for the [REYAX RYLR998](https://reyax.com/prod
 
 The python code of this repository was written to work with the REYAX RYLR998 LoRa module, using nothing more than five connections to the GPIO pins of a Raspberry pi 4 Model B Rev 1.5. No electronic components are needed other than five wires and ten female-female GPIO connectors. (Or connect the module directly to a GPIO head, etc., as you wish.)
 
-## Dependencies
+## Python Module Dependencies
 
 * python 3.9+
 * [pySerial](https://pypi.org/project/pyserial/) 3.5+
 * [aioserial](https://pypi.org/project/aioserial/) 1.3.1+
 
 
-### GPIO connections
+## GPIO connections
 
 The GPIO connections are as follows:
 
@@ -21,22 +21,24 @@ The GPIO connections are as follows:
 * RXD to GPIO 14 TXD1 this is physical pin 8
 * GND to GND physical pin 9.
 
-### Disable Bluetooth and enable uart1 (/dev/ttyS0)
+WARNING: get this wrong and you could fry your Raspberry Pi 4 and your REYAX RTLR998. I haven't had problems, knock wood, but the license comes with no warranty. Check your connections! Under no circumstances apply 5V to the REYAX. Only 3.3V. 
 
-Disable Bluetooth in ```/boot/config.txt``` by appending 
+## Disable Bluetooth and enable uart1 (/dev/ttyS0)
 
+
+1. Ensure that the login shell over the serial port is disabled, but the serial port is enabled. In `sudo raspi-config`, select Interfacing Options, then select Serial. Answer "no" to "Would you like a login shell to be accessible over serial?" and answer "yes"  to "woud you like the serial port hardware to be enabled?".
+
+2. Disable Bluetooth in ```/boot/config.txt``` by appending 
 ```bash
 disable-bt=1
 enable-uart=1 
 ```
-
-Ensure that the serial port is enabled, but the console is disabled--use `sudo raspi-config` for this. Disable the bluetooth service with 
-
+Disable the bluetooth service with 
 ```bash
 sudo systemctl disable hciuart.service
 ```
 
-Enable `uart1` with the device tree overlay facility before running the code. I do this in `/etc/rc.local` with 
+3. Enable `uart1` with the device tree overlay facility before running the code. I do this in `/etc/rc.local` with 
 
 ```bash
 sudo dtoverlay uart1
