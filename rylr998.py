@@ -211,7 +211,7 @@ if __name__ == "__main__":
         await queue.put(await rylr.ATcmd('CPIN?'))
         await queue.put(await rylr.ATcmd('CRFOP=5'))
         await queue.put(await rylr.ATcmd('CRFOP?'))
-        await queue.put(await rylr.ATcmd('SEND=0,7,de WM2D'))
+        await queue.put(await rylr.ATcmd('SEND=0,7,de WXYZ'))
         await queue.put(await rylr.rcv())
         await queue.put(None)  # a termination signal
 
