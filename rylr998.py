@@ -35,9 +35,12 @@ import RPi.GPIO as GPIO
 import asyncio
 import aioserial
 from serial import EIGHTBITS, PARITY_NONE,  STOPBITS_ONE
-import time
 import subprocess # for call to raspi-gpio
 import logging
+import curses as cur
+import _curses
+import datetime
+import sys
 
 class rylr998:
     TXD1   = 14    #  GPIO.BCM  pin 8
@@ -56,21 +59,32 @@ class rylr998:
     timeout  = None
 
 
-    # state "machines" for the response
-    rcv_table = [b'+',b'R',b'C',b'V',b'=']
-    err_table = [b'+',b'E',b'R',b'R',b'=']
-    response = ''  # string response
-    response_len = 0
-    state_table = rcv_table
+    # state "machines" for various AT command and receiver responses
+ 
+    RCV_table =    [b'+',b'R',b'C',b'V',b'=']
+    ERR_table =    [b'+',b'E',b'R',b'R',b'=']
+    OK_table =     [b'+',b'O',b'K']
+    MODE_table =   [b'+',b'M',b'O',b'D',b'E',b'=']
+    BAND_table =   [b'+',b'B',b'A',b'N',b'D',b'=']
 
-    def resetstate(self):
-        self.response = ''
-        self.response_len = 0
+    rxbuf = ''  # string response
+    rxlen = 0
+    state_table = RCV_table
+
+    txbuf = ''     # tx  buffer
+    txlen = 0      # tx buffer length
+
+    def resetstate(self) -> None:
+        self.rxbuf = ''
+        self.rxlen = 0
         self.state = 0
-        self.state_table = self.rcv_table
+        self.state_table = self.RCV_table # the default since RCV takes priority
 
+    def resettxbuf(self) -> None:
+        self.txbuf = '' # clear tx buffer
+        self.txlen = 0  # txlen is zero
 
-    def gpiosetup(self):
+    def gpiosetup(self) -> None:
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(True)
         #GPIO.setup(self.RST,GPIO.OUT,initial=GPIO.LOW)
@@ -99,7 +113,7 @@ class rylr998:
         self.debug = debug
 
         self.gpiosetup()
-
+        
         try:
             self.aio: aioserial.AioSerial = aioserial.AioSerial(
                                                  port = self.port,
@@ -114,24 +128,18 @@ class rylr998:
             raise aioserial.SerialException
 
 
-    async def read_print(self):
-        msg : bytes = await self.aio.read_until_async(expected = aioserial.LF)
-        print(msg.decode(errors='ignore'))
-
-
+    # we always call this function from the transceiver function below
     async def ATcmd(self, cmd: str = ''):
-        print("In ATcmd("+cmd+")")
+        if self.debug:
+            print("In ATcmd("+cmd+")")
         command = 'AT' + ('+' if len(cmd) > 0 else '') + cmd + '\r\n'
         count : int  = await self.aio.write_async(bytes(command, 'utf8'))
-        msg : bytes = await self.aio.read_until_async(expected = aioserial.LF)
-        print(msg.decode(errors='ignore'))
+        # use the transceiver loop to parse the response from the RYLR998
 
 
-    # This function could be a thread.
-
-    async def rcv(self):
-        print("In rcv()")
-
+    # Transceiver function
+    # This is the main loop. Receving takes priority over transmission
+    async def xcvr(self, stdscr : _curses.window) -> None:
         # Read data from the module
 
         # NOTE: AT+RCV is NOT a valid command.
@@ -139,95 +147,114 @@ class rylr998:
         # To test the +ERR= logic, uncomment the following
         # count : int  = await aio.write_async(bytes('AT+RCV\r\n', 'utf8'))
         # This generates the response b'+ERR=4\r\n'. Otherwise, leave commented
+
         self.resetstate()
+        self.resettxbuf()
+        stdscr.nodelay(1) # non-blocking getch()
 
         while True:
-            if self.aio.inWaiting() > 0: # nonzero = number of characters ready
+            #print(datetime.datetime.now())
+            if self.aio.in_waiting > 0: # nonzero = # of characters ready
                 # read one byte at a time
                 data = await self.aio.read_async(size=1)
-                #print("read:{} state:{}".format(data, self.state))
-                # you are in states < 5 or state 5
+                if self.debug:
+                    print("read:{} state:{}".format(data, self.state))
+
+                # parsing a response
                 if self.state < len(self.state_table):
                     if self.state_table[self.state] == data:
                         self.state += 1 # advance the state index
                     else:
-                        if self.state == 1 and data == self.err_table[1]:
-                            # Swap out the receive table
-                            # for the error table
-                            self.state_table = self.err_table
-                            self.state += 1 # advance the state index
+                        if self.state == 1:
+                            if  data == self.ERR_table[1]:
+                                # Swap out the receive table
+                                # for the error table
+                                self.state_table = self.ERR_table
+                                self.state += 1 # advance the state index
+                            elif data == self.OK_table[1]:
+                                self.state_table = self.OK_table
+                                self.state += 1 # advance the state index
+                            elif data == self.BAND_table[1]:
+                                self.state_table = self.BAND_table
+                                self.state += 1 # advance the state index
+                            else:
+                                self.resetstate() # give up. Dunno what it is
                         else:
                             self.resetstate()
                 else:
-                    # state 5. Accumulate until '\n'
+                    # self.state == len(self.state_table). Acc until '\n'
                     # responses cannot be larger than 240 bytes
                     # add an exception for this case
 
-                    self.response += str(data,'utf8')
+                    self.rxbuf += str(data,'utf8')
                     # To keep computing len(response) wastes energy
                     # increment instead
-                    self.response_len += 1
+                    self.rxlen += 1
 
-                    if self.response_len > 240:
-                        # This "shouldn't" happen, but "shouldn't"
-                        # is often meaningless in programming ...
-                        logging.error("Response exceeds 240 characters:{}.".format(response))
+                    if self.rxlen > 240:
+                        # The hardware is supposed to catch this error 
+                        
+                        logging.error("Response exceeds 240 characters:{}.".format(self.rxbuf))
                         self.resetstate()
                         continue
 
                     # If you made it here, the msg is <= 240 chars
                     if data == b'\n':
 
-                        if self.state_table == self.err_table:
-                            logging.error("+ERR={}".format(self.response))
+                        if self.state_table == self.ERR_table:
+                            logging.error("+ERR={}".format(self.rxbuf))
+                            self.resetstate()
+                            continue
+                     
+                        if self.state_table == self.OK_table:
                             self.resetstate()
                             continue
 
+                        # This case is for RCV only
                         # The following five lines are adapted from
                         # https://github.com/wybiral/micropython-rylr/blob/master/rylr.py
-                        addr, n, self.response = self.response.split(',', 2)
-                        n = int(n)
-                        msg = self.response[:n]
-                        self.response = self.response[n+1:]
-                        rssi, snr = self.response.split(',')
-                        print("addr:{} len:{} data:{} rssi:{} snr:{}".format(addr,n,msg,rssi,snr[:-2]))
+                        if self.state_table == self.RCV_table:
+                            addr, n, self.rxbuf = self.rxbuf.split(',', 2)
+                            n = int(n)
+                            msg = self.rxbuf[:n]
+                            self.rxbuf = self.rxbuf[n+1:]
+                            rssi, snr = self.rxbuf.split(',')
+                            print("addr:{} len:{} data:{} rssi:{} snr:{}".format(addr,n,msg,rssi,snr[:-2]))
 
-                        # no matter what happened, start over
-                        self.resetstate()
+                            self.resetstate()
+                            # fall through OK here
+                    else: # not a newline yet. Prioritize receive
+                        continue # still accumulating response from /dev/ttyS0, stay in receive
+
+            # curses getch() with NODELAY is a foregone conclusion
+            # because this is a curses program
+            ch = stdscr.getch()
+            if ch == -1:
+                continue
+            if  ch == ord(b'\x1b'): # b'x1b' is ESC
+                # clear the transmit buffer
+                self.resettxbuf()
+            elif ch == ord(b'\n'):
+                if self.txlen > 0:
+                    await self.ATcmd('SEND=0,'+str(self.txlen)+','+self.txbuf)
+                self.resettxbuf()
+                continue
+            elif ch == ord(b'\x08'): # Backspace
+                self.txbuf = self.txbuf[:-1]
+                self.txlen = max(0, self.txlen-1)
+            else:
+                self.txbuf += str(chr(ch))
+                self.txlen += 1
+                if self.debug:
+                    print(chr(ch), self.txbuf, self.txlen)
+
 
 if __name__ == "__main__":
 
     rylr  = rylr998(debug=True)
 
-    async def producer(queue, rylr : rylr998):
-        await queue.put(await rylr.ATcmd())
-        await queue.put(await rylr.ATcmd('MODE?'))
-        await queue.put(await rylr.ATcmd('IPR?'))
-        await queue.put(await rylr.ATcmd('PARAMETER?'))
-        await queue.put(await rylr.ATcmd('BAND=915125000'))
-        await queue.put(await rylr.ATcmd('BAND?'))
-        await queue.put(await rylr.ATcmd('ADDRESS?'))
-        await queue.put(await rylr.ATcmd('NETWORKID?'))
-        await queue.put(await rylr.ATcmd('CPIN?'))
-        await queue.put(await rylr.ATcmd('CRFOP=5'))
-        await queue.put(await rylr.ATcmd('CRFOP?'))
-        await queue.put(await rylr.ATcmd('SEND=0,7,de WXYZ'))
-        await queue.put(await rylr.rcv())
-        await queue.put(None)  # a termination signal
-
-    async def consumer(queue):
-        while True:
-            item = await queue.get()
-            if item is None:
-                break
-
-    async def main():
-        queue = asyncio.Queue()
-        await asyncio.gather(producer(queue, rylr), consumer(queue))
-        await asyncio.sleep(0.01)
-
     try:
-        asyncio.run(main())
+        asyncio.run(cur.wrapper(rylr.xcvr))
 
     except KeyboardInterrupt:
         print("CTRL-C! Exiting!")
