@@ -39,7 +39,7 @@ import subprocess # for call to raspi-gpio
 import logging
 import curses as cur
 import _curses
-import datetime
+#import datetime
 import sys
 
 class rylr998:
@@ -58,20 +58,26 @@ class rylr998:
     stopbits = STOPBITS_ONE
     timeout  = None
 
-
     # state "machines" for various AT command and receiver responses
- 
-    RCV_table =    [b'+',b'R',b'C',b'V',b'=']
-    ERR_table =    [b'+',b'E',b'R',b'R',b'=']
-    OK_table =     [b'+',b'O',b'K']
-    MODE_table =   [b'+',b'M',b'O',b'D',b'E',b'=']
-    BAND_table =   [b'+',b'B',b'A',b'N',b'D',b'=']
+    
+    ADDR_table  = [b'+',b'A',b'D',b'D',b'R',b'E',b'S',b'S',b'=']
+    BAND_table  = [b'+',b'B',b'A',b'N',b'D',b'=']
+    CRFOP_table = [b'+',b'C',b'R',b'F',b'O',b'P',b'=']
+    ERR_table   = [b'+',b'E',b'R',b'R',b'=']
+    IPR_table   = [b'+',b'I',b'P',b'R',b'=']
+    MODE_table  = [b'+',b'M',b'O',b'D',b'E',b'=']
+    NETID_table = [b'+',b'N',b'E',b'T',b'W',b'O',b'R',b'K',b'I',b'D',b'=']
+    OK_table    = [b'+',b'O',b'K']
+    PARAM_table = [b'+',b'P',b'A',b'R',b'A',b'M',b'E',b'T',b'E',b'R',b'=']
+    RCV_table   = [b'+',b'R',b'C',b'V',b'='] # receive is the default "state"
+    UID_table   = [b'+',b'U',b'I',b'D',b'=']
+    VER_table   = [b'+',b'V',b'E',b'R',b'=']
 
     rxbuf = ''  # string response
     rxlen = 0
     state_table = RCV_table
 
-    txbuf = ''     # tx  buffer
+    txbuf = ''     # tx buffer
     txlen = 0      # tx buffer length
 
     def resetstate(self) -> None:
@@ -129,24 +135,41 @@ class rylr998:
 
 
     # we always call this function from the transceiver function below
+
     async def ATcmd(self, cmd: str = ''):
         if self.debug:
             print("In ATcmd("+cmd+")")
         command = 'AT' + ('+' if len(cmd) > 0 else '') + cmd + '\r\n'
         count : int  = await self.aio.write_async(bytes(command, 'utf8'))
         # use the transceiver loop to parse the response from the RYLR998
-
+        # This function should wait for receive to finish before beginning
+        # we may pass a semaphore, or only call this from within receive
+        # in response to a function key to ensure the proper coroutine behavior.
 
     # Transceiver function
     # This is the main loop. Receving takes priority over transmission
+    # Listening takes priority over talking. Therefore this code is
+    # woke by definition and cannot be cancelled by moralizing busybodies 
+    # under penalty of the most tiresome scolding imaginable. OK, maybe
+    # not entirely woke, because the code will enable a sleep mode to
+    # conserve power. 
+
     async def xcvr(self, stdscr : _curses.window) -> None:
         # Read data from the module
 
         # NOTE: AT+RCV is NOT a valid command.
         # The module emits "+RCV=w,x,y,z" when it has received a packet
         # To test the +ERR= logic, uncomment the following
-        # count : int  = await aio.write_async(bytes('AT+RCV\r\n', 'utf8'))
+        #count : int  = await self.aio.write_async(bytes('AT+RCV\r\n', 'utf8'))
         # This generates the response b'+ERR=4\r\n'. Otherwise, leave commented
+        # other functions can be tested, such as query functions
+        # these functions should be called from within the receive loop
+        # only one such function can be uncommented at a time, or an ERR=4
+        # condition will result.
+        # count : int  = await self.aio.write_async(bytes('AT+UID?\r\n', 'utf8'))
+        # count : int  = await self.aio.write_async(bytes('AT+VER?\r\n', 'utf8'))
+        count : int  = await self.aio.write_async(bytes('AT+BAND?\r\n', 'utf8'))
+        #count : int  = await self.aio.write_async(bytes('AT+NETWORKID?\r\n', 'utf8'))
 
         self.resetstate()
         self.resettxbuf()
@@ -166,71 +189,109 @@ class rylr998:
                         self.state += 1 # advance the state index
                     else:
                         if self.state == 1:
-                            if  data == self.ERR_table[1]:
-                                # Swap out the receive table
-                                # for the error table
-                                self.state_table = self.ERR_table
-                                self.state += 1 # advance the state index
-                            elif data == self.OK_table[1]:
-                                self.state_table = self.OK_table
-                                self.state += 1 # advance the state index
-                            elif data == self.BAND_table[1]:
-                                self.state_table = self.BAND_table
-                                self.state += 1 # advance the state index
-                            else:
-                                self.resetstate() # give up. Dunno what it is
+                            self.state += 1  # advance the state
+                            match data:
+                                case b'A':
+                                    self.state_table = self.ADDR_table
+                                case b'B':
+                                    self.state_table = self.BAND_table
+                                case b'C':
+                                    self.state_table = self.CRFOP_table
+                                case b'E':
+                                    self.state_table = self.ERR_table
+                                case b'I':
+                                    self.state_table = self.IPR_table
+                                case b'M':
+                                    self.state_table = self.MODE_table
+                                case b'N':
+                                    self.state_table = self.NETID_table # like a net group
+                                case b'P':
+                                    self.state_table = self.PARAM_table
+                                case b'R':
+                                    self.state_table = self.RCV_table  # this won't happen but...
+                                case b'U':
+                                    self.state_table = self.UID_table
+                                case b'V':
+                                    self.state_table = self.VER_table
+                                case _:
+                                    self.resetstate() # beats me start over
                         else:
-                            self.resetstate()
+                            # in this case, the state is 0 and you are lost
+                            # or greater than 1 and you are lost
+                            self.resetstate() 
+                    continue  # parsing output takes priority over input
                 else:
-                    # self.state == len(self.state_table). Acc until '\n'
-                    # responses cannot be larger than 240 bytes
-                    # add an exception for this case
+                    # self.state == len(self.state_table). 
+                    # accumulate data into rxbuf after the '=' sign until  '\n'
 
                     self.rxbuf += str(data,'utf8')
-                    # To keep computing len(response) wastes energy
-                    # increment instead
-                    self.rxlen += 1
+                    self.rxlen += 1 # superior to calling len()
 
                     if self.rxlen > 240:
                         # The hardware is supposed to catch this error 
-                        
                         logging.error("Response exceeds 240 characters:{}.".format(self.rxbuf))
                         self.resetstate()
                         continue
 
                     # If you made it here, the msg is <= 240 chars
+
                     if data == b'\n':
+                        # add handlers for the curses display here
 
-                        if self.state_table == self.ERR_table:
-                            logging.error("+ERR={}".format(self.rxbuf))
-                            self.resetstate()
-                            continue
-                     
-                        if self.state_table == self.OK_table:
-                            self.resetstate()
-                            continue
+                        match self.state_table:
+                            case self.ADDR_table:
+                                pass
+                            case self.BAND_table:
+                                pass
+                            case self.CRFOP_table:
+                                pass
+                            case self.ERR_table:
+                                logging.error("+ERR={}".format(self.rxbuf))
+                                pass
+                            case self.IPR_table:
+                                pass
+                            case self.MODE_table:
+                                pass
+                            case self.OK_table:
+                                pass
+                            case self.NETID_table:
+                                pass
+                            case self.PARAM_table:
+                                pass
+                            case self.RCV_table:
+                                # The following five lines are adapted from
+                                # https://github.com/wybiral/micropython-rylr/blob/master/rylr.py
+                                addr, n, self.rxbuf = self.rxbuf.split(',', 2)
+                                n = int(n)
+                                msg = self.rxbuf[:n]
+                                self.rxbuf = self.rxbuf[n+1:]
+                                rssi, snr = self.rxbuf.split(',')
 
-                        # This case is for RCV only
-                        # The following five lines are adapted from
-                        # https://github.com/wybiral/micropython-rylr/blob/master/rylr.py
-                        if self.state_table == self.RCV_table:
-                            addr, n, self.rxbuf = self.rxbuf.split(',', 2)
-                            n = int(n)
-                            msg = self.rxbuf[:n]
-                            self.rxbuf = self.rxbuf[n+1:]
-                            rssi, snr = self.rxbuf.split(',')
-                            print("addr:{} len:{} data:{} rssi:{} snr:{}".format(addr,n,msg,rssi,snr[:-2]))
+                                # the following line is temporary until the rest of the curses program is added
+                                print("addr:{} len:{} data:{} rssi:{} snr:{}".format(addr,n,msg,rssi,snr[:-2]))
+                                # fall through OK here
+                            case self.UID_table:
+                                pass
+                            case self.VER_table:
+                                pass
+                            case _:
+                                print("Call Tech Support: unhandled case.")
 
-                            self.resetstate()
-                            # fall through OK here
-                    else: # not a newline yet. Prioritize receive
-                        continue # still accumulating response from /dev/ttyS0, stay in receive
+                        self.resetstate() # reset the state and assume RCV -- this is necessary
+
+                        # falling through to the non-blocking getch() is OK here 
+                        #continue # unless you change your mind--see how the code performs
+
+                    else: # not a newline yet. Prioritize receive and responses from the module
+                        continue # still accumulating response from /dev/ttyS0, keep listening
 
             # curses getch() with NODELAY is a foregone conclusion
-            # because this is a curses program
+            # because this is a curses program, dammit.
+
             ch = stdscr.getch()
+            # this is another match statement 
             if ch == -1:
-                continue
+                continue # I got nothin
             if  ch == ord(b'\x1b'): # b'x1b' is ESC
                 # clear the transmit buffer
                 self.resettxbuf()
@@ -254,6 +315,7 @@ if __name__ == "__main__":
     rylr  = rylr998(debug=True)
 
     try:
+        # how's this for an idiom
         asyncio.run(cur.wrapper(rylr.xcvr))
 
     except KeyboardInterrupt:
