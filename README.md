@@ -25,7 +25,7 @@ The GPIO connections are as follows:
 * RXD to GPIO 14 TXD1 this is physical pin 8
 * GND to GND physical pin 9.
 
-WARNING: get this wrong and you could fry your Raspberry Pi 4 and your REYAX RTLR998. I haven't had problems, knock wood, but the license comes with no warranty. Check your connections! Under no circumstances apply 5V to the REYAX. Only 3.3V. 
+WARNING: get this wrong and you could fry your Raspberry Pi 4 and your REYAX RTLR998. I haven't had problems, knock wood, but the [MIT license](https://github.com/flengyel/RYLR998-LoRa/blob/main/LICENSE) comes with no warranty. Check your connections! Under no circumstances apply 5V to the REYAX. Only 3.3V. 
 
 ## Disable Bluetooth and enable uart1 (/dev/ttyS0)
 
