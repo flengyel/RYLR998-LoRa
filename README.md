@@ -10,11 +10,12 @@ This is a work in progress. There are no threads here, only asynchronous I/O cal
 ## Python Module Dependencies
 
 * python 3.9+
+* rPI.GPIO
 * [asyncio](https://pypi.org/project/asyncio/)
 * [aioserial](https://pypi.org/project/aioserial/) 1.3.1+
 * [curses](https://docs.python.org/3/library/curses.html) 
 
-
+`pip install asyncio` and so on should work.
 
 ## GPIO connections
 
