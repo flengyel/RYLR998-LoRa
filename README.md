@@ -5,7 +5,7 @@ Asynchronous transceiver demo program for the [REYAX RYLR998](https://reyax.com/
 
 The python code of this repository was written to work with the REYAX RYLR998 LoRa module, using nothing more than five connections to the GPIO pins of a Raspberry pi 4 Model B Rev 1.5. No electronic components are needed other than five wires and ten female-female GPIO connectors. (Or connect the module directly to a GPIO head, etc., as you wish.)
 
-This is a work in progress. There are no threads here, only asynchronous I/O calls. I'm taking my time adding IRC-like display functions with the Python curses library slowly and deliberately with all due sloth, so slowly that I would be fired if I were doing this professionally. It is, however, a labor of love. 
+This is a work in progress. There are no threads here, only asynchronous I/O calls. I'm taking my time adding IRC-like display functions with the Python curses library slowly and deliberately with all due sloth, so slowly that I would be fired if I were doing this professionally, flunked if I were a student, defunded if I were an academic, and defrocked if I were a priest. It is, however, a labor of love. 
 
 ## Python Module Dependencies
 
