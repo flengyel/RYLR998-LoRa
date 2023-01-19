@@ -1,16 +1,20 @@
 # RYLR998-LoRa
 
-Demo transmit and receive program for the [REYAX RYLR998](https://reyax.com/products/rylr998/) LoRa module and the Raspberry Pi 4
+Asynchronous transceiver demo program for the [REYAX RYLR998](https://reyax.com/products/rylr998/) 33cm band LoRa module and the Raspberry Pi 4
 
-The python code of this repository was written to work with the REYAX RYLR998 LoRa module, using nothing more than five connections to the GPIO pins of a Raspberry pi 4 Model B Rev 1.5. No electronic components are needed other than five wires and ten female-female GPIO connectors. (Or connect the module directly to a GPIO head, etc., as you wish.)
+
+The python code of this repository was written to work with the REYAX RYLR998 LoRa module, using nothing more than five connections to the GPIO pins of a Raspberry pi 4 Model B Rev 1.5. No electronic components are needed other than five wires and ten female-female GPIO connectors. (Or connect the module directly to a GPIO head, etc., as you wish.) There are no threads here, only asynchronous non-blocking I/O calls.
+
 
 ## Python Module Dependencies
 
 * python 3.9+
-* [pySerial](https://pypi.org/project/pyserial/) 3.5+
-* [aioserial](https://pypi.org/project/aioserial/) 1.3.1+
+* rPI.GPIO
 * [asyncio](https://pypi.org/project/asyncio/)
+* [aioserial](https://pypi.org/project/aioserial/) 1.3.1+
+* [curses](https://docs.python.org/3/library/curses.html) 
 
+`pip install asyncio` and so on should work.
 
 ## GPIO connections
 
@@ -22,7 +26,7 @@ The GPIO connections are as follows:
 * RXD to GPIO 14 TXD1 this is physical pin 8
 * GND to GND physical pin 9.
 
-WARNING: get this wrong and you could fry your Raspberry Pi 4 and your REYAX RTLR998. I haven't had problems, knock wood, but the license comes with no warranty. Check your connections! Under no circumstances apply 5V to the REYAX. Only 3.3V. 
+WARNING: get this wrong and you could fry your Raspberry Pi 4 and your REYAX RTLR998. I haven't had problems, knock wood, but the [MIT license](https://github.com/flengyel/RYLR998-LoRa/blob/main/LICENSE) comes with no warranty. Check your connections! Under no circumstances apply 5V to the REYAX. Only 3.3V. 
 
 ## Disable Bluetooth and enable uart1 (/dev/ttyS0)
 
@@ -45,3 +49,6 @@ sudo systemctl disable hciuart.service
 sudo dtoverlay uart1
 ```
 
+## Disclaimer
+
+This is a work in progress.  I'm taking my time adding IRC-like display functions with the Python curses library slowly and deliberately with all due sloth, so slowly that I would be fired and blacklisted if I were doing this professionally; flunked and expelled without a degree and a boatload of private student loans if I were in college; and defunded and defrocked if I were an academician. Other than that, it's a labor of love. 
