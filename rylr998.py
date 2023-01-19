@@ -38,9 +38,11 @@ from serial import EIGHTBITS, PARITY_NONE,  STOPBITS_ONE
 import subprocess # for call to raspi-gpio
 import logging
 import curses as cur
+import curses.textpad as textpad
 import _curses
 #import datetime
 import sys
+
 
 class rylr998:
     TXD1   = 14    #  GPIO.BCM  pin 8
@@ -80,6 +82,15 @@ class rylr998:
     txbuf = ''     # tx buffer
     txlen = 0      # tx buffer length
 
+
+    # curses display related 
+    scr = None
+    # keep track of the cursor in each window
+    rxrow = 0   # rxwin_y relative window coordinates
+    rxcol = 0   # rxwin_x
+    txrow = 0   # txwin_y
+    txcol = 0   # txwin_x
+
     def resetstate(self) -> None:
         self.rxbuf = ''
         self.rxlen = 0
@@ -93,13 +104,12 @@ class rylr998:
     def gpiosetup(self) -> None:
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(True)
-        #GPIO.setup(self.RST,GPIO.OUT,initial=GPIO.LOW)
-        #time.sleep(0.25)  # reset at least 100ms
-        GPIO.setup(self.RST,GPIO.OUT,initial=GPIO.HIGH)
+        GPIO.setup(self.RST,GPIO.OUT,initial=GPIO.HIGH) # this is the default anyway
 
         if self.debug:
             print('GPIO setup mode')
             subprocess.run(["raspi-gpio", "get", '4,14,15'])
+
 
     def __del__(self):
         self.aio.close() # close the serial port
@@ -117,6 +127,7 @@ class rylr998:
         self.stopbits = stopbits
         self.timeout = timeout
         self.debug = debug
+        
 
         self.gpiosetup()
         
@@ -136,7 +147,7 @@ class rylr998:
 
     # we always call this function from the transceiver function below
 
-    async def ATcmd(self, cmd: str = ''):
+    async def ATcmd(self, cmd: str = '') -> int:
         if self.debug:
             print("In ATcmd("+cmd+")")
         command = 'AT' + ('+' if len(cmd) > 0 else '') + cmd + '\r\n'
@@ -145,6 +156,7 @@ class rylr998:
         # This function should wait for receive to finish before beginning
         # we may pass a semaphore, or only call this from within receive
         # in response to a function key to ensure the proper coroutine behavior.
+        return count
 
     # Transceiver function
     # This is the main loop. Receving takes priority over transmission
@@ -155,12 +167,11 @@ class rylr998:
     # conserve power. 
 
     async def xcvr(self, stdscr : _curses.window) -> None:
-        # Read data from the module
 
         # NOTE: AT+RCV is NOT a valid command.
         # The module emits "+RCV=w,x,y,z" when it has received a packet
         # To test the +ERR= logic, uncomment the following
-        #count : int  = await self.aio.write_async(bytes('AT+RCV\r\n', 'utf8'))
+        # count : int  = await self.aio.write_async(bytes('AT+RCV\r\n', 'utf8'))
         # This generates the response b'+ERR=4\r\n'. Otherwise, leave commented
         # other functions can be tested, such as query functions
         # these functions should be called from within the receive loop
@@ -173,7 +184,31 @@ class rylr998:
 
         self.resetstate()
         self.resettxbuf()
-        stdscr.nodelay(1) # non-blocking getch()
+
+        cur.savetty() # this has become necessary here  
+        cur.raw()
+        cur.start_color()
+        cur.use_default_colors()
+        # define a fg,bg pair
+        cur.init_pair(1, cur.COLOR_YELLOW, cur.COLOR_BLACK)
+
+        self.scr = stdscr
+        self.scr.nodelay(True) # non-blocking getch()
+
+        #rectangle(win, uly, ulx, lry, lrx)
+        textpad.rectangle(self.scr,0,0,21,41)
+        rxwin = self.scr.derwin(20,40,1,1)
+        rxwin.scrollok(True)
+        rxwin.bkgd(' ', cur.color_pair(1))
+        
+
+        textpad.rectangle(self.scr, 23,0, 25, 41)
+        txwin = self.scr.derwin(1,40,24,1)
+        txwin.nodelay(True)
+        txwin.move(self.txrow, self.txcol)
+        # show the rectangles
+        txwin.refresh
+        self.scr.refresh()
 
         while True:
             #print(datetime.datetime.now())
@@ -223,6 +258,7 @@ class rylr998:
                 else:
                     # self.state == len(self.state_table). 
                     # accumulate data into rxbuf after the '=' sign until  '\n'
+                    # The OK does not have an equal sign, so it vanishes.
 
                     self.rxbuf += str(data,'utf8')
                     self.rxlen += 1 # superior to calling len()
@@ -236,24 +272,27 @@ class rylr998:
                     # If you made it here, the msg is <= 240 chars
 
                     if data == b'\n':
-                        # add handlers for the curses display here
+                        # remove the carriage return, newline from rxbuf
+                        self.rxbuf = self.rxbuf[:-2]
+                        self.rxlen -= 2
 
+                        # add handlers for the curses display here
+                          
                         match self.state_table:
                             case self.ADDR_table:
                                 pass
                             case self.BAND_table:
-                                pass
+                                rxwin.addnstr(self.rxrow, self.rxcol, "Freq = " + self.rxbuf +" Hz", self.rxlen+10, cur.A_UNDERLINE)
                             case self.CRFOP_table:
                                 pass
                             case self.ERR_table:
-                                logging.error("+ERR={}".format(self.rxbuf))
-                                pass
+                                rxwin.addnstr(self.rxrow,self.rxcol,"+ERR={}".format(self.rxbuf), self.rxlen+7, cur.A_UNDERLINE)
                             case self.IPR_table:
                                 pass
                             case self.MODE_table:
                                 pass
                             case self.OK_table:
-                                pass
+                                rxwin.addnstr(self.rxrow, self.rxcol, "+OK", 3, cur.A_UNDERLINE)
                             case self.NETID_table:
                                 pass
                             case self.PARAM_table:
@@ -261,22 +300,26 @@ class rylr998:
                             case self.RCV_table:
                                 # The following five lines are adapted from
                                 # https://github.com/wybiral/micropython-rylr/blob/master/rylr.py
+                                
                                 addr, n, self.rxbuf = self.rxbuf.split(',', 2)
                                 n = int(n)
                                 msg = self.rxbuf[:n]
                                 self.rxbuf = self.rxbuf[n+1:]
                                 rssi, snr = self.rxbuf.split(',')
-
-                                # the following line is temporary until the rest of the curses program is added
-                                print("addr:{} len:{} data:{} rssi:{} snr:{}".format(addr,n,msg,rssi,snr[:-2]))
-                                # fall through OK here
+                                rxwin.addstr(self.rxrow, self.rxcol, "@:{} len:{} data:{} rssi:{} snr:{}".format(addr,n,msg,rssi,snr), cur.A_BOLD)
                             case self.UID_table:
                                 pass
                             case self.VER_table:
                                 pass
                             case _:
-                                print("Call Tech Support: unhandled case.")
+                                rxwin.addstr(self.rxrow, self.rxcol, "Call Tech Support: unknown case.", cur.A_UNDERLINE)
 
+                        self.rxrow = min(19, self.rxrow+1)
+                        self.rxcol = 0
+                        rxwin.refresh()
+                        # also return to the txwin
+                        txwin.move(self.txrow, self.txcol)
+                        txwin.refresh()
                         self.resetstate() # reset the state and assume RCV -- this is necessary
 
                         # falling through to the non-blocking getch() is OK here 
@@ -285,34 +328,50 @@ class rylr998:
                     else: # not a newline yet. Prioritize receive and responses from the module
                         continue # still accumulating response from /dev/ttyS0, keep listening
 
-            # curses getch() with NODELAY is a foregone conclusion
-            # because this is a curses program, dammit.
+            # at long last, you can speak
+            ch = txwin.getch()
+            if ch == -1: # no character
+                continue
+            elif ch == 3: # CTRL-C
+                cur.noraw() # go back to cooked mode
+                cur.resetty() # restore the terminal
+                raise KeyboardInterrupt
 
-            ch = stdscr.getch()
-            # this is another match statement 
-            if ch == -1:
-                continue # I got nothin
-            if  ch == ord(b'\x1b'): # b'x1b' is ESC
+            elif   ch == ord(b'\x1b'): # b'x1b' is ESC
                 # clear the transmit buffer
+                txwin.clear()
+                self.txcol = 0
                 self.resettxbuf()
-            elif ch == ord(b'\n'):
+
+            elif ch == ord('\n'):
                 if self.txlen > 0:
                     await self.ATcmd('SEND=0,'+str(self.txlen)+','+self.txbuf)
+                    rxwin.addnstr(self.rxrow,self.rxcol,"{}".format(self.txbuf), self.txlen, cur.A_NORMAL)
+                    self.rxrow = min(19, self.rxrow+1)
+                    rxwin.refresh()
+                self.txcol=0
+                txwin.move(self.txrow, self.txcol) # move back
+                txwin.clear()
                 self.resettxbuf()
-                continue
+
             elif ch == ord(b'\x08'): # Backspace
                 self.txbuf = self.txbuf[:-1]
                 self.txlen = max(0, self.txlen-1)
+                self.txcol = max(0, self.txcol-1)
+                txwin.delch(self.txrow, self.txcol)
+                txwin.refresh()
             else:
-                self.txbuf += str(chr(ch))
-                self.txlen += 1
-                if self.debug:
-                    print(chr(ch), self.txbuf, self.txlen)
+                if self.txlen < 40:
+                    self.txbuf += str(chr(ch))
+                else:
+                    self.txbuf = self.txbuf[:-1] + str(chr(ch))
+                self.txlen = min(40, self.txlen+1) #  
+                self.txcol = min(39, self.txcol+1)
 
 
 if __name__ == "__main__":
 
-    rylr  = rylr998(debug=True)
+    rylr  = rylr998(debug=False)
 
     try:
         # how's this for an idiom
