@@ -100,6 +100,7 @@ class rylr998:
     def resettxbuf(self) -> None:
         self.txbuf = '' # clear tx buffer
         self.txlen = 0  # txlen is zero
+        self.txcol = 0  # start at relative column zero
 
     def gpiosetup(self) -> None:
         GPIO.setmode(GPIO.BCM)
@@ -191,6 +192,13 @@ class rylr998:
         cur.use_default_colors()
         # define a fg,bg pair
         cur.init_pair(1, cur.COLOR_YELLOW, cur.COLOR_BLACK)
+        # and another fg,bg pair
+        cur.init_pair(2, cur.COLOR_BLUE,  cur.COLOR_BLACK)
+        # and yet another
+        cur.init_pair(3, cur.COLOR_GREEN,  cur.COLOR_BLACK)
+        # and yet another
+        cur.init_pair(4, cur.COLOR_RED,  cur.COLOR_BLACK)
+        
 
         self.scr = stdscr
         self.scr.nodelay(True) # non-blocking getch()
@@ -199,6 +207,7 @@ class rylr998:
         textpad.rectangle(self.scr,0,0,21,41)
         rxwin = self.scr.derwin(20,40,1,1)
         rxwin.scrollok(True)
+        # This changes the foreground color 
         rxwin.bkgd(' ', cur.color_pair(1))
         
 
@@ -206,8 +215,9 @@ class rylr998:
         txwin = self.scr.derwin(1,40,24,1)
         txwin.nodelay(True)
         txwin.move(self.txrow, self.txcol)
+        txwin.bkgd(' ', cur.color_pair(1))
+        txwin.refresh()
         # show the rectangles
-        txwin.refresh
         self.scr.refresh()
 
         while True:
@@ -282,17 +292,17 @@ class rylr998:
                             case self.ADDR_table:
                                 pass
                             case self.BAND_table:
-                                rxwin.addnstr(self.rxrow, self.rxcol, "Freq = " + self.rxbuf +" Hz", self.rxlen+10, cur.A_UNDERLINE)
+                                rxwin.addnstr(self.rxrow, self.rxcol, "Freq = " + self.rxbuf +" Hz", self.rxlen+10, cur.color_pair(2))
                             case self.CRFOP_table:
                                 pass
                             case self.ERR_table:
-                                rxwin.addnstr(self.rxrow,self.rxcol,"+ERR={}".format(self.rxbuf), self.rxlen+7, cur.A_UNDERLINE)
+                                rxwin.addnstr(self.rxrow,self.rxcol,"+ERR={}".format(self.rxbuf), self.rxlen+7, cur.color_pair(4))
                             case self.IPR_table:
                                 pass
                             case self.MODE_table:
                                 pass
                             case self.OK_table:
-                                rxwin.addnstr(self.rxrow, self.rxcol, "+OK", 3, cur.A_UNDERLINE)
+                                rxwin.addnstr(self.rxrow, self.rxcol, "+OK", 3, cur.color_pair(2))
                             case self.NETID_table:
                                 pass
                             case self.PARAM_table:
@@ -306,7 +316,7 @@ class rylr998:
                                 msg = self.rxbuf[:n]
                                 self.rxbuf = self.rxbuf[n+1:]
                                 rssi, snr = self.rxbuf.split(',')
-                                rxwin.addstr(self.rxrow, self.rxcol, "@:{} len:{} data:{} rssi:{} snr:{}".format(addr,n,msg,rssi,snr), cur.A_BOLD)
+                                rxwin.addstr(self.rxrow, self.rxcol, "@:{} len:{} data:{} rssi:{} snr:{}".format(addr,n,msg,rssi,snr), cur.color_pair(3) |  cur.A_BOLD)
                             case self.UID_table:
                                 pass
                             case self.VER_table:
