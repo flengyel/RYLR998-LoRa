@@ -104,7 +104,6 @@ class rylr998:
     def txbufReset(self) -> None:
         self.txbuf = '' # clear tx buffer
         self.txlen = 0  # txlen is zero
-        self.txcol = 0  # start at relative column zero
 
     def gpiosetup(self) -> None:
         GPIO.setmode(GPIO.BCM)
@@ -157,14 +156,6 @@ class rylr998:
     # over transmission and configuration. This is done one character at
     # a time, by maintining the receive buffer, receive window, transmit
     # buffer and transmit windows separately.
-    #
-    # Listening takes priority over talking. Therefore this code is
-    # woke by definition and cannot be cancelled by moralizing busybodies 
-    # and tiresome scolds under penaty of exclusion from the MIT license. 
-    # Assuming this is even possible. I doubt it because of all of the 
-    # other open source code licenses this code relies on. OK, maybe 
-    # the code isn't entirely woke, because I plan to enable a sleep mode 
-    # to conserve power. Just forget this entire paragraph and keep reading.
 
     async def xcvr(self, scr : _curses.window) -> None:
         # color pair initialization constants
@@ -201,10 +192,8 @@ class rylr998:
             command = 'AT' + ('+' if len(cmd) > 0 else '') + cmd + '\r\n'
             count : int  = await self.aio.write_async(bytes(command, 'utf8'))
             return count
-
         
         init_curses()
-
 
         # receive window initialization
         # keep track of the cursor in each window
@@ -237,8 +226,6 @@ class rylr998:
         # show the rectangles
         scr.refresh()
 
-
-
         # Brace yourself: we are close to entering the main loop
 
         # NOTE: AT+RCV is NOT a valid command.
@@ -254,10 +241,13 @@ class rylr998:
         # this next causes trouble to debug
         # count : int  = await ATcmd('RESET')
         # count : int  = await ATcmd('BAND?')
-        count : int  = await ATcmd('BAND=915125000')
-        #count : int  = await ATcmd('NETWORKID?')
+        # count : int  = await ATcmd('BAND=915125000')
+        # count : int  = await ATcmd('NETWORKID?')
         # Add test of > 240 character string
         # Add English interpretations of the ERR conditions
+
+        # The address is needed
+        count : int = await ATcmd('ADDRESS?')
 
         # This is the moment of truth, as evidenced by the "while True:" below
 
@@ -319,26 +309,22 @@ class rylr998:
                     self.rxbuf += str(data,'utf8')
                     self.rxlen += 1 # superior to calling len()
 
-                    if self.rxlen > 240:
-                        # The hardware is supposed to catch this error 
-                        logging.error("Response exceeds 240 characters:{}.".format(self.rxbuf))
-                        # NOTE TO SELF: handle the rxwindow as well.
-
-                        self.rxbufReset()
-                        continue
-
                     # If you made it here, the msg is <= 240 chars
+                    # the hardware ensures this
 
                     if data == b'\n':
                         # remove the carriage return, newline from rxbuf
                         self.rxbuf = self.rxbuf[:-2]
                         self.rxlen -= 2
 
-                        # handlers for the curses display go here 
-                          
+                        # move up to avoid overwriting
+                        row, col = rxwin.getyx() 
+                        if row == 19:
+                            rxwin.scroll()
+
                         match self.state_table:
                             case self.ADDR_table:
-                                pass
+                                rxwin.addnstr(rxrow, rxcol, "Addr = " + self.rxbuf, self.rxlen+7, cur.color_pair(BLUE_BLACK))
                             case self.BAND_table:
                                 rxwin.addnstr(rxrow, rxcol, "Freq = " + self.rxbuf +" Hz", self.rxlen+10, cur.color_pair(BLUE_BLACK))
                             case self.CRFOP_table:
@@ -350,6 +336,7 @@ class rylr998:
                             case self.MODE_table:
                                 pass
                             case self.OK_table:
+                                n = 3
                                 rxwin.addnstr(rxrow, rxcol, "+OK", 3, cur.color_pair(BLUE_BLACK))
                             case self.NETID_table:
                                 pass
@@ -373,9 +360,12 @@ class rylr998:
                             case _:
                                 rxwin.addstr(rxrow, rxcol, "ERROR. Call Tech Support!", cur.color_pair(RED_BLACK))
                          
-                        # advance the rx window row and check if scrolling
-                        rxrow = min(19, rxrow+1)
-                        rxcol = 0
+                        #  Long lines will scroll automatically
+                        # check if scrolling needed
+
+                        row, col = rxwin.getyx()
+                        rxrow = min(19, row+1)
+                        rxcol = 0 # never moves
                         rxwin.refresh()
 
                         # also return to the txwin
@@ -394,6 +384,7 @@ class rylr998:
             ch = txwin.getch()
             if ch == -1: # no character
                 continue
+
             elif ch == 3: # CTRL-C
                 cur.noraw() # go back to cooked mode
                 cur.resetty() # restore the terminal
@@ -407,14 +398,21 @@ class rylr998:
 
             elif ch == ord('\n'):
                 if self.txlen > 0:
-                    # here you need the address from an initialization step!
-                    # the send is assuming address == 0.
-
+                    # need address from initialization 
                     await ATcmd('SEND=0,'+str(self.txlen)+','+self.txbuf)
-                    rxwin.addnstr(rxrow, rxcol,"{}".format(self.txbuf), self.txlen, cur.color_pair(YELLOW_BLACK))
-                    rxrow = min(19, rxrow+1)
+
+                    row, col = rxwin.getyx()
+                    if row == 19:
+                       rxwin.scroll() # scroll up if at the end
+
+                    # use insnsstr() here to avoid scrolling if 40 characters (the maximum)
+                    rxwin.insnstr(rxrow, rxcol,"{}".format(self.txbuf), self.txlen, cur.color_pair(YELLOW_BLACK))
+
+                    row, col = rxwin.getyx()
+                    rxrow = min(19, row+1)
+                    rxcol = 0
                     rxwin.refresh()
-                    # these were outside the condition 4 spaces left
+
                     txcol=0
                     txwin.move(txrow, txcol) # cursor to tx initial input position
                     txwin.clear()
@@ -426,6 +424,7 @@ class rylr998:
                 txcol = max(0, txcol-1)
                 txwin.delch(txrow, txcol)
                 txwin.refresh()
+
             else:
                 if self.txlen < 40:
                     self.txbuf += str(chr(ch))
