@@ -30,7 +30,6 @@
 # "IT'S A DISGRACE, BUT THERE YOU ARE."
 # -- Pozzo. Samuel Beckett. Waiting for Godot, Act 1.
 
-
 import RPi.GPIO as GPIO
 import asyncio
 import aioserial
@@ -45,14 +44,15 @@ import sys
 
 
 class rylr998:
-    TXD1   = 14    #  GPIO.BCM  pin 8
-    RXD1   = 15    #  GPIO.BCM  pin 10
-    RST    = 4     #  GPIO.BCM  pin 7
-    debug  = False #  don't go into debug mode
+    TXD1   = 14    # GPIO.BCM  pin 8
+    RXD1   = 15    # GPIO.BCM  pin 10
+    RST    = 4     # GPIO.BCM  pin 7
+    debug  = False # By default, don't go into debug mode
 
     aio : aioserial.AioSerial   = None  # asyncio serial port
 
-    # default values for the serial port constructor
+    # default values for the serial port constructor below
+
     port     ='/dev/ttyS0'
     baudrate = 115200
     parity   = PARITY_NONE
@@ -75,29 +75,33 @@ class rylr998:
     UID_table   = [b'+',b'U',b'I',b'D',b'=']
     VER_table   = [b'+',b'V',b'E',b'R',b'=']
 
+    # initial receive buffer state
+
     rxbuf = ''  # string response
     rxlen = 0
-    state_table = RCV_table
+
+    state = 0   # index into the current state table
+    state_table = RCV_table # start state for the "machine"
+
+    # initial transmit buffer state
 
     txbuf = ''     # tx buffer
     txlen = 0      # tx buffer length
 
-
-    # curses display related 
-    scr = None
-    # keep track of the cursor in each window
-    rxrow = 0   # rxwin_y relative window coordinates
-    rxcol = 0   # rxwin_x
-    txrow = 0   # txwin_y
-    txcol = 0   # txwin_x
-
-    def resetstate(self) -> None:
+    # reset the receive buffer state
+    # NOTE: the receive buffer state is part of the RYLR998 object
+    # but the curses receive window state is maintained in the xcvr() function
+    def rxbufReset(self) -> None:
         self.rxbuf = ''
         self.rxlen = 0
         self.state = 0
         self.state_table = self.RCV_table # the default since RCV takes priority
 
-    def resettxbuf(self) -> None:
+    # reset the transmit buffer state
+    # NOTE: the transmit buffer state is part of the RYRL998 object
+    # but the curses transmit window state is maintained in the xcvr() function 
+
+    def txbufReset(self) -> None:
         self.txbuf = '' # clear tx buffer
         self.txlen = 0  # txlen is zero
         self.txcol = 0  # start at relative column zero
@@ -146,79 +150,116 @@ class rylr998:
             raise aioserial.SerialException
 
 
-    # we always call this function from the transceiver function below
-
-    async def ATcmd(self, cmd: str = '') -> int:
-        if self.debug:
-            print("In ATcmd("+cmd+")")
-        command = 'AT' + ('+' if len(cmd) > 0 else '') + cmd + '\r\n'
-        count : int  = await self.aio.write_async(bytes(command, 'utf8'))
-        # use the transceiver loop to parse the response from the RYLR998
-        # This function should wait for receive to finish before beginning
-        # we may pass a semaphore, or only call this from within receive
-        # in response to a function key to ensure the proper coroutine behavior.
-        return count
-
     # Transceiver function
-    # This is the main loop. Receving takes priority over transmission
+    #
+    # This is the main loop. The transceiver function xcvr(scr) is designed
+    # to prioritize receving and parsing command responses from the RYLR998
+    # over transmission and configuration. This is done one character at
+    # a time, by maintining the receive buffer, receive window, transmit
+    # buffer and transmit windows separately.
+    #
     # Listening takes priority over talking. Therefore this code is
     # woke by definition and cannot be cancelled by moralizing busybodies 
-    # under penalty of the most tiresome scolding imaginable. OK, maybe
-    # not entirely woke, because the code will enable a sleep mode to
-    # conserve power. 
+    # and tiresome scolds under penaty of exclusion from the MIT license. 
+    # Assuming this is even possible. I doubt it because of all of the 
+    # other open source code licenses this code relies on. OK, maybe 
+    # the code isn't entirely woke, because I plan to enable a sleep mode 
+    # to conserve power. Just forget this entire paragraph and keep reading.
 
-    async def xcvr(self, stdscr : _curses.window) -> None:
+    async def xcvr(self, scr : _curses.window) -> None:
+        # color pair initialization constants
+        YELLOW_BLACK = 1
+        GREEN_BLACK  = 2  # our pallete is off bear with me
+        BLUE_BLACK   = 3
+        RED_BLACK    = 4
+        BLACK_PINK   = 5  # 
+          
+        def init_curses() -> None:
+            cur.savetty() # this has become necessary here  
+            cur.raw()
+            cur.start_color()
+            cur.use_default_colors()
+            # define a fg,bg pair
+            cur.init_pair(YELLOW_BLACK, cur.COLOR_YELLOW, cur.COLOR_BLACK)
+            # and another fg,bg pair (don't ask why BLUE is GREEN and conversely)
+            cur.init_pair(GREEN_BLACK, cur.COLOR_BLUE,  cur.COLOR_BLACK)
+            # and yet another
+            cur.init_pair(BLUE_BLACK, cur.COLOR_GREEN,  cur.COLOR_BLACK)
+            # and yet another -- this is for errors
+            cur.init_pair(RED_BLACK, cur.COLOR_RED,  cur.COLOR_BLACK)
+            # an approximation
+            cur.init_pair(BLACK_PINK, cur.COLOR_MAGENTA, cur.COLOR_BLACK)
+            scr.nodelay(True) # non-blocking getch()
 
-        # NOTE: AT+RCV is NOT a valid command.
-        # The module emits "+RCV=w,x,y,z" when it has received a packet
-        # To test the +ERR= logic, uncomment the following
-        # count : int  = await self.aio.write_async(bytes('AT+RCV\r\n', 'utf8'))
-        # This generates the response b'+ERR=4\r\n'. Otherwise, leave commented
-        # other functions can be tested, such as query functions
-        # these functions should be called from within the receive loop
-        # only one such function can be uncommented at a time, or an ERR=4
-        # condition will result.
-        # count : int  = await self.aio.write_async(bytes('AT+UID?\r\n', 'utf8'))
-        # count : int  = await self.aio.write_async(bytes('AT+VER?\r\n', 'utf8'))
-        count : int  = await self.aio.write_async(bytes('AT+BAND?\r\n', 'utf8'))
-        #count : int  = await self.aio.write_async(bytes('AT+NETWORKID?\r\n', 'utf8'))
+        # ATcmd() is only called within the transceiver loop, 
+        # so it is an inner function. The transceiver loop parses 
+        # the response to AT commands from the RYLR998
 
-        self.resetstate()
-        self.resettxbuf()
+        async def ATcmd(cmd: str = '') -> int:
+            if self.debug:
+                print("In ATcmd("+cmd+")")
+            command = 'AT' + ('+' if len(cmd) > 0 else '') + cmd + '\r\n'
+            count : int  = await self.aio.write_async(bytes(command, 'utf8'))
+            return count
 
-        cur.savetty() # this has become necessary here  
-        cur.raw()
-        cur.start_color()
-        cur.use_default_colors()
-        # define a fg,bg pair
-        cur.init_pair(1, cur.COLOR_YELLOW, cur.COLOR_BLACK)
-        # and another fg,bg pair
-        cur.init_pair(2, cur.COLOR_BLUE,  cur.COLOR_BLACK)
-        # and yet another
-        cur.init_pair(3, cur.COLOR_GREEN,  cur.COLOR_BLACK)
-        # and yet another
-        cur.init_pair(4, cur.COLOR_RED,  cur.COLOR_BLACK)
         
+        init_curses()
 
-        self.scr = stdscr
-        self.scr.nodelay(True) # non-blocking getch()
 
+        # receive window initialization
+        # keep track of the cursor in each window
         #rectangle(win, uly, ulx, lry, lrx)
-        textpad.rectangle(self.scr,0,0,21,41)
-        rxwin = self.scr.derwin(20,40,1,1)
+
+        textpad.rectangle(scr,0,0,21,41)
+        rxwin = scr.derwin(20,40,1,1)
         rxwin.scrollok(True)
         # This changes the foreground color 
-        rxwin.bkgd(' ', cur.color_pair(1))
+        rxwin.bkgd(' ', cur.color_pair(YELLOW_BLACK))
+        rxrow = 0   # rxwin_y relative window coordinates
+        rxcol = 0   # rxwin_x
         
-
-        textpad.rectangle(self.scr, 23,0, 25, 41)
-        txwin = self.scr.derwin(1,40,24,1)
+        # receive buffer and state reset
+        self.rxbufReset()
+ 
+        # transmit window initialization
+        textpad.rectangle(scr, 23,0, 25, 41)
+        txwin = scr.derwin(1,40,24,1)
         txwin.nodelay(True)
-        txwin.move(self.txrow, self.txcol)
-        txwin.bkgd(' ', cur.color_pair(1))
+        # txwin cursor coordinates
+        txrow = 0   # txwin_y
+        txcol = 0   # txwin_x
+        txwin.move(txrow, txcol)
+        txwin.bkgd(' ', cur.color_pair(YELLOW_BLACK))
         txwin.refresh()
+
+        self.txbufReset()
+
         # show the rectangles
-        self.scr.refresh()
+        scr.refresh()
+
+
+
+        # Brace yourself: we are close to entering the main loop
+
+        # NOTE: AT+RCV is NOT a valid command.
+        # The RYLR998 module emits "+RCV=w,x,y,z" when it has received a packet
+        # To test the +ERR= logic, uncomment the following
+        # count : int  = await ATcmd('RCV')
+        # This generates the response b'+ERR=4\r\n'. Otherwise, leave commented.
+        # Other functions can be tested, such as the query functions below
+        # Only one such function can be uncommented at a time, or an ERR=4
+        # condition will result.
+        # count : int  = await ATcmd('UID?')
+        # count : int  = await ATcmd('VER?')
+        # this next causes trouble to debug
+        # count : int  = await ATcmd('RESET')
+        # count : int  = await ATcmd('BAND?')
+        count : int  = await ATcmd('BAND=915125000')
+        #count : int  = await ATcmd('NETWORKID?')
+        # Add test of > 240 character string
+        # Add English interpretations of the ERR conditions
+
+        # This is the moment of truth, as evidenced by the "while True:" below
 
         while True:
             #print(datetime.datetime.now())
@@ -250,6 +291,8 @@ class rylr998:
                                     self.state_table = self.MODE_table
                                 case b'N':
                                     self.state_table = self.NETID_table # like a net group
+                                case b'O':
+                                    self.state_table = self.OK_table # inadvertently omitted previously!
                                 case b'P':
                                     self.state_table = self.PARAM_table
                                 case b'R':
@@ -259,24 +302,29 @@ class rylr998:
                                 case b'V':
                                     self.state_table = self.VER_table
                                 case _:
-                                    self.resetstate() # beats me start over
+                                    self.rxbufReset() # beats me start over
                         else:
                             # in this case, the state is 0 and you are lost
                             # or greater than 1 and you are lost
-                            self.resetstate() 
+                            self.rxbufReset() 
+
                     continue  # parsing output takes priority over input
+
                 else:
                     # self.state == len(self.state_table). 
                     # accumulate data into rxbuf after the '=' sign until  '\n'
                     # The OK does not have an equal sign, so it vanishes.
 
+                    # advance the rx buffer 
                     self.rxbuf += str(data,'utf8')
                     self.rxlen += 1 # superior to calling len()
 
                     if self.rxlen > 240:
                         # The hardware is supposed to catch this error 
                         logging.error("Response exceeds 240 characters:{}.".format(self.rxbuf))
-                        self.resetstate()
+                        # NOTE TO SELF: handle the rxwindow as well.
+
+                        self.rxbufReset()
                         continue
 
                     # If you made it here, the msg is <= 240 chars
@@ -286,23 +334,23 @@ class rylr998:
                         self.rxbuf = self.rxbuf[:-2]
                         self.rxlen -= 2
 
-                        # add handlers for the curses display here
+                        # handlers for the curses display go here 
                           
                         match self.state_table:
                             case self.ADDR_table:
                                 pass
                             case self.BAND_table:
-                                rxwin.addnstr(self.rxrow, self.rxcol, "Freq = " + self.rxbuf +" Hz", self.rxlen+10, cur.color_pair(2))
+                                rxwin.addnstr(rxrow, rxcol, "Freq = " + self.rxbuf +" Hz", self.rxlen+10, cur.color_pair(BLUE_BLACK))
                             case self.CRFOP_table:
                                 pass
                             case self.ERR_table:
-                                rxwin.addnstr(self.rxrow,self.rxcol,"+ERR={}".format(self.rxbuf), self.rxlen+7, cur.color_pair(4))
+                                rxwin.addnstr(rxrow, rxcol,"+ERR={}".format(self.rxbuf), self.rxlen+7, cur.color_pair(RED_BLACK))
                             case self.IPR_table:
                                 pass
                             case self.MODE_table:
                                 pass
                             case self.OK_table:
-                                rxwin.addnstr(self.rxrow, self.rxcol, "+OK", 3, cur.color_pair(2))
+                                rxwin.addnstr(rxrow, rxcol, "+OK", 3, cur.color_pair(BLUE_BLACK))
                             case self.NETID_table:
                                 pass
                             case self.PARAM_table:
@@ -316,21 +364,25 @@ class rylr998:
                                 msg = self.rxbuf[:n]
                                 self.rxbuf = self.rxbuf[n+1:]
                                 rssi, snr = self.rxbuf.split(',')
-                                rxwin.addstr(self.rxrow, self.rxcol, "@:{} len:{} data:{} rssi:{} snr:{}".format(addr,n,msg,rssi,snr), cur.color_pair(3) |  cur.A_BOLD)
+                                # the address, rssi and the snr should go in separate "windows"
+                                rxwin.addstr(rxrow, rxcol, "@:{} len:{} data:{} rssi:{} snr:{}".format(addr,n,msg,rssi,snr), cur.color_pair(BLACK_PINK))
                             case self.UID_table:
                                 pass
                             case self.VER_table:
                                 pass
                             case _:
-                                rxwin.addstr(self.rxrow, self.rxcol, "Call Tech Support: unknown case.", cur.A_UNDERLINE)
-
-                        self.rxrow = min(19, self.rxrow+1)
-                        self.rxcol = 0
+                                rxwin.addstr(rxrow, rxcol, "ERROR. Call Tech Support!", cur.color_pair(RED_BLACK))
+                         
+                        # advance the rx window row and check if scrolling
+                        rxrow = min(19, rxrow+1)
+                        rxcol = 0
                         rxwin.refresh()
+
                         # also return to the txwin
-                        txwin.move(self.txrow, self.txcol)
+                        txwin.move(txrow, txcol)
                         txwin.refresh()
-                        self.resetstate() # reset the state and assume RCV -- this is necessary
+
+                        self.rxbufReset() # reset the receive buffer state and assume RCV -- this is necessary
 
                         # falling through to the non-blocking getch() is OK here 
                         #continue # unless you change your mind--see how the code performs
@@ -350,33 +402,38 @@ class rylr998:
             elif   ch == ord(b'\x1b'): # b'x1b' is ESC
                 # clear the transmit buffer
                 txwin.clear()
-                self.txcol = 0
-                self.resettxbuf()
+                txcol = 0
+                self.txbufReset()
 
             elif ch == ord('\n'):
                 if self.txlen > 0:
-                    await self.ATcmd('SEND=0,'+str(self.txlen)+','+self.txbuf)
-                    rxwin.addnstr(self.rxrow,self.rxcol,"{}".format(self.txbuf), self.txlen, cur.A_NORMAL)
-                    self.rxrow = min(19, self.rxrow+1)
+                    # here you need the address from an initialization step!
+                    # the send is assuming address == 0.
+
+                    await ATcmd('SEND=0,'+str(self.txlen)+','+self.txbuf)
+                    rxwin.addnstr(rxrow, rxcol,"{}".format(self.txbuf), self.txlen, cur.color_pair(YELLOW_BLACK))
+                    rxrow = min(19, rxrow+1)
                     rxwin.refresh()
-                self.txcol=0
-                txwin.move(self.txrow, self.txcol) # move back
-                txwin.clear()
-                self.resettxbuf()
+                    # these were outside the condition 4 spaces left
+                    txcol=0
+                    txwin.move(txrow, txcol) # cursor to tx initial input position
+                    txwin.clear()
+                    self.txbufReset()
 
             elif ch == ord(b'\x08'): # Backspace
                 self.txbuf = self.txbuf[:-1]
                 self.txlen = max(0, self.txlen-1)
-                self.txcol = max(0, self.txcol-1)
-                txwin.delch(self.txrow, self.txcol)
+                txcol = max(0, txcol-1)
+                txwin.delch(txrow, txcol)
                 txwin.refresh()
             else:
                 if self.txlen < 40:
                     self.txbuf += str(chr(ch))
                 else:
+                    # overwrite the end if at position 40
                     self.txbuf = self.txbuf[:-1] + str(chr(ch))
                 self.txlen = min(40, self.txlen+1) #  
-                self.txcol = min(39, self.txcol+1)
+                txcol = min(39, txcol+1)
 
 
 if __name__ == "__main__":
@@ -388,7 +445,7 @@ if __name__ == "__main__":
         asyncio.run(cur.wrapper(rylr.xcvr))
 
     except KeyboardInterrupt:
-        print("CTRL-C! Exiting!")
+        print("! CTRL-C entered, gotta book. 73!")
 
     finally:
-        print("that's all folks")
+        print("またね！")
