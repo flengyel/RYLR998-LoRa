@@ -51,8 +51,9 @@ sudo dtoverlay uart1
 
 ## Disclaimer
 
-This is a work in progress.  I'm taking my time adding IRC-like display functions with the Python curses library slowly and deliberately with all due sloth, so slowly that I would be fired and blacklisted if I were doing this professionally; flunked and expelled without a degree and a boatload of private student loans if I were in college; and defunded and defrocked if I were an academician. Other than that, it's a labor of love. 
+This is a work in progress.  I'm taking my time adding IRC-like display functions with the Python curses library slowly and deliberately with all due sloth, so slowly that I would be fired and blacklisted if I were doing this professionally; flunked and expelled without a degree and a boatload of private student loans if I were in college; and defunded and defrocked if I were an academician. 
 
-> "IT'S A DISGRACE, BUT THERE YOU ARE."
-> -- Pozzo. Samuel Beckett. Waiting for Godot, Act 1.
+> POZZO    
+> It's a disgrace, but there you are.        
+> -- Samuel Beckett. Waiting for Godot, Act 1.
 
