@@ -167,7 +167,7 @@ class rylr998:
           
         def init_curses() -> None:
             cur.savetty() # this has become necessary here  
-            cur.raw()
+            cur.raw()  # this is unavoidable
             cur.start_color()
             cur.use_default_colors()
             # define a fg,bg pair
@@ -214,6 +214,7 @@ class rylr998:
         textpad.rectangle(scr, 23,0, 25, 41)
         txwin = scr.derwin(1,40,24,1)
         txwin.nodelay(True)
+        txwin.keypad(True)
         # txwin cursor coordinates
         txrow = 0   # txwin_y
         txcol = 0   # txwin_x
@@ -295,6 +296,7 @@ class rylr998:
                                     self.rxbufReset() # beats me start over
                         else:
                             # in this case, the state is 0 and you are lost
+                            # preamble possibly
                             # or greater than 1 and you are lost
                             self.rxbufReset() 
 
@@ -325,23 +327,32 @@ class rylr998:
                         match self.state_table:
                             case self.ADDR_table:
                                 rxwin.addnstr(rxrow, rxcol, "Addr = " + self.rxbuf, self.rxlen+7, cur.color_pair(BLUE_BLACK))
+
                             case self.BAND_table:
                                 rxwin.addnstr(rxrow, rxcol, "Freq = " + self.rxbuf +" Hz", self.rxlen+10, cur.color_pair(BLUE_BLACK))
+
                             case self.CRFOP_table:
                                 pass
+
                             case self.ERR_table:
                                 rxwin.addnstr(rxrow, rxcol,"+ERR={}".format(self.rxbuf), self.rxlen+7, cur.color_pair(RED_BLACK))
+
                             case self.IPR_table:
                                 pass
+
                             case self.MODE_table:
                                 pass
+
                             case self.OK_table:
                                 n = 3
                                 rxwin.addnstr(rxrow, rxcol, "+OK", 3, cur.color_pair(BLUE_BLACK))
+
                             case self.NETID_table:
                                 pass
+
                             case self.PARAM_table:
                                 pass
+
                             case self.RCV_table:
                                 # The following five lines are adapted from
                                 # https://github.com/wybiral/micropython-rylr/blob/master/rylr.py
@@ -351,17 +362,25 @@ class rylr998:
                                 msg = self.rxbuf[:n]
                                 self.rxbuf = self.rxbuf[n+1:]
                                 rssi, snr = self.rxbuf.split(',')
+
                                 # the address, rssi and the snr should go in separate "windows"
-                                rxwin.addstr(rxrow, rxcol, "@:{} len:{} data:{} rssi:{} snr:{}".format(addr,n,msg,rssi,snr), cur.color_pair(BLACK_PINK))
+                                # line =  "@:{} len:{} data:{} rssi:{} snr:{}".format(addr,n,msg,rssi,snr)
+
+                                if n == 40:
+                                    rxwin.insnstr(rxrow, rxcol, msg, n, cur.color_pair(BLACK_PINK))
+                                else:
+                                    rxwin.addnstr(rxrow, rxcol, msg, n, cur.color_pair(BLACK_PINK))
+
                             case self.UID_table:
                                 pass
+
                             case self.VER_table:
                                 pass
+
                             case _:
                                 rxwin.addstr(rxrow, rxcol, "ERROR. Call Tech Support!", cur.color_pair(RED_BLACK))
                          
                         #  Long lines will scroll automatically
-                        # check if scrolling needed
 
                         row, col = rxwin.getyx()
                         rxrow = min(19, row+1)
@@ -406,7 +425,10 @@ class rylr998:
                        rxwin.scroll() # scroll up if at the end
 
                     # use insnsstr() here to avoid scrolling if 40 characters (the maximum)
-                    rxwin.insnstr(rxrow, rxcol,"{}".format(self.txbuf), self.txlen, cur.color_pair(YELLOW_BLACK))
+                    if self.txlen == 40:
+                        rxwin.insnstr(rxrow, rxcol,"{}".format(self.txbuf), self.txlen, cur.color_pair(YELLOW_BLACK))
+                    else:
+                        rxwin.addnstr(rxrow, rxcol,"{}".format(self.txbuf), self.txlen, cur.color_pair(YELLOW_BLACK))
 
                     row, col = rxwin.getyx()
                     rxrow = min(19, row+1)
@@ -426,6 +448,9 @@ class rylr998:
                 txwin.refresh()
 
             else:
+                if not cur.ascii.isascii(ch):
+                   continue
+
                 if self.txlen < 40:
                     self.txbuf += str(chr(ch))
                 else:
@@ -433,7 +458,7 @@ class rylr998:
                     self.txbuf = self.txbuf[:-1] + str(chr(ch))
                 self.txlen = min(40, self.txlen+1) #  
                 txcol = min(39, txcol+1)
-
+                txwin.refresh()
 
 if __name__ == "__main__":
 
@@ -447,4 +472,4 @@ if __name__ == "__main__":
         print("! CTRL-C entered, gotta book. 73!")
 
     finally:
-        print("またね！")
+        print("またね！") # ROMAJI mettane ENGLISH see you.
