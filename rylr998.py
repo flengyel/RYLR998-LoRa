@@ -382,12 +382,15 @@ class rylr998:
                                 pass
 
                             case self.OK_table:
-                                rxwin.addnstr(rxrow, rxcol, "+OK", 3, cur.color_pair(BLUE_BLACK))
                                 if self.txflag:
                                     stwin.addnstr(0,1, "TX/RX", 5, cur.color_pair(WHITE_BLACK))
                                     stwin.noutrefresh() # yes, that was it
                                     self.txflag = False
+                                else:
+                                    rxwin.addnstr(rxrow, rxcol, "+OK", 3, cur.color_pair(BLUE_BLACK))
+                                    rxwin.noutrefresh()
                                 dirty = 1 
+
                             case self.NETID_table:
                                 pass
 
@@ -412,7 +415,8 @@ class rylr998:
                                 else:
                                     rxwin.addnstr(rxrow, rxcol, msg, n, cur.color_pair(BLACK_PINK))
 
-                            
+                                rxwin.noutrefresh() 
+
                                 # add the ADDRESS, RSSI and SNR to the status window
                                 stwin.addstr(0, 14, addr, cur.color_pair(BLUE_BLACK))
                                 stwin.addstr(0, 27, rssi, cur.color_pair(BLUE_BLACK))
@@ -434,7 +438,7 @@ class rylr998:
                         row, col = rxwin.getyx()
                         rxrow = min(19, row+1)
                         rxcol = 0 # never moves
-                        rxwin.noutrefresh()
+                        rxwin.noutrefresh()  # could be moved up...
 
                         # also return to the txwin
                         txwin.move(txrow, txcol)
