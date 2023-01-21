@@ -27,11 +27,10 @@
 #
 # Further instructions to be made available in the accompanying README.md document
 #
-# "IT'S A DISGRACE, BUT THERE YOU ARE."
-# -- Pozzo. Samuel Beckett. Waiting for Godot, Act 1.
 
 import RPi.GPIO as GPIO
 import asyncio
+#import async_timeout as timeout
 import aioserial
 from serial import EIGHTBITS, PARITY_NONE,  STOPBITS_ONE
 import subprocess # for call to raspi-gpio
@@ -41,7 +40,6 @@ import curses.textpad as textpad
 import _curses
 #import datetime
 import sys
-
 
 class rylr998:
     TXD1   = 14    # GPIO.BCM  pin 8
@@ -74,6 +72,10 @@ class rylr998:
     RCV_table   = [b'+',b'R',b'C',b'V',b'='] # receive is the default "state"
     UID_table   = [b'+',b'U',b'I',b'D',b'=']
     VER_table   = [b'+',b'V',b'E',b'R',b'=']
+ 
+    # state machine initial state 
+
+    state = 0
 
     # initial receive buffer state
 
@@ -87,10 +89,12 @@ class rylr998:
 
     txbuf = ''     # tx buffer
     txlen = 0      # tx buffer length
+    txflag = False # True if and only if transmitting
 
     # reset the receive buffer state
     # NOTE: the receive buffer state is part of the RYLR998 object
     # but the curses receive window state is maintained in the xcvr() function
+
     def rxbufReset(self) -> None:
         self.rxbuf = ''
         self.rxlen = 0
@@ -132,6 +136,7 @@ class rylr998:
         self.timeout = timeout
         self.debug = debug
         
+        self.txflag = False # just in case
 
         self.gpiosetup()
         
@@ -162,33 +167,35 @@ class rylr998:
         YELLOW_BLACK = 1
         GREEN_BLACK  = 2  # our pallete is off bear with me
         BLUE_BLACK   = 3
-        RED_BLACK    = 4
-        BLACK_PINK   = 5  # 
-          
+        RED_BLACK    = 4  # reference to kpop below
+        BLACK_PINK   = 5  # received text is really magenta on black
+        WHITE_RED    = 6
+        WHITE_GREEN  = 7          
+        WHITE_BLACK  = 8
+
         def init_curses() -> None:
             cur.savetty() # this has become necessary here  
             cur.raw()  # this is unavoidable
+            scr.nodelay(True) # non-blocking getch()
+
             cur.start_color()
             cur.use_default_colors()
-            # define a fg,bg pair
-            cur.init_pair(YELLOW_BLACK, cur.COLOR_YELLOW, cur.COLOR_BLACK)
-            # and another fg,bg pair (don't ask why BLUE is GREEN and conversely)
-            cur.init_pair(GREEN_BLACK, cur.COLOR_BLUE,  cur.COLOR_BLACK)
-            # and yet another
-            cur.init_pair(BLUE_BLACK, cur.COLOR_GREEN,  cur.COLOR_BLACK)
-            # and yet another -- this is for errors
-            cur.init_pair(RED_BLACK, cur.COLOR_RED,  cur.COLOR_BLACK)
-            # an approximation
-            cur.init_pair(BLACK_PINK, cur.COLOR_MAGENTA, cur.COLOR_BLACK)
-            scr.nodelay(True) # non-blocking getch()
+
+            # define fg,bg pairs
+            cur.init_pair(YELLOW_BLACK, cur.COLOR_YELLOW,  cur.COLOR_BLACK) # user text
+            cur.init_pair(GREEN_BLACK,  cur.COLOR_BLUE,    cur.COLOR_BLACK)
+            cur.init_pair(BLUE_BLACK,   cur.COLOR_GREEN,   cur.COLOR_BLACK) # status indicator
+            cur.init_pair(RED_BLACK,    cur.COLOR_RED,     cur.COLOR_BLACK) # errors
+            cur.init_pair(BLACK_PINK,   cur.COLOR_MAGENTA, cur.COLOR_BLACK) # received text
+            cur.init_pair(WHITE_RED,    cur.COLOR_WHITE,   cur.COLOR_RED)
+            cur.init_pair(WHITE_GREEN,  cur.COLOR_WHITE,   cur.COLOR_BLUE)  # BLUE AND GREEN SWAPPED!
+            cur.init_pair(WHITE_BLACK,  cur.COLOR_WHITE,   cur.COLOR_BLACK)
 
         # ATcmd() is only called within the transceiver loop, 
         # so it is an inner function. The transceiver loop parses 
         # the response to AT commands from the RYLR998
 
         async def ATcmd(cmd: str = '') -> int:
-            if self.debug:
-                print("In ATcmd("+cmd+")")
             command = 'AT' + ('+' if len(cmd) > 0 else '') + cmd + '\r\n'
             count : int  = await self.aio.write_async(bytes(command, 'utf8'))
             return count
@@ -210,11 +217,30 @@ class rylr998:
         # receive buffer and state reset
         self.rxbufReset()
  
+        # status "window" setup
+        stwin = scr.derwin(1,40,22,1)
+        stwin.bkgd(' ', cur.color_pair(WHITE_BLACK))
+
+        # the first ACS_VLINE is outside the status window stwin
+        scr.vline(22, 0,  cur.ACS_VLINE, 1,  cur.color_pair(WHITE_BLACK))
+        stwin.addnstr(0, 1, "TX/RX", 5, cur.color_pair(WHITE_BLACK)) # transmit/receive indicator
+        stwin.vline(0, 7, cur.ACS_VLINE, 1,  cur.color_pair(WHITE_BLACK))
+        stwin.addnstr(0, 9, "ADDR", 4, cur.color_pair(WHITE_BLACK)) 
+        stwin.vline(0, 20, cur.ACS_VLINE, 1, cur.color_pair(WHITE_BLACK))
+        stwin.addnstr(0, 22, "RSSI", 4, cur.color_pair(WHITE_BLACK)) 
+        stwin.vline(0, 31, cur.ACS_VLINE, 1, cur.color_pair(WHITE_BLACK))
+        stwin.addnstr(0, 33, "SNR", 3, cur.color_pair(WHITE_BLACK)) 
+        scr.vline(22, 41,  cur.ACS_VLINE, 1,  cur.color_pair(WHITE_BLACK))
+        stwin.noutrefresh()
+
         # transmit window initialization
         textpad.rectangle(scr, 23,0, 25, 41)
         txwin = scr.derwin(1,40,24,1)
         txwin.nodelay(True)
         txwin.keypad(True)
+        # I'd rather not interfere with receive by timing out escape!
+        txwin.notimeout(False) 
+        cur.set_escdelay(1) # 1 measly millisecond. A long time.
         # txwin cursor coordinates
         txrow = 0   # txwin_y
         txcol = 0   # txwin_x
@@ -223,8 +249,8 @@ class rylr998:
         txwin.noutrefresh()
 
         self.txbufReset()
-
-        # show the rectangles
+ 
+        # show the rectangles etc
         scr.noutrefresh()
      
         # we use a dirty bit in the xcvr loop to update
@@ -247,20 +273,19 @@ class rylr998:
         # count : int  = await ATcmd('BAND?')
         # count : int  = await ATcmd('BAND=915125000')
         # count : int  = await ATcmd('NETWORKID?')
-        # Add test of > 240 character string
         # Add English interpretations of the ERR conditions
 
         # The address is needed
         count : int = await ATcmd('ADDRESS?')
 
-        # This is the moment of truth, as evidenced by the "while True:" below
+        # No turning back. Hold onto your chair and godspeed. 
 
         while True:
-            # an optimization -- we update only if 
-            # the dirty bit was set
+
+            # an optimization -- we update only if the dirty bit was set
             if dirty:
                 cur.doupdate()
-                dirty = 0
+                dirty = 0 # reset the dirty bit, now that you're clean
 
             if self.aio.in_waiting > 0: # nonzero = # of characters ready
                 # read one byte at a time
@@ -272,6 +297,12 @@ class rylr998:
                 if self.state < len(self.state_table):
                     if self.state_table[self.state] == data:
                         self.state += 1 # advance the state index
+                        if self.state == 2 and self.state_table == self.RCV_table:
+                            stwin.addnstr(0,1, "TX/RX", 5, cur.color_pair(WHITE_GREEN))
+                            #stwin.noutrefresh()
+                            stwin.refresh() # cannot wait this time
+                            dirty = 1
+
                     else:
                         if self.state == 1:
                             self.state += 1  # advance the state
@@ -304,8 +335,7 @@ class rylr998:
                                     self.rxbufReset() # beats me start over
                         else:
                             # in this case, the state is 0 and you are lost
-                            # preamble possibly
-                            # or greater than 1 and you are lost
+                            # preamble possibly -- or greater than 1 and you are lost
                             self.rxbufReset() 
 
                     continue  # parsing output takes priority over input
@@ -352,9 +382,12 @@ class rylr998:
                                 pass
 
                             case self.OK_table:
-                                n = 3
                                 rxwin.addnstr(rxrow, rxcol, "+OK", 3, cur.color_pair(BLUE_BLACK))
-
+                                if self.txflag:
+                                    stwin.addnstr(0,1, "TX/RX", 5, cur.color_pair(WHITE_BLACK))
+                                    stwin.noutrefresh() # yes, that was it
+                                    self.txflag = False
+                                dirty = 1 
                             case self.NETID_table:
                                 pass
 
@@ -378,6 +411,14 @@ class rylr998:
                                     rxwin.insnstr(rxrow, rxcol, msg, n, cur.color_pair(BLACK_PINK))
                                 else:
                                     rxwin.addnstr(rxrow, rxcol, msg, n, cur.color_pair(BLACK_PINK))
+
+                            
+                                # add the ADDRESS, RSSI and SNR to the status window
+                                stwin.addstr(0, 14, addr, cur.color_pair(BLUE_BLACK))
+                                stwin.addstr(0, 27, rssi, cur.color_pair(BLUE_BLACK))
+                                stwin.addstr(0, 37, snr, cur.color_pair(BLUE_BLACK))
+                                stwin.addnstr(0,1, "TX/RX", 5, cur.color_pair(WHITE_BLACK))
+                                stwin.noutrefresh()
 
                             case self.UID_table:
                                 pass
@@ -418,12 +459,12 @@ class rylr998:
                 cur.resetty() # restore the terminal
                 raise KeyboardInterrupt
 
-            elif   ch == ord(b'\x1b'): # b'x1b' is ESC
+            elif ch == ord(b'\x1b'): # b'\x1b' is ESC
                 # clear the transmit buffer
-                txwin.clear()
-                dirty = 1
+                txwin.erase()
                 txcol = 0
                 self.txbufReset()
+                dirty = 1
 
             elif ch == ord('\n'):
                 if self.txlen > 0:
@@ -444,12 +485,20 @@ class rylr998:
                     rxrow = min(19, row+1)
                     rxcol = 0
                     rxwin.noutrefresh()
-                    dirty = 1
 
                     txcol=0
                     txwin.move(txrow, txcol) # cursor to tx initial input position
                     txwin.clear()
                     self.txbufReset()
+
+
+                    # change the txrx indicator
+                    stwin.addnstr(0,1, "TX/RX", 5, cur.color_pair(WHITE_RED))
+                    stwin.noutrefresh()
+                    self.txflag = True  # use the OK logic to turn off
+
+                    # really dirty this time
+                    dirty = 1
 
             elif ch == ord(b'\x08'): # Backspace
                 self.txbuf = self.txbuf[:-1]
@@ -472,6 +521,7 @@ class rylr998:
                 txcol = min(39, txcol+1)
                 txwin.noutrefresh()
                 dirty = 1
+
 if __name__ == "__main__":
 
     rylr  = rylr998(debug=False)
@@ -481,7 +531,7 @@ if __name__ == "__main__":
         asyncio.run(cur.wrapper(rylr.xcvr))
 
     except KeyboardInterrupt:
-        print("! CTRL-C entered, gotta book. 73!")
+        print(" Gotta book. 73!")
 
     finally:
         print("またね！") # ROMAJI mettane ENGLISH see you.
