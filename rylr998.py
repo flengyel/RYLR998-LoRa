@@ -87,7 +87,6 @@ class rylr998:
 
     txbuf = ''     # tx buffer
     txlen = 0      # tx buffer length
-    txflag = False # True if and only if transmitting
 
     # reset the receive buffer state
     # NOTE: the receive buffer state is part of the RYLR998 object
@@ -134,8 +133,6 @@ class rylr998:
         self.timeout = timeout
         self.debug = debug
         
-        self.txflag = False # just in case
-
         self.gpiosetup()
         
         try:
@@ -225,16 +222,20 @@ class rylr998:
         stwin = scr.derwin(1,40,22,1)
         stwin.bkgd(' ', cur.color_pair(WHITE_BLACK))
 
-        # the first and last ACS_VLINEs lie outside stwin
+        # the first ACS_VLINE lies outside stwin
         scr.vline(22, 0,  cur.ACS_VLINE, 1,  cur.color_pair(WHITE_BLACK))
-        stwin.addnstr(0, 1, "TX/RX", 5, cur.color_pair(WHITE_BLACK)) 
-        stwin.vline(0, 7, cur.ACS_VLINE, 1,  cur.color_pair(WHITE_BLACK))
-        stwin.addnstr(0, 9, "ADDR", 4, cur.color_pair(WHITE_BLACK)) 
-        stwin.vline(0, 20, cur.ACS_VLINE, 1, cur.color_pair(WHITE_BLACK))
-        stwin.addnstr(0, 22, "RSSI", 4, cur.color_pair(WHITE_BLACK)) 
-        stwin.vline(0, 31, cur.ACS_VLINE, 1, cur.color_pair(WHITE_BLACK))
-        stwin.addnstr(0, 33, "SNR", 3, cur.color_pair(WHITE_BLACK)) 
+        stwin.addnstr(0, 1, "XCVR", 4, cur.color_pair(WHITE_BLACK)) 
+        stwin.vline(0, 6, cur.ACS_VLINE, 1,  cur.color_pair(WHITE_BLACK))
+        stwin.addnstr(0, 8, "ADDR", 4, cur.color_pair(WHITE_BLACK)) 
+        stwin.vline(0, 19, cur.ACS_VLINE, 1, cur.color_pair(WHITE_BLACK))
+        stwin.addnstr(0, 21, "RSSI", 4, cur.color_pair(WHITE_BLACK)) 
+        stwin.vline(0, 30, cur.ACS_VLINE, 1, cur.color_pair(WHITE_BLACK))
+        stwin.addnstr(0, 32, "SNR", 3, cur.color_pair(WHITE_BLACK)) 
+        # the last ACS_VLINE lies outside stwin
         scr.vline(22, 41,  cur.ACS_VLINE, 1,  cur.color_pair(WHITE_BLACK))
+
+        # The XCVR status indicator turns RED if the following is True
+        txflag = False # True if and only if transmitting
         stwin.noutrefresh()
 
         # transmit window initialization
@@ -242,23 +243,30 @@ class rylr998:
         txwin = scr.derwin(1,40,24,1)
         txwin.nodelay(True)
         txwin.keypad(True)
-        # I'd rather not interfere with receive by timing out escape!
+        # I'd prefer not timing out ESC, but there is no choice. 
         txwin.notimeout(False) 
-        cur.set_escdelay(1) # One millisecond. An eternity for a CPU.
+        # we compromise by setting the ESC delay to 1 msec
+        # we do not want to miss any received characters
+        cur.set_escdelay(1) # An eternity for a CPU.
         # txwin cursor coordinates
         txrow = 0   # txwin_y
         txcol = 0   # txwin_x
         txwin.move(txrow, txcol)
         txwin.bkgd(' ', cur.color_pair(YELLOW_BLACK))
-        txwin.noutrefresh()
-
+        
         self.txbufReset()
+        txwin.noutrefresh()
  
         # show the rectangles etc
         scr.noutrefresh()
+        dirty = True
      
-        # we use a dirty bit in the xcvr loop to update
-        dirty = 1
+        # NOTE: the xcvr loop updates the display only if 
+        # dirty is True. There are no calls to window.refresh(), 
+        # only calls to window.noutrefresh() after which the 
+        # dirty flag set. At the beginning of the xcvr loop, 
+        # cur.doupdate() is called and the dirty flag is  reset,
+        # provided the dirty flag is set. This speeds up the display
 
         # Brace yourself: we are approaching THE XCVR LOOP 
 
@@ -299,7 +307,7 @@ class rylr998:
             # update the screen only if the dirty bit was set
             if dirty:
                 cur.doupdate() # oh baby
-                dirty = 0 # reset the dirty bit
+                dirty = False # reset the dirty bit
 
             if self.aio.in_waiting > 0: # nonzero = # of characters ready
                 # read and act one byte at a time. Be a Markov process.
@@ -311,14 +319,14 @@ class rylr998:
                 if self.debug:
                     print("read:{} state:{}".format(data, self.state))
 
-                # Phase One: parse response from the serial port
+                # Phase One: parse the fixed portion of the serial port response
                 if self.state < len(self.state_table):
                     if self.state_table[self.state] == data:
                         self.state += 1 # advance the state index
                         if self.state == 2 and self.state_table == self.RCV_table:
-                            stwin.addnstr(0,1, "TX/RX", 5, cur.color_pair(WHITE_GREEN))
+                            stwin.addnstr(0,1, "XCVR", 4, cur.color_pair(WHITE_GREEN))
                             stwin.noutrefresh()
-                            dirty = 1
+                            dirty = True
 
                     else:
                         if self.state == 1:
@@ -379,12 +387,12 @@ class rylr998:
                         # move up to avoid overwriting
                         # A subtle bug was introduced with the txflag
                         # the guarded code below assumes that a line of
-                        # the rxwin will be added in each case, which fails
-                        # during transmit when only the TX/RX indicator is
+                        # the rxwin will be added, a condition that fails
+                        # during transmit when only the XCVR indicator is
                         # updated in the status window stwin, instead of
                         # a +OK response in the rxwin.
 
-                        if not self.txflag or self.state_table != self.OK_table:
+                        if not txflag or self.state_table != self.OK_table:
                             row, col = rxwin.getyx() 
                             if row == 19:
                                 rxwin.scroll()
@@ -392,15 +400,19 @@ class rylr998:
                         match self.state_table:
                             case self.ADDR_table:
                                 rxwin.addnstr(rxrow, rxcol, "Addr = " + self.rxbuf, self.rxlen+7, cur.color_pair(BLUE_BLACK))
+                                rxwin.noutrefresh()  
 
                             case self.BAND_table:
                                 rxwin.addnstr(rxrow, rxcol, "Freq = " + self.rxbuf +" Hz", self.rxlen+10, cur.color_pair(BLUE_BLACK))
+                                rxwin.noutrefresh()  
 
                             case self.CRFOP_table:
-                                pass
+                                rxwin.addstr(rxrow, rxcol, "Pwr = {} dBm".format( self.rxbuf), cur.color_pair(BLUE_BLACK))
+                                rxwin.noutrefresh()  
 
                             case self.ERR_table:
                                 rxwin.addnstr(rxrow, rxcol,"+ERR={}".format(self.rxbuf), self.rxlen+7, cur.color_pair(RED_BLACK))
+                                rxwin.noutrefresh()  
 
                             case self.IPR_table:
                                 pass
@@ -409,14 +421,14 @@ class rylr998:
                                 pass
 
                             case self.OK_table:
-                                if self.txflag:
-                                    stwin.addnstr(0,1, "TX/RX", 5, cur.color_pair(WHITE_BLACK))
+                                if txflag:
+                                    stwin.addnstr(0,1, "XCVR", 4, cur.color_pair(WHITE_BLACK))
                                     stwin.noutrefresh() # yes, that was it
-                                    self.txflag = False
+                                    txflag = False
                                 else:
                                     rxwin.addnstr(rxrow, rxcol, "+OK", 3, cur.color_pair(BLUE_BLACK))
                                     rxwin.noutrefresh()
-                                dirty = 1 
+                                dirty = True  # no matter what happens
 
                             case self.NETID_table:
                                 pass
@@ -446,10 +458,10 @@ class rylr998:
                                 rxwin.noutrefresh() 
 
                                 # add the ADDRESS, RSSI and SNR to the status window
-                                stwin.addstr(0, 14, addr, cur.color_pair(BLUE_BLACK))
-                                stwin.addstr(0, 27, rssi, cur.color_pair(BLUE_BLACK))
-                                stwin.addstr(0, 37, snr, cur.color_pair(BLUE_BLACK))
-                                stwin.addnstr(0,1, "TX/RX", 5, cur.color_pair(WHITE_BLACK))
+                                stwin.addnstr(0,1, "XCVR", 4, cur.color_pair(WHITE_BLACK))
+                                stwin.addstr(0, 13, addr, cur.color_pair(BLUE_BLACK))
+                                stwin.addstr(0, 26, rssi, cur.color_pair(BLUE_BLACK))
+                                stwin.addstr(0, 36, snr, cur.color_pair(BLUE_BLACK))
                                 stwin.noutrefresh()
 
                             case self.UID_table:
@@ -460,18 +472,18 @@ class rylr998:
 
                             case _:
                                 rxwin.addstr(rxrow, rxcol, "ERROR. Call Tech Support!", cur.color_pair(RED_BLACK))
+                                rxwin.noutrefresh()  
                          
                         #  Long lines will scroll automatically
 
                         row, col = rxwin.getyx()
                         rxrow = min(19, row+1)
                         rxcol = 0 # never moves
-                        rxwin.noutrefresh()  # could be moved up...
 
                         # also return to the txwin
                         txwin.move(txrow, txcol)
                         txwin.noutrefresh()
-                        dirty = 1
+                        dirty = True
 
                         self.rxbufReset() # reset the receive buffer state and assume RCV -- this is necessary
 
@@ -483,7 +495,7 @@ class rylr998:
 
             # at long last, you can speak
             ch = txwin.getch()
-            if ch == -1: # cat got your tongue: no character
+            if ch == -1: # cat got your tongue? no character
                 continue
 
             elif ch == 3: # CTRL-C
@@ -493,10 +505,10 @@ class rylr998:
 
             elif ch == ord(b'\x1b'): # b'\x1b' is ESC
                 # clear the transmit buffer
-                txwin.erase()
                 txcol = 0
                 self.txbufReset()
-                dirty = 1
+                txwin.erase()
+                dirty = True
 
             elif ch == ord('\n'):
                 if self.txlen > 0:
@@ -524,13 +536,13 @@ class rylr998:
                     self.txbufReset()
 
 
-                    # change the txrx indicator
-                    stwin.addnstr(0,1, "TX/RX", 5, cur.color_pair(WHITE_RED))
+                    # change the XCVR indicator
+                    stwin.addnstr(0,1, "XCVR", 4, cur.color_pair(WHITE_RED))
+                    txflag = True       # reset txflag in OK_table logic 
                     stwin.noutrefresh()
-                    self.txflag = True  # reset in OK_table logic 
 
-                    # really dirty this time
-                    dirty = 1
+                    # really True this time
+                    dirty = True
 
             elif ch == ord(b'\x08'): # Backspace
                 self.txbuf = self.txbuf[:-1]
@@ -538,7 +550,7 @@ class rylr998:
                 txcol = max(0, txcol-1)
                 txwin.delch(txrow, txcol)
                 txwin.noutrefresh()
-                dirty = 1
+                dirty = True
 
             else:
                 if not cur.ascii.isascii(ch):
@@ -552,7 +564,9 @@ class rylr998:
                 self.txlen = min(40, self.txlen+1) #  
                 txcol = min(39, txcol+1)
                 txwin.noutrefresh()
-                dirty = 1
+                dirty = True
+
+# end of the XCVR loop
 
 if __name__ == "__main__":
 
