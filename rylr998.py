@@ -220,12 +220,15 @@ class rylr998:
         txcol = 0   # txwin_x
         txwin.move(txrow, txcol)
         txwin.bkgd(' ', cur.color_pair(YELLOW_BLACK))
-        txwin.refresh()
+        txwin.noutrefresh()
 
         self.txbufReset()
 
         # show the rectangles
-        scr.refresh()
+        scr.noutrefresh()
+     
+        # we use a dirty bit in the xcvr loop to update
+        dirty = 1
 
         # Brace yourself: we are close to entering the main loop
 
@@ -253,7 +256,12 @@ class rylr998:
         # This is the moment of truth, as evidenced by the "while True:" below
 
         while True:
-            #print(datetime.datetime.now())
+            # an optimization -- we update only if 
+            # the dirty bit was set
+            if dirty:
+                cur.doupdate()
+                dirty = 0
+
             if self.aio.in_waiting > 0: # nonzero = # of characters ready
                 # read one byte at a time
                 data = await self.aio.read_async(size=1)
@@ -385,11 +393,12 @@ class rylr998:
                         row, col = rxwin.getyx()
                         rxrow = min(19, row+1)
                         rxcol = 0 # never moves
-                        rxwin.refresh()
+                        rxwin.noutrefresh()
 
                         # also return to the txwin
                         txwin.move(txrow, txcol)
-                        txwin.refresh()
+                        txwin.noutrefresh()
+                        dirty = 1
 
                         self.rxbufReset() # reset the receive buffer state and assume RCV -- this is necessary
 
@@ -412,6 +421,7 @@ class rylr998:
             elif   ch == ord(b'\x1b'): # b'x1b' is ESC
                 # clear the transmit buffer
                 txwin.clear()
+                dirty = 1
                 txcol = 0
                 self.txbufReset()
 
@@ -433,7 +443,8 @@ class rylr998:
                     row, col = rxwin.getyx()
                     rxrow = min(19, row+1)
                     rxcol = 0
-                    rxwin.refresh()
+                    rxwin.noutrefresh()
+                    dirty = 1
 
                     txcol=0
                     txwin.move(txrow, txcol) # cursor to tx initial input position
@@ -445,7 +456,8 @@ class rylr998:
                 self.txlen = max(0, self.txlen-1)
                 txcol = max(0, txcol-1)
                 txwin.delch(txrow, txcol)
-                txwin.refresh()
+                txwin.noutrefresh()
+                dirty = 1
 
             else:
                 if not cur.ascii.isascii(ch):
@@ -458,8 +470,8 @@ class rylr998:
                     self.txbuf = self.txbuf[:-1] + str(chr(ch))
                 self.txlen = min(40, self.txlen+1) #  
                 txcol = min(39, txcol+1)
-                txwin.refresh()
-
+                txwin.noutrefresh()
+                dirty = 1
 if __name__ == "__main__":
 
     rylr  = rylr998(debug=False)
