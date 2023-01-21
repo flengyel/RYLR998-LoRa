@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
-# An example program for the REYAX RYLR998
+#
+# A demo texting program in python for the REYAX RYLR998 LoRa module.
+# Get on the air with a Rasperry Pi 4 Model B Rev 1.5, a RYLR998 module,  
+# five wires and ten female-female GPIO connectors. 
+#
 # Written by Florian Lengyel, WM2D
 #
 # This software is released under an MIT license.
-# See the accompanying LICENSE txt file.
-
-# This code below was written to work with the REYAX RYLR998 LoRa module, using
-# nothing more than five connections to the GPIO pins of a Rasperry 4 Model B Rev 1.5.
-# No electronic components are needed other than five wires and ten female-female
-# GPIO connectors. (Or connect the module directly to a GPIO head, etc., as you wish.)
+# See the accompanying LICENSE.txt file.
 #
-# The GPIO connections are as follows:
+# The GPIO connections from the Raspberry Pi to the RYLR998 are as follows:
 #
 # VDD to 3.3V physical pin 1 on the GPIO
 # RST to GPIO 4, physical pin 7
@@ -18,19 +17,20 @@
 # RXD to GPIO 14 TXD1 this is physical pin 8
 # GND to GND physical pin 9.
 
-# NOTE: GPIO pin 4, physical pin 7 is an OUTPUT pin with level one and pull=NONE.
-# The current configuration works, but can be improved. You could add a pull up
-# resistor, but then it's five wires and a resistor. See the RYLR998 data sheet.
+# NOTE: GPIO pin 4, physical pin 7 is an OUTPUT pin with level one and 
+# pull=NONE. The current configuration works, but can be improved. You 
+# could add a pull up resistor, but then it's five wires and a resistor. 
+# The REYAX RYLR998 has tolerated my abuse--I mean setup--so far. 
+# See the RYLR998 data sheet.
 #
 # AT commands follow the  "REYAX RYLR998 RYLR498 Lora AT COMMAND GUIDE"
 # (c) 2021 REYAX TECHNOLOGY CO., LTD.
 #
-# Further instructions to be made available in the accompanying README.md document
+# Further instructions are available in the accompanying README.md document
 #
 
 import RPi.GPIO as GPIO
 import asyncio
-#import async_timeout as timeout
 import aioserial
 from serial import EIGHTBITS, PARITY_NONE,  STOPBITS_ONE
 import subprocess # for call to raspi-gpio
@@ -75,15 +75,13 @@ class rylr998:
  
     # state machine initial state 
 
-    state = 0
+    state = 0   # index into the current state table
+    state_table = RCV_table # start state for the "machine"
 
     # initial receive buffer state
 
     rxbuf = ''  # string response
     rxlen = 0
-
-    state = 0   # index into the current state table
-    state_table = RCV_table # start state for the "machine"
 
     # initial transmit buffer state
 
@@ -112,7 +110,7 @@ class rylr998:
     def gpiosetup(self) -> None:
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(True)
-        GPIO.setup(self.RST,GPIO.OUT,initial=GPIO.HIGH) # this is the default anyway
+        GPIO.setup(self.RST,GPIO.OUT,initial=GPIO.HIGH) # the default anyway
 
         if self.debug:
             print('GPIO setup mode')
@@ -167,7 +165,7 @@ class rylr998:
         YELLOW_BLACK = 1
         GREEN_BLACK  = 2  # our pallete is off bear with me
         BLUE_BLACK   = 3
-        RED_BLACK    = 4  # reference to kpop below
+        RED_BLACK    = 4  # Pardon the kpop reference below
         BLACK_PINK   = 5  # received text is really magenta on black
         WHITE_RED    = 6
         WHITE_GREEN  = 7          
@@ -191,9 +189,9 @@ class rylr998:
             cur.init_pair(WHITE_GREEN,  cur.COLOR_WHITE,   cur.COLOR_BLUE)  # BLUE AND GREEN SWAPPED!
             cur.init_pair(WHITE_BLACK,  cur.COLOR_WHITE,   cur.COLOR_BLACK)
 
-        # ATcmd() is only called within the transceiver loop, 
-        # so it is an inner function. The transceiver loop parses 
-        # the response to AT commands from the RYLR998
+        # ATcmd() is only called within the transceiver loop (XCVR LOOP), 
+        # so it is an inner function. The XCVR LOOP parses the response 
+        # to AT commands from the RYLR998 in two phases, incidentally.
 
         async def ATcmd(cmd: str = '') -> int:
             command = 'AT' + ('+' if len(cmd) > 0 else '') + cmd + '\r\n'
@@ -201,6 +199,10 @@ class rylr998:
             return count
         
         init_curses()
+
+        # derived window initializations
+        # Relative coordinates are congenial
+        # I might remove the "magic numbers"
 
         # receive window initialization
         # keep track of the cursor in each window
@@ -211,6 +213,8 @@ class rylr998:
         rxwin.scrollok(True)
         # This changes the foreground color 
         rxwin.bkgd(' ', cur.color_pair(YELLOW_BLACK))
+        rxwin.noutrefresh() # updates occur in one place in the XCVR loop
+
         rxrow = 0   # rxwin_y relative window coordinates
         rxcol = 0   # rxwin_x
         
@@ -221,9 +225,9 @@ class rylr998:
         stwin = scr.derwin(1,40,22,1)
         stwin.bkgd(' ', cur.color_pair(WHITE_BLACK))
 
-        # the first ACS_VLINE is outside the status window stwin
+        # the first and last ACS_VLINEs lie outside stwin
         scr.vline(22, 0,  cur.ACS_VLINE, 1,  cur.color_pair(WHITE_BLACK))
-        stwin.addnstr(0, 1, "TX/RX", 5, cur.color_pair(WHITE_BLACK)) # transmit/receive indicator
+        stwin.addnstr(0, 1, "TX/RX", 5, cur.color_pair(WHITE_BLACK)) 
         stwin.vline(0, 7, cur.ACS_VLINE, 1,  cur.color_pair(WHITE_BLACK))
         stwin.addnstr(0, 9, "ADDR", 4, cur.color_pair(WHITE_BLACK)) 
         stwin.vline(0, 20, cur.ACS_VLINE, 1, cur.color_pair(WHITE_BLACK))
@@ -240,7 +244,7 @@ class rylr998:
         txwin.keypad(True)
         # I'd rather not interfere with receive by timing out escape!
         txwin.notimeout(False) 
-        cur.set_escdelay(1) # 1 measly millisecond. A long time.
+        cur.set_escdelay(1) # One millisecond. An eternity for a CPU.
         # txwin cursor coordinates
         txrow = 0   # txwin_y
         txcol = 0   # txwin_x
@@ -256,51 +260,64 @@ class rylr998:
         # we use a dirty bit in the xcvr loop to update
         dirty = 1
 
-        # Brace yourself: we are close to entering the main loop
+        # Brace yourself: we are approaching THE XCVR LOOP 
 
         # NOTE: AT+RCV is NOT a valid command.
-        # The RYLR998 module emits "+RCV=w,x,y,z" when it has received a packet
+        # The RYLR998 module emits "+RCV=w,x,y,z" when it receives a packet
         # To test the +ERR= logic, uncomment the following
         # count : int  = await ATcmd('RCV')
         # This generates the response b'+ERR=4\r\n'. Otherwise, leave commented.
+
         # Other functions can be tested, such as the query functions below
         # Only one such function can be uncommented at a time, or an ERR=4
-        # condition will result.
+        # condition will result. A task queuing mechanism is on the road map,
+        # in the cards, a priority of the utmost urgency--when I get to it.
+        #
         # count : int  = await ATcmd('UID?')
         # count : int  = await ATcmd('VER?')
-        # this next causes trouble to debug
+        # this next causes trouble  debug
         # count : int  = await ATcmd('RESET')
         # count : int  = await ATcmd('BAND?')
         # count : int  = await ATcmd('BAND=915125000')
         # count : int  = await ATcmd('NETWORKID?')
         # Add English interpretations of the ERR conditions
 
-        # The address is needed
+        # The transmit address is needed
+        # A queue of configuration query tasks should preceed the proceedings
+        # this is the first as yet unqueued configuration query command.
+
         count : int = await ATcmd('ADDRESS?')
 
-        # No turning back. Hold onto your chair and godspeed. 
+        # You are about to participate in a great adventure.
+        # You are about to experience the awe and mystery that
+        # reaches from the inner functions to THE XCVR LOOP
+
+        # Hold onto your chair and godspeed. 
 
         while True:
 
-            # an optimization -- we update only if the dirty bit was set
+            # update the screen only if the dirty bit was set
             if dirty:
-                cur.doupdate()
-                dirty = 0 # reset the dirty bit, now that you're clean
+                cur.doupdate() # oh baby
+                dirty = 0 # reset the dirty bit
 
             if self.aio.in_waiting > 0: # nonzero = # of characters ready
-                # read one byte at a time
+                # read and act one byte at a time. Be a Markov process.
+                # Don't apologize for being Markovian. 
+
                 data = await self.aio.read_async(size=1)
+
+                # you could use a debug window -- perhaps
                 if self.debug:
                     print("read:{} state:{}".format(data, self.state))
 
-                # parsing a response
+                # Phase One: parse response from the serial port
                 if self.state < len(self.state_table):
                     if self.state_table[self.state] == data:
                         self.state += 1 # advance the state index
                         if self.state == 2 and self.state_table == self.RCV_table:
                             stwin.addnstr(0,1, "TX/RX", 5, cur.color_pair(WHITE_GREEN))
-                            #stwin.noutrefresh()
-                            stwin.refresh() # cannot wait this time
+                            stwin.noutrefresh()
                             dirty = 1
 
                     else:
@@ -322,11 +339,11 @@ class rylr998:
                                 case b'N':
                                     self.state_table = self.NETID_table # like a net group
                                 case b'O':
-                                    self.state_table = self.OK_table # inadvertently omitted previously!
+                                    self.state_table = self.OK_table 
                                 case b'P':
                                     self.state_table = self.PARAM_table
                                 case b'R':
-                                    self.state_table = self.RCV_table  # this won't happen but...
+                                    self.state_table = self.RCV_table  # impossibe! 
                                 case b'U':
                                     self.state_table = self.UID_table
                                 case b'V':
@@ -335,14 +352,16 @@ class rylr998:
                                     self.rxbufReset() # beats me start over
                         else:
                             # in this case, the state is 0 and you are lost
-                            # preamble possibly -- or greater than 1 and you are lost
+                            # preamble possibly -- or state > 1 and you are lost
                             self.rxbufReset() 
 
                     continue  # parsing output takes priority over input
 
                 else:
+                    # Phase Two: parse the data portion of the response
+                    # the precondition for the second parsing phase obtains:
                     # self.state == len(self.state_table). 
-                    # accumulate data into rxbuf after the '=' sign until  '\n'
+                    # accumulate data into rxbuf after the '=' sign until '\n'
                     # The OK does not have an equal sign, so it vanishes.
 
                     # advance the rx buffer 
@@ -358,9 +377,17 @@ class rylr998:
                         self.rxlen -= 2
 
                         # move up to avoid overwriting
-                        row, col = rxwin.getyx() 
-                        if row == 19:
-                            rxwin.scroll()
+                        # A subtle bug was introduced with the txflag
+                        # the guarded code below assumes that a line of
+                        # the rxwin will be added in each case, which fails
+                        # during transmit when only the TX/RX indicator is
+                        # updated in the status window stwin, instead of
+                        # a +OK response in the rxwin.
+
+                        if not self.txflag or self.state_table != self.OK_table:
+                            row, col = rxwin.getyx() 
+                            if row == 19:
+                                rxwin.scroll()
 
                         match self.state_table:
                             case self.ADDR_table:
@@ -407,12 +434,13 @@ class rylr998:
                                 self.rxbuf = self.rxbuf[n+1:]
                                 rssi, snr = self.rxbuf.split(',')
 
-                                # the address, rssi and the snr should go in separate "windows"
-                                # line =  "@:{} len:{} data:{} rssi:{} snr:{}".format(addr,n,msg,rssi,snr)
-
                                 if n == 40:
+                                    # prevent auto scrolling if EOL at the
+                                    # end of the window
                                     rxwin.insnstr(rxrow, rxcol, msg, n, cur.color_pair(BLACK_PINK))
                                 else:
+                                    # otherwise, take advantage of auto scroll
+                                    # if n > 40.
                                     rxwin.addnstr(rxrow, rxcol, msg, n, cur.color_pair(BLACK_PINK))
 
                                 rxwin.noutrefresh() 
@@ -455,12 +483,12 @@ class rylr998:
 
             # at long last, you can speak
             ch = txwin.getch()
-            if ch == -1: # no character
+            if ch == -1: # cat got your tongue: no character
                 continue
 
             elif ch == 3: # CTRL-C
-                cur.noraw() # go back to cooked mode
-                cur.resetty() # restore the terminal
+                cur.noraw()     # go back to cooked mode
+                cur.resetty()   # restore the terminal
                 raise KeyboardInterrupt
 
             elif ch == ord(b'\x1b'): # b'\x1b' is ESC
@@ -481,9 +509,9 @@ class rylr998:
 
                     # use insnsstr() here to avoid scrolling if 40 characters (the maximum)
                     if self.txlen == 40:
-                        rxwin.insnstr(rxrow, rxcol,"{}".format(self.txbuf), self.txlen, cur.color_pair(YELLOW_BLACK))
+                        rxwin.insnstr(rxrow, rxcol, self.txbuf, self.txlen, cur.color_pair(YELLOW_BLACK))
                     else:
-                        rxwin.addnstr(rxrow, rxcol,"{}".format(self.txbuf), self.txlen, cur.color_pair(YELLOW_BLACK))
+                        rxwin.addnstr(rxrow, rxcol, self.txbuf, self.txlen, cur.color_pair(YELLOW_BLACK))
 
                     row, col = rxwin.getyx()
                     rxrow = min(19, row+1)
@@ -499,7 +527,7 @@ class rylr998:
                     # change the txrx indicator
                     stwin.addnstr(0,1, "TX/RX", 5, cur.color_pair(WHITE_RED))
                     stwin.noutrefresh()
-                    self.txflag = True  # use the OK logic to turn off
+                    self.txflag = True  # reset in OK_table logic 
 
                     # really dirty this time
                     dirty = 1
@@ -531,7 +559,7 @@ if __name__ == "__main__":
     rylr  = rylr998(debug=False)
 
     try:
-        # how's this for an idiom
+        # how's this for an idiom?
         asyncio.run(cur.wrapper(rylr.xcvr))
 
     except KeyboardInterrupt:
