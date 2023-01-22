@@ -60,3 +60,12 @@ This is a work in progress.  I'm taking my time adding IRC-like display function
      Nothing we can do about it.           
 -- Samuel Beckett. Waiting for Godot, Act 1.
 
+## Non-animated screenshot
+
+I'll get to an animated screenshot. For now, this is the kind of conversation achievable at the highest levels with two Raspberry Pis, each with their own REYAX RYLR998 LoRa module.
+
+![image](https://user-images.githubusercontent.com/431946/213901591-2c250043-eabe-4aa4-af2a-d68fee45ad12.png)
+
+
+
+
