@@ -96,11 +96,11 @@ class rylr998:
         self.rxbuf = ''
         self.rxlen = 0
         self.state = 0
-        self.state_table = self.RCV_table # the default since RCV takes priority
+        self.state_table = self.RCV_table # default since RCV takes priority
 
     # reset the transmit buffer state
     # NOTE: the transmit buffer state is part of the RYRL998 object
-    # but the curses transmit window state is maintained in the xcvr() function 
+    # the curses transmit window state is maintained in the xcvr() function 
 
     def txbufReset(self) -> None:
         self.txbuf = '' # clear tx buffer
@@ -173,13 +173,16 @@ class rylr998:
             cur.raw()  # this is unavoidable
             scr.nodelay(True) # non-blocking getch()
 
+            # we compromise by setting the ESC delay to 1 msec
+            # we do not want to miss any received characters
+            cur.set_escdelay(1) # An eternity for a CPU.
+
             cur.start_color()
             cur.use_default_colors()
 
             cur.init_color(cur.COLOR_RED, 500,0,0)
             cur.init_color(cur.COLOR_GREEN, 0,500,0)
             cur.init_color(cur.COLOR_BLUE, 0,0,500)
-
 
             # define fg,bg pairs
             cur.init_pair(YELLOW_BLACK, cur.COLOR_YELLOW,  cur.COLOR_BLACK) # user text
@@ -253,7 +256,7 @@ class rylr998:
 
         # the first ACS_VLINE lies outside stwin
         scr.vline(22, 0,  cur.ACS_VLINE, 1,  cur.color_pair(WHITE_BLACK))
-        stwin.addnstr(0, 1, "LoRa", 4, cur.color_pair(WHITE_BLACK)) 
+        stwin.addnstr(0, 0, " LoRa ", 6, cur.color_pair(WHITE_BLACK)) 
         stwin.vline(0, 6, cur.ACS_VLINE, 1,  cur.color_pair(WHITE_BLACK))
         stwin.addnstr(0, 8, "ADDR", 4, cur.color_pair(WHITE_BLACK)) 
         stwin.vline(0, 19, cur.ACS_VLINE, 1, cur.color_pair(WHITE_BLACK))
@@ -274,9 +277,6 @@ class rylr998:
 
         # I'd prefer not timing out ESC, but there is no choice. 
         txwin.notimeout(False) 
-        # we compromise by setting the ESC delay to 1 msec
-        # we do not want to miss any received characters
-        cur.set_escdelay(1) # An eternity for a CPU.
         # txwin cursor coordinates
         txrow = 0   # txwin_y
         txcol = 0   # txwin_x
@@ -351,8 +351,11 @@ class rylr998:
                     if self.state_table[self.state] == data:
                         self.state += 1 # advance the state index
                         if self.state == 2 and self.state_table == self.RCV_table:
-                            stwin.addnstr(0,1, "LoRa", 4, cur.color_pair(WHITE_GREEN))
+                            stwin.addnstr(0,0, " LoRa ", 6, cur.color_pair(WHITE_GREEN))
                             stwin.noutrefresh()
+                            # cursor back to tx window to avoid flicker
+                            txwin.move(txrow, txcol)  
+                            txwin.noutrefresh()
                             dirty = True
 
                     else:
@@ -449,7 +452,7 @@ class rylr998:
 
                             case self.OK_table:
                                 if txflag:
-                                    stwin.addnstr(0,1, "LoRa", 4, cur.color_pair(WHITE_BLACK))
+                                    stwin.addnstr(0,0, " LoRa ", 6, cur.color_pair(WHITE_BLACK))
                                     stwin.noutrefresh() # yes, that was it
                                     txflag = False
                                 else:
@@ -485,7 +488,7 @@ class rylr998:
                                 rxwin.noutrefresh() 
 
                                 # add the ADDRESS, RSSI and SNR to the status window
-                                stwin.addnstr(0,1, "LoRa", 4, cur.color_pair(WHITE_BLACK))
+                                stwin.addnstr(0,0, " LoRa ", 6, cur.color_pair(WHITE_BLACK))
                                 stwin.addstr(0, 13, addr, cur.color_pair(BLUE_BLACK))
                                 stwin.addstr(0, 26, rssi, cur.color_pair(BLUE_BLACK))
                                 stwin.addstr(0, 36, snr, cur.color_pair(BLUE_BLACK))
@@ -564,7 +567,7 @@ class rylr998:
 
 
                     # flash the LoRa indicator on transmit
-                    stwin.addnstr(0,1, "LoRa", 4, cur.color_pair(WHITE_RED))
+                    stwin.addnstr(0,0, " LoRa ", 6, cur.color_pair(WHITE_RED))
                     txflag = True       # reset txflag in OK_table logic 
                     stwin.noutrefresh()
 
