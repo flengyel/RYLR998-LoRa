@@ -1,8 +1,8 @@
 # RYLR998-LoRa
 
-Asynchronous transceiver python program for 2-way texting with the 
+A python program for 2-way texting with the 
 [REYAX RYLR998](https://reyax.com/products/rylr998/) 33cm band LoRa 
-module and the Raspberry Pi 4. Get on the air with a Rasperry Pi 4 Model B 
+module and the Raspberry Pi 4. Get on the air with a Raspberry Pi 4 Model B 
 Rev 1.5, a RYLR998 module, five wires and ten female-female GPIO connectors.
 There are no threads here, only asynchronous non-blocking I/O calls.
 
