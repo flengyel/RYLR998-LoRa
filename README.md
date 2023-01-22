@@ -62,7 +62,7 @@ This is a work in progress.  I'm taking my time adding IRC-like display function
 
 ## Non-animated screenshot
 
-I'll get to an animated screenshot. For now, this screenshot two MobaXTerm sessions shown side-by-side. Each session is logged into a separate Raspberry Pi 4 Bs at opposite ends of my living room, each with its own REYAX RYLR998 module connected as above. The yellow text is that of the sender. The magenta text is received. Received text flashes the "LoRa" indicator green; transmission flashes the "LoRa" indicator red. The address, RSSI and SNR values of the last received message is shown. Text messages are limited to 40 characters (in this version). The screenshot exemplifies the conversation possible at the highest level of the amateur radio art. 
+I'll get to an animated screenshot. For now, this screenshot shows two MobaXTerm sessions running the `rlyr998.py` program in a Raspberry Pi side-by-side. The Raspberry Pi 4 Bs are located at opposite ends of my living room. Each Raspberry Pi has its own REYAX RYLR998 module connected as above. The yellow text is that of the sender. The received text is magenta. When rylr998.py detects received text, the "LoRa" indicator flashes green; transmission of text flashes the "LoRa" indicator red. The ADDR (address), RSSI and SNR values of the last received message are shown. Text messages are limited to 40 characters (in this version). The screenshot exemplifies the conversation possible at the highest level of the amateur radio art. Of course that's not why I wrote the code ...
 
 ![image](https://user-images.githubusercontent.com/431946/213901591-2c250043-eabe-4aa4-af2a-d68fee45ad12.png)
 
