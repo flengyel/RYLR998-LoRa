@@ -38,6 +38,7 @@ import subprocess # for call to raspi-gpio
 import logging
 import curses as cur
 import _curses
+import curses.ascii
 #import datetime
 import locale
 locale.setlocale(locale.LC_ALL, '')
