@@ -62,10 +62,25 @@ This is a work in progress.  I'm taking my time adding IRC-like display function
 
 ## Non-animated screenshot
 
-I'll get to an animated screenshot. For now, this screenshot shows two MobaXTerm sessions running the `rlyr998.py` program in a Raspberry Pi side-by-side. The Raspberry Pi 4 Bs are located at opposite ends of my living room. Each Raspberry Pi has its own REYAX RYLR998 module connected as above. The yellow text is that of the sender. The received text is magenta. When rylr998.py detects received text, the "LoRa" indicator flashes green; transmission of text flashes the "LoRa" indicator red. The ADDR (address), RSSI and SNR values of the last received message are shown. Text messages are limited to 40 characters (in this version). The screenshot exemplifies the conversation possible at the highest level of the amateur radio art. Of course that's not why I wrote the code ...
+I'll get to an animated screenshot. For now, this screenshot shows two MobaXTerm sessions running the `rlyr998.py` program in a Raspberry Pi side-by-side. The Raspberry Pi 4 Bs are located at opposite ends of my living room. Each Raspberry Pi has its own REYAX RYLR998 module connected as above. The yellow text is that of the sender. The received text is magenta. When rylr998.py detects received text, the "LoRa" indicator flashes green; transmission of text flashes the "LoRa" indicator red. The ADDR (address), RSSI and SNR values of the last received message are shown. Text messages are limited to 40 characters (in this version). The screenshot exemplifies the conversation possible at the highest level of the amateur radio art. That's not why I wrote the code, of course. I wrote it to learn asyncio and curses. 
 
 ![image](https://user-images.githubusercontent.com/431946/213901591-2c250043-eabe-4aa4-af2a-d68fee45ad12.png)
 
+## TO DO
 
+* Add parsing of the AT+RESET function. Though this will set CRFOP to 22dBm, which does require a license (I have one). 
+* Display the configuration parameters.
+* Add a task queue for ATcmd() tasks. This is to avoid ERR=16, which occurs when an AT command is sent before another finishes. You wouldn't want that to happen.
+* Add function key handling for changing configuration parameters, such as frequency, netid, etc.
+* But be careful about changing the serial port parameters--you'll be sorry! 
+* I thought about using urwid, but urwid wants you to run in its loop, and I want urwid to run in my transceiver loop. I am toying with the idea of inverting urwid so that it runs in the asyncio event loop with the curses wrapper function. I would call this "widur." 
+* You could make the windows resizable. Dunno.
+* Rewrite in micropython for the Raspberry Pico. 
 
+## TO NOT DO
 
+* No threads! Asyncio only.
+
+## Design principle
+
+All the action takes place in the XCVR loop one character at a time, as a function of the state and the current character--it's Markovian.
