@@ -81,6 +81,13 @@ I'll get to an animated screenshot. For now, this screenshot shows two MobaXTerm
 
 * No threads! Asyncio only.
 
-## Design principle
+## Markovian Design
 
-All the action takes place in the XCVR loop one character at a time, as a function of the state and the current character--it's Markovian.
+* All the action takes place in the main loop,`xcvr(stdscr)`, one **input** character at a time, as a function of the state and the current input character.
+* Input means keyboard and serial port input from the REYAX RYLR998 module.
+* Keyboard input is non-blocking and raw--almost vegan. 
+* An "empty" character is allowed--in fact we like empty characters.
+* Output means screen (curses) output and serial port output of AT commands to the REYAX RYLR998 module.
+* Screen output is not one character at a time. Instead of calling `refresh()` when a window changes, we call `win.noutrefresh()` and set a dirty bit. At the beginning of the transceiver loop, if the dirty bit is set, `curses.doupdate()` is called and the dirty bit is reset. This is an optimization.
+*  Serial port output cannot be one character at a time, since complete AT commands have to be sent to the RYLR998 through the serial port.
+*  Receiving and parsing responses from AT commands takes precedence over transmitting and sending configuration commands and parameter queries.
