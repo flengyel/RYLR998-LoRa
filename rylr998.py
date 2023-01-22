@@ -190,6 +190,35 @@ class rylr998:
             cur.init_pair(WHITE_RED,    cur.COLOR_WHITE,   cur.COLOR_RED)
             cur.init_pair(WHITE_GREEN,  cur.COLOR_WHITE,   cur.COLOR_BLUE)  # BLUE AND GREEN SWAPPED!
 
+        # receive and transmit window border initialization
+
+        # The next two inner functions restrict access to the receive 
+        # and transmit window border variables rxbdr and txbdr, resp., 
+        # and return the derived receive and transmit windows 
+        # rxwin and txwin, respectively.
+
+        # Relative coordinates are congenial - might remove magic numbers
+
+        def derive_rxwin(scr : _curses) -> _curses.window:
+            rxbdr = scr.derwin(22,42,0,0)
+            # window.border([ls[, rs[, ts[, bs[, tl[, tr[, bl[, br]]]]]]]])
+            rxbdr.border(0,0,0,0,0,0,cur.ACS_LTEE, cur.ACS_RTEE)
+            rxbdr.addch(21,7, cur.ACS_TTEE)
+            rxbdr.addch(21,20, cur.ACS_TTEE)
+            rxbdr.addch(21,31, cur.ACS_TTEE)
+            rxbdr.noutrefresh()
+            return rxbdr.derwin(20,40,1,1)
+
+        def derive_txwin(scr : _curses) -> _curses.window:
+            txbdr = scr.derwin(3,42,23,0)
+            # window.border([ls[, rs[, ts[, bs[, tl[, tr[, bl[, br]]]]]]]])
+            txbdr.border(0,0,0,0,cur.ACS_LTEE, cur.ACS_RTEE,0,0)
+            txbdr.addch(0,7, cur.ACS_BTEE)
+            txbdr.addch(0,20, cur.ACS_BTEE)
+            txbdr.addch(0,31, cur.ACS_BTEE)
+            txbdr.noutrefresh()
+            return txbdr.derwin(1,40,1,1)
+
         # ATcmd() is only called within the transceiver loop (XCVR LOOP), 
         # so it is an inner function. The XCVR LOOP parses the response 
         # to AT commands from the RYLR998 in two phases, incidentally.
@@ -201,25 +230,15 @@ class rylr998:
         
         init_curses()
 
-        # derived window initializations
-        # Relative coordinates are congenial
-        # I might remove the "magic numbers"
-
-        # receive window initialization
         # keep track of the cursor in each window
         scr.bkgd(' ', cur.color_pair(WHITE_BLACK))
 
-        rxbdr = scr.derwin(22,42,0,0)
-        # window.border([ls[, rs[, ts[, bs[, tl[, tr[, bl[, br]]]]]]]])
-        rxbdr.border(0,0,0,0,0,0,cur.ACS_LTEE, cur.ACS_RTEE)
-        rxbdr.addch(21,7, cur.ACS_TTEE)
-        rxbdr.addch(21,20, cur.ACS_TTEE)
-        rxbdr.addch(21,31, cur.ACS_TTEE)
-        rxwin = rxbdr.derwin(20,40,1,1)
+        # derived window initializations
+
+        rxwin = derive_rxwin(scr)
         rxwin.scrollok(True)
 
-        # This changes the bg color 
-        rxwin.bkgd(' ', cur.color_pair(YELLOW_BLACK))
+        rxwin.bkgd(' ', cur.color_pair(YELLOW_BLACK)) # set bg color
         rxwin.noutrefresh() # updates occur in one place in the XCVR loop
 
         rxrow = 0   # rxwin_y relative window coordinates
@@ -249,14 +268,10 @@ class rylr998:
         stwin.noutrefresh()
 
         # transmit window initialization
-        txbdr = scr.derwin(3,42,23,0)
-        txbdr.border(0,0,0,0,cur.ACS_LTEE, cur.ACS_RTEE,0,0)
-        txbdr.addch(0,7, cur.ACS_BTEE)
-        txbdr.addch(0,20, cur.ACS_BTEE)
-        txbdr.addch(0,31, cur.ACS_BTEE)
-        txwin = txbdr.derwin(1,40,1,1)
+        txwin = derive_txwin(scr)
         txwin.nodelay(True)
         txwin.keypad(True)
+
         # I'd prefer not timing out ESC, but there is no choice. 
         txwin.notimeout(False) 
         # we compromise by setting the ESC delay to 1 msec
@@ -269,11 +284,8 @@ class rylr998:
         txwin.bkgd(' ', cur.color_pair(YELLOW_BLACK))
         
         self.txbufReset()
-        txwin.noutrefresh()
  
         # show the rectangles etc
-        rxbdr.noutrefresh()
-        txbdr.noutrefresh()
         scr.noutrefresh()
         dirty = True
      
@@ -290,7 +302,7 @@ class rylr998:
         # The RYLR998 module emits "+RCV=w,x,y,z" when it receives a packet
         # To test the +ERR= logic, uncomment the following
         # count : int  = await ATcmd('RCV')
-        # This generates the response b'+ERR=4\r\n'. Otherwise, leave commented.
+        # This generates the response b'+ERR=4\r\n'. Else, leave commented.
 
         # Other functions can be tested, such as the query functions below
         # Only one such function can be uncommented at a time, or an ERR=4
