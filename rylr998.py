@@ -536,19 +536,19 @@ class rylr998:
             if ch == -1: # cat got your tongue? no character
                 continue
 
-            elif ch == 3: # CTRL-C
+            elif ch == cur.ascii.ETX: # CTRL-C
                 cur.noraw()     # go back to cooked mode
                 cur.resetty()   # restore the terminal
                 raise KeyboardInterrupt
 
-            elif ch == ord(b'\x1b'): # b'\x1b' is ESC
+            elif ch == cur.ascii.ESC: #ord(b'\x1b'): # b'\x1b' is ESC
                 # clear the transmit buffer
                 txcol = 0
                 self.txbufReset()
                 txwin.erase()
                 dirty = True
 
-            elif ch == ord('\n'):
+            elif ch == cur.ascii.LF:
                 if self.txlen > 0:
                     # need address from initialization 
                     await ATcmd('SEND=0,'+str(self.txlen)+','+self.txbuf)
@@ -582,7 +582,7 @@ class rylr998:
                     # really True this time
                     dirty = True
 
-            elif ch == ord(b'\x08'): # Backspace
+            elif ch == cur.ascii.BS: # Backspace
                 self.txbuf = self.txbuf[:-1]
                 self.txlen = max(0, self.txlen-1)
                 txcol = max(0, txcol-1)
@@ -590,10 +590,7 @@ class rylr998:
                 txwin.noutrefresh()
                 dirty = True
 
-            else:
-                if not cur.ascii.isascii(ch):
-                   continue
-
+            elif cur.ascii.isascii(ch):
                 if self.txlen < 40:
                     self.txbuf += str(chr(ch))
                 else:
