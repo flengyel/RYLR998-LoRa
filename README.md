@@ -89,7 +89,6 @@ I'll get to an animated screenshot. For now, this screenshot shows two MobaXTerm
 * An "empty" character is allowed--in fact we like empty characters.
 * Output means screen (curses) output and serial port output of AT commands to the REYAX RYLR998 module.
 * Screen output is not one character at a time. Instead of calling `refresh()` when a window changes, we call `win.noutrefresh()` and set a dirty bit. 
-* If we are not receiving from the serial port, and if there is no input character and the dirty bit is set, `curses.doupdate()` is called and the dirty bit is reset. This is an optimization.
+* If the dirty bit is set, `curses.doupdate()` is called and the dirty bit is reset. This is an optimization.
 *  Serial port output cannot be one character at a time, since complete AT commands have to be sent to the RYLR998 through the serial port.
 *  Receiving and parsing responses from AT commands takes precedence over sending AT commands, which includes sending text.
-*  Processing the current input character takes precedence over updating the screen. 
