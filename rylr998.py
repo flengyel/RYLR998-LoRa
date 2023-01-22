@@ -159,6 +159,7 @@ class rylr998:
 
     async def xcvr(self, scr : _curses.window) -> None:
         # color pair initialization constants
+        WHITE_BLACK  = 0  # built in cannot change 
         YELLOW_BLACK = 1
         GREEN_BLACK  = 2  # our pallete is off bear with me
         BLUE_BLACK   = 3
@@ -166,7 +167,6 @@ class rylr998:
         BLACK_PINK   = 5  # received text is really magenta on black
         WHITE_RED    = 6
         WHITE_GREEN  = 7          
-        WHITE_BLACK  = 8
 
         def init_curses() -> None:
             cur.savetty() # this has become necessary here  
@@ -176,6 +176,11 @@ class rylr998:
             cur.start_color()
             cur.use_default_colors()
 
+            cur.init_color(cur.COLOR_RED, 500,0,0)
+            cur.init_color(cur.COLOR_GREEN, 0,500,0)
+            cur.init_color(cur.COLOR_BLUE, 0,0,500)
+
+
             # define fg,bg pairs
             cur.init_pair(YELLOW_BLACK, cur.COLOR_YELLOW,  cur.COLOR_BLACK) # user text
             cur.init_pair(GREEN_BLACK,  cur.COLOR_BLUE,    cur.COLOR_BLACK)
@@ -184,7 +189,6 @@ class rylr998:
             cur.init_pair(BLACK_PINK,   cur.COLOR_MAGENTA, cur.COLOR_BLACK) # received text
             cur.init_pair(WHITE_RED,    cur.COLOR_WHITE,   cur.COLOR_RED)
             cur.init_pair(WHITE_GREEN,  cur.COLOR_WHITE,   cur.COLOR_BLUE)  # BLUE AND GREEN SWAPPED!
-            cur.init_pair(WHITE_BLACK,  cur.COLOR_WHITE,   cur.COLOR_BLACK)
 
         # ATcmd() is only called within the transceiver loop (XCVR LOOP), 
         # so it is an inner function. The XCVR LOOP parses the response 
@@ -203,12 +207,18 @@ class rylr998:
 
         # receive window initialization
         # keep track of the cursor in each window
-        #rectangle(win, uly, ulx, lry, lrx)
+        scr.bkgd(' ', cur.color_pair(WHITE_BLACK))
 
-        textpad.rectangle(scr,0,0,21,41)
-        rxwin = scr.derwin(20,40,1,1)
+        rxbdr = scr.derwin(22,42,0,0)
+        # window.border([ls[, rs[, ts[, bs[, tl[, tr[, bl[, br]]]]]]]])
+        rxbdr.border(0,0,0,0,0,0,cur.ACS_LTEE, cur.ACS_RTEE)
+        rxbdr.addch(21,7, cur.ACS_TTEE)
+        rxbdr.addch(21,20, cur.ACS_TTEE)
+        rxbdr.addch(21,31, cur.ACS_TTEE)
+        rxwin = rxbdr.derwin(20,40,1,1)
         rxwin.scrollok(True)
-        # This changes the foreground color 
+
+        # This changes the bg color 
         rxwin.bkgd(' ', cur.color_pair(YELLOW_BLACK))
         rxwin.noutrefresh() # updates occur in one place in the XCVR loop
 
@@ -224,7 +234,7 @@ class rylr998:
 
         # the first ACS_VLINE lies outside stwin
         scr.vline(22, 0,  cur.ACS_VLINE, 1,  cur.color_pair(WHITE_BLACK))
-        stwin.addnstr(0, 1, "XCVR", 4, cur.color_pair(WHITE_BLACK)) 
+        stwin.addnstr(0, 1, "LoRa", 4, cur.color_pair(WHITE_BLACK)) 
         stwin.vline(0, 6, cur.ACS_VLINE, 1,  cur.color_pair(WHITE_BLACK))
         stwin.addnstr(0, 8, "ADDR", 4, cur.color_pair(WHITE_BLACK)) 
         stwin.vline(0, 19, cur.ACS_VLINE, 1, cur.color_pair(WHITE_BLACK))
@@ -234,13 +244,17 @@ class rylr998:
         # the last ACS_VLINE lies outside stwin
         scr.vline(22, 41,  cur.ACS_VLINE, 1,  cur.color_pair(WHITE_BLACK))
 
-        # The XCVR status indicator turns RED if the following is True
+        # The LoRa status indicator turns RED if the following is True
         txflag = False # True if and only if transmitting
         stwin.noutrefresh()
 
         # transmit window initialization
-        textpad.rectangle(scr, 23,0, 25, 41)
-        txwin = scr.derwin(1,40,24,1)
+        txbdr = scr.derwin(3,42,23,0)
+        txbdr.border(0,0,0,0,cur.ACS_LTEE, cur.ACS_RTEE,0,0)
+        txbdr.addch(0,7, cur.ACS_BTEE)
+        txbdr.addch(0,20, cur.ACS_BTEE)
+        txbdr.addch(0,31, cur.ACS_BTEE)
+        txwin = txbdr.derwin(1,40,1,1)
         txwin.nodelay(True)
         txwin.keypad(True)
         # I'd prefer not timing out ESC, but there is no choice. 
@@ -258,6 +272,8 @@ class rylr998:
         txwin.noutrefresh()
  
         # show the rectangles etc
+        rxbdr.noutrefresh()
+        txbdr.noutrefresh()
         scr.noutrefresh()
         dirty = True
      
@@ -311,7 +327,6 @@ class rylr998:
 
             if self.aio.in_waiting > 0: # nonzero = # of characters ready
                 # read and act one byte at a time. Be a Markov process.
-                # Don't apologize for being Markovian. 
 
                 data = await self.aio.read_async(size=1)
 
@@ -324,7 +339,7 @@ class rylr998:
                     if self.state_table[self.state] == data:
                         self.state += 1 # advance the state index
                         if self.state == 2 and self.state_table == self.RCV_table:
-                            stwin.addnstr(0,1, "XCVR", 4, cur.color_pair(WHITE_GREEN))
+                            stwin.addnstr(0,1, "LoRa", 4, cur.color_pair(WHITE_GREEN))
                             stwin.noutrefresh()
                             dirty = True
 
@@ -385,12 +400,12 @@ class rylr998:
                         self.rxlen -= 2
 
                         # move up to avoid overwriting
-                        # A subtle bug was introduced with the txflag
-                        # the guarded code below assumes that a line of
-                        # the rxwin will be added, a condition that fails
-                        # during transmit when only the XCVR indicator is
-                        # updated in the status window stwin, instead of
-                        # a +OK response in the rxwin.
+                        # A subtle bug was introduced with the txflag.
+                        # The guarded code below assumes that a line will 
+                        # be added to the rxwin, a condition that fails
+                        # during transmit when only the LoRa indicator is
+                        # updated in the status window stwin, and nothing 
+                        # in the rxwin is updated.. 
 
                         if not txflag or self.state_table != self.OK_table:
                             row, col = rxwin.getyx() 
@@ -422,7 +437,7 @@ class rylr998:
 
                             case self.OK_table:
                                 if txflag:
-                                    stwin.addnstr(0,1, "XCVR", 4, cur.color_pair(WHITE_BLACK))
+                                    stwin.addnstr(0,1, "LoRa", 4, cur.color_pair(WHITE_BLACK))
                                     stwin.noutrefresh() # yes, that was it
                                     txflag = False
                                 else:
@@ -458,7 +473,7 @@ class rylr998:
                                 rxwin.noutrefresh() 
 
                                 # add the ADDRESS, RSSI and SNR to the status window
-                                stwin.addnstr(0,1, "XCVR", 4, cur.color_pair(WHITE_BLACK))
+                                stwin.addnstr(0,1, "LoRa", 4, cur.color_pair(WHITE_BLACK))
                                 stwin.addstr(0, 13, addr, cur.color_pair(BLUE_BLACK))
                                 stwin.addstr(0, 26, rssi, cur.color_pair(BLUE_BLACK))
                                 stwin.addstr(0, 36, snr, cur.color_pair(BLUE_BLACK))
@@ -536,8 +551,8 @@ class rylr998:
                     self.txbufReset()
 
 
-                    # change the XCVR indicator
-                    stwin.addnstr(0,1, "XCVR", 4, cur.color_pair(WHITE_RED))
+                    # flash the LoRa indicator on transmit
+                    stwin.addnstr(0,1, "LoRa", 4, cur.color_pair(WHITE_RED))
                     txflag = True       # reset txflag in OK_table logic 
                     stwin.noutrefresh()
 
