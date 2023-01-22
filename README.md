@@ -62,7 +62,7 @@ This is a work in progress.  I'm taking my time adding IRC-like display function
 
 ## Non-animated screenshot
 
-I'll get to an animated screenshot. For now, this is the kind of conversation achievable at the highest levels with two Raspberry Pis, each with their own REYAX RYLR998 LoRa module.
+I'll get to an animated screenshot. For now, this screenshot of two MobaXTerm sessions logged into separate Raspberry Pi 4 Bs at opposite ends of my living room, each with its own REYAX RYLR998 module connected as above. The screenshot exemplifies the conversation possible at the highest level of the amateur radio art. 
 
 ![image](https://user-images.githubusercontent.com/431946/213901591-2c250043-eabe-4aa4-af2a-d68fee45ad12.png)
 
