@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
+# -*- coding: utf8 -*-
 #
-# A demo texting program in python for the REYAX RYLR998 LoRa module.
+# A demo texting program in python for the REYAX RYLR998 LoRa® module.
 # Get on the air with a Rasperry Pi 4 Model B Rev 1.5, a RYLR998 module,  
 # five wires and ten female-female GPIO connectors. 
 #
@@ -36,10 +37,11 @@ from serial import EIGHTBITS, PARITY_NONE,  STOPBITS_ONE
 import subprocess # for call to raspi-gpio
 import logging
 import curses as cur
-import curses.textpad as textpad
 import _curses
 #import datetime
-import sys
+import locale
+locale.setlocale(locale.LC_ALL, '')
+#stdscr.addstr(0, 0, mystring.encode('UTF-8'))
 
 class rylr998:
     TXD1   = 14    # GPIO.BCM  pin 8
@@ -180,9 +182,9 @@ class rylr998:
             cur.start_color()
             cur.use_default_colors()
 
-            cur.init_color(cur.COLOR_RED, 500,0,0)
-            cur.init_color(cur.COLOR_GREEN, 0,500,0)
-            cur.init_color(cur.COLOR_BLUE, 0,0,500)
+            cur.init_color(cur.COLOR_RED,1000,0,0)
+            cur.init_color(cur.COLOR_GREEN,0,1000,0)
+            cur.init_color(cur.COLOR_BLUE,0,0,1000)
 
             # define fg,bg pairs
             cur.init_pair(YELLOW_BLACK, cur.COLOR_YELLOW,  cur.COLOR_BLACK) # user text
@@ -222,6 +224,25 @@ class rylr998:
             txbdr.noutrefresh()
             return txbdr.derwin(1,40,1,1)
 
+        # status "window" setup
+        def derive_stwin(scr: _curses) -> _curses.window:
+            stwin = scr.derwin(1,40,22,1)
+            stwin.bkgd(' ', cur.color_pair(WHITE_BLACK))
+
+            # the first ACS_VLINE lies outside stwin
+            scr.vline(22, 0,  cur.ACS_VLINE, 1,  cur.color_pair(WHITE_BLACK))
+            #stwin.addstr(0, 0, u" LoRa\U000000AE", cur.color_pair(WHITE_BLACK)) 
+            stwin.addstr(0, 0, u" LoRa ", cur.color_pair(WHITE_BLACK)) 
+            stwin.vline(0, 6, cur.ACS_VLINE, 1,  cur.color_pair(WHITE_BLACK))
+            stwin.addnstr(0, 8, "ADDR", 4, cur.color_pair(WHITE_BLACK)) 
+            stwin.vline(0, 19, cur.ACS_VLINE, 1, cur.color_pair(WHITE_BLACK))
+            stwin.addnstr(0, 21, "RSSI", 4, cur.color_pair(WHITE_BLACK)) 
+            stwin.vline(0, 30, cur.ACS_VLINE, 1, cur.color_pair(WHITE_BLACK))
+            stwin.addnstr(0, 32, "SNR", 3, cur.color_pair(WHITE_BLACK)) 
+            # the last ACS_VLINE lies outside stwin
+            scr.vline(22, 41,  cur.ACS_VLINE, 1,  cur.color_pair(WHITE_BLACK))
+            return stwin
+
         # ATcmd() is only called within the transceiver loop (XCVR LOOP), 
         # so it is an inner function. The XCVR LOOP parses the response 
         # to AT commands from the RYLR998 in two phases, incidentally.
@@ -250,24 +271,9 @@ class rylr998:
         # receive buffer and state reset
         self.rxbufReset()
  
-        # status "window" setup
-        stwin = scr.derwin(1,40,22,1)
-        stwin.bkgd(' ', cur.color_pair(WHITE_BLACK))
-
-        # the first ACS_VLINE lies outside stwin
-        scr.vline(22, 0,  cur.ACS_VLINE, 1,  cur.color_pair(WHITE_BLACK))
-        stwin.addnstr(0, 0, " LoRa ", 6, cur.color_pair(WHITE_BLACK)) 
-        stwin.vline(0, 6, cur.ACS_VLINE, 1,  cur.color_pair(WHITE_BLACK))
-        stwin.addnstr(0, 8, "ADDR", 4, cur.color_pair(WHITE_BLACK)) 
-        stwin.vline(0, 19, cur.ACS_VLINE, 1, cur.color_pair(WHITE_BLACK))
-        stwin.addnstr(0, 21, "RSSI", 4, cur.color_pair(WHITE_BLACK)) 
-        stwin.vline(0, 30, cur.ACS_VLINE, 1, cur.color_pair(WHITE_BLACK))
-        stwin.addnstr(0, 32, "SNR", 3, cur.color_pair(WHITE_BLACK)) 
-        # the last ACS_VLINE lies outside stwin
-        scr.vline(22, 41,  cur.ACS_VLINE, 1,  cur.color_pair(WHITE_BLACK))
-
-        # The LoRa status indicator turns RED if the following is True
+        # The LoRa® status indicator turns RED if the following is True
         txflag = False # True if and only if transmitting
+        stwin = derive_stwin(scr)
         stwin.noutrefresh()
 
         # transmit window initialization
@@ -277,6 +283,7 @@ class rylr998:
 
         # I'd prefer not timing out ESC, but there is no choice. 
         txwin.notimeout(False) 
+
         # txwin cursor coordinates
         txrow = 0   # txwin_y
         txcol = 0   # txwin_x
@@ -418,7 +425,7 @@ class rylr998:
                         # A subtle bug was introduced with the txflag.
                         # The guarded code below assumes that a line will 
                         # be added to the rxwin, a condition that fails
-                        # during transmit when only the LoRa indicator is
+                        # during transmit when only the LoRa® indicator is
                         # updated in the status window stwin, and nothing 
                         # in the rxwin is updated.. 
 
@@ -566,7 +573,7 @@ class rylr998:
                     self.txbufReset()
 
 
-                    # flash the LoRa indicator on transmit
+                    # flash the LoRa® indicator on transmit
                     stwin.addnstr(0,0, " LoRa ", 6, cur.color_pair(WHITE_RED))
                     txflag = True       # reset txflag in OK_table logic 
                     stwin.noutrefresh()
