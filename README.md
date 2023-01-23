@@ -1,7 +1,7 @@
 # RYLR998-LoRa
 
 A python program for 2-way texting with the 33cm band
-[REYAX RYLR998](https://reyax.com/products/rylr998/) LoRa® modul,
+[REYAX RYLR998](https://reyax.com/products/rylr998/) LoRa® module,
 a Raspberry Pi 4, five wires and ten female-female GPIO connectors.
 There are no threads here, only asynchronous non-blocking I/O calls.
 
