@@ -5,8 +5,7 @@ A python program for 2-way texting with the 33cm band
 a Raspberry Pi 4, five wires and ten female-female GPIO connectors.
 There are no threads here, only asynchronous non-blocking I/O calls.
 
-## Trademarks
-The LoRa® Mark and Logo are trademarks of Semtech Corporation or its affiliates.
+
 
 ## Python Module Dependencies
 
@@ -83,6 +82,9 @@ I'll get to an animated screenshot. For now, this screenshot shows two MobaXTerm
 *  Serial port output cannot be one character at a time, since complete AT commands have to be sent to the RYLR998 through the serial port.
 *  Receiving and parsing responses from AT commands takes precedence over sending AT commands, which includes sending text.
 
+## Trademarks
+The LoRa® Mark and Logo are trademarks of Semtech Corporation or its affiliates.
+
 ## Disclaimer
 
 This is a work in progress.  I'm taking my time adding IRC-like display functions with the Python curses library slowly and deliberately with all due sloth, so slowly that I would be fired and blacklisted if I were doing this professionally; flunked and expelled without a degree and a boatload of predatory private student loans at usurious interest rates if I were in college; and defunded and defrocked if I were an academician. 
@@ -93,3 +95,4 @@ This is a work in progress.  I'm taking my time adding IRC-like display function
      Nothing we can do about it.           
 -- Samuel Beckett. Waiting for Godot, Act 1.
 
+I am not affiliated with Semtech Corporation.
