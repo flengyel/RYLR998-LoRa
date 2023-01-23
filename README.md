@@ -88,6 +88,8 @@ Brownlee, J., Ph.D. (2022). [Python Asyncio Jump-Start: Asynchronous Programming
 
 [curses — Terminal handling for character-cell displays](https://docs.python.org/3/library/curses.html)
 
+ "REYAX RYLR998 RYLR498 LoRa® AT COMMAND GUIDE" (c) 2021 REYAX TECHNOLOGY CO., LTD. Retrieved January 22, 2023, from https://reyax.com//upload/products_download/download_file/LoRa_AT_Command_RYLR998_RYLR498_EN.pdf
+
 ## Trademarks
 
 The LoRa® Mark and Logo are trademarks of Semtech Corporation or its affiliates.
