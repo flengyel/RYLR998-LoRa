@@ -1,4 +1,4 @@
-# RYLR998-LoRa
+# RYLR998-LoRa® 
 
 A python program for 2-way texting with the 33cm band
 [REYAX RYLR998](https://reyax.com/products/rylr998/) LoRa® module,
@@ -27,7 +27,7 @@ The GPIO connections are as follows:
 * RXD to GPIO 14 TXD1 this is physical pin 8
 * GND to GND physical pin 9.
 
-WARNING: get this wrong and you could fry your Raspberry Pi 4 and your REYAX RYLR998 LoRa® module. I haven't had problems, knock wood, but the [MIT license](https://github.com/flengyel/RYLR998-LoRa/blob/main/LICENSE) comes with no warranty. Check your connections! Under no circumstances apply 5V to the RYLR998 LoRa® module. Only 3.3V. 
+**WARNING:** get this wrong and you could fry your Raspberry Pi 4 and your REYAX RYLR998 LoRa® module. I haven't had problems, knock wood, but the [MIT license](https://github.com/flengyel/RYLR998-LoRa/blob/main/LICENSE) comes with no warranty. Check your connections! Under no circumstances apply 5V to the RYLR998 LoRa® module. Only 3.3V. 
 
 ## Disable Bluetooth and enable uart1 (/dev/ttyS0)
 
@@ -82,7 +82,14 @@ I'll get to an animated screenshot. For now, this screenshot shows two MobaXTerm
 *  Serial port output cannot be one character at a time, since complete AT commands have to be sent to the RYLR998 through the serial port.
 *  Receiving and parsing responses from AT commands takes precedence over sending AT commands, which includes sending text.
 
+## References
+
+Brownlee, J., Ph.D. (2022). [Python Asyncio Jump-Start: Asynchronous Programming And Non-Blocking I/O With Coroutines](https://superfastpython.com/python-asyncio-jump-start/) (Vol. 7, 7 vols., Python Concurrency Jump-Start Series). Retrieved January 22, 2023, from https://superfastpython.com/python-asyncio-jump-start/ ISBN-13 979-8361197620
+
+[curses — Terminal handling for character-cell displays](https://docs.python.org/3/library/curses.html)
+
 ## Trademarks
+
 The LoRa® Mark and Logo are trademarks of Semtech Corporation or its affiliates.
 
 ## Disclaimer
