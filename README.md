@@ -1,9 +1,9 @@
 # RYLR998-LoRa
 
 A python program for 2-way texting with the 
-[REYAX RYLR998](https://reyax.com/products/rylr998/) 33cm band LoRa 
+[REYAX RYLR998](https://reyax.com/products/rylr998/) 33cm band  LoRa® 
 module and the Raspberry Pi 4. Get on the air with a Raspberry Pi 4 Model B 
-Rev 1.5, a RYLR998 module, five wires and ten female-female GPIO connectors.
+Rev 1.5, a RYLR998  LoRa® module, five wires and ten female-female GPIO connectors.
 There are no threads here, only asynchronous non-blocking I/O calls.
 
 
@@ -27,7 +27,7 @@ The GPIO connections are as follows:
 * RXD to GPIO 14 TXD1 this is physical pin 8
 * GND to GND physical pin 9.
 
-WARNING: get this wrong and you could fry your Raspberry Pi 4 and your REYAX RTLR998. I haven't had problems, knock wood, but the [MIT license](https://github.com/flengyel/RYLR998-LoRa/blob/main/LICENSE) comes with no warranty. Check your connections! Under no circumstances apply 5V to the REYAX. Only 3.3V. 
+WARNING: get this wrong and you could fry your Raspberry Pi 4 and your REYAX RTLR998 LoRa® module. I haven't had problems, knock wood, but the [MIT license](https://github.com/flengyel/RYLR998-LoRa/blob/main/LICENSE) comes with no warranty. Check your connections! Under no circumstances apply 5V to the REYAX. Only 3.3V. 
 
 ## Disable Bluetooth and enable uart1 (/dev/ttyS0)
 
@@ -50,16 +50,6 @@ sudo systemctl disable hciuart.service
 sudo dtoverlay uart1
 ```
 
-## Disclaimer
-
-This is a work in progress.  I'm taking my time adding IRC-like display functions with the Python curses library slowly and deliberately with all due sloth, so slowly that I would be fired and blacklisted if I were doing this professionally; flunked and expelled without a degree and a boatload of predatory private student loans at usurious interest rates if I were in college; and defunded and defrocked if I were an academician. 
-
-> **POZZO:**    
-     It's a disgrace. But there you are.   
-  **ESTRAGON:**   
-     Nothing we can do about it.           
--- Samuel Beckett. Waiting for Godot, Act 1.
-
 ## Non-animated screenshot
 
 I'll get to an animated screenshot. For now, this screenshot shows two MobaXTerm sessions running the `rlyr998.py` program in a Raspberry Pi side-by-side. The Raspberry Pi 4 Bs are located at opposite ends of my living room. Each Raspberry Pi has its own REYAX RYLR998 module connected as above. The yellow text is that of the sender. The received text is magenta. When rylr998.py detects received text, the "LoRa" indicator flashes green; transmission of text flashes the "LoRa" indicator red. The ADDR (address), RSSI and SNR values of the last received message are shown. Text messages are limited to 40 characters (in this version). The screenshot exemplifies the conversation possible at the highest level of the amateur radio art. That's not why I wrote the code, of course. I wrote it to learn asyncio and curses. 
@@ -69,8 +59,7 @@ I'll get to an animated screenshot. For now, this screenshot shows two MobaXTerm
 ## TO DO
 
 * Add parsing of the AT+RESET function. Though this will set CRFOP to 22dBm, which does require a license (I have one). 
-* Display the configuration parameters.
-* Add a task queue for ATcmd() tasks. This is to avoid ERR=16, which occurs when an AT command is sent before another finishes. You wouldn't want that to happen.
+* Display the configuration parameters. Mostly done, at startup. A VFO indicator would be nice. 
 * Add function key handling for changing configuration parameters, such as frequency, netid, etc.
 * But be careful about changing the serial port parameters--you'll be sorry! 
 * I thought about using urwid, but urwid wants you to run in its loop, and I want urwid to run in my transceiver loop. I am toying with the idea of inverting urwid so that it runs in the asyncio event loop with the curses wrapper function. I would call this "widur." 
@@ -92,3 +81,16 @@ I'll get to an animated screenshot. For now, this screenshot shows two MobaXTerm
 * If the dirty bit is set, `curses.doupdate()` is called and the dirty bit is reset. This is an optimization.
 *  Serial port output cannot be one character at a time, since complete AT commands have to be sent to the RYLR998 through the serial port.
 *  Receiving and parsing responses from AT commands takes precedence over sending AT commands, which includes sending text.
+
+## Disclaimer
+
+This is a work in progress.  I'm taking my time adding IRC-like display functions with the Python curses library slowly and deliberately with all due sloth, so slowly that I would be fired and blacklisted if I were doing this professionally; flunked and expelled without a degree and a boatload of predatory private student loans at usurious interest rates if I were in college; and defunded and defrocked if I were an academician. 
+
+> **POZZO:**    
+     It's a disgrace. But there you are.   
+  **ESTRAGON:**   
+     Nothing we can do about it.           
+-- Samuel Beckett. Waiting for Godot, Act 1.
+
+## Trademarks
+   LoRa® and the LoRa logo are trademarks of Semtech Corporation.
