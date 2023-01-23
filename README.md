@@ -1,11 +1,12 @@
 # RYLR998-LoRa
 
-A python program for 2-way texting with the 
-[REYAX RYLR998](https://reyax.com/products/rylr998/) 33cm band  LoRa® 
-module and the Raspberry Pi 4. Get on the air with a Raspberry Pi 4 Model B 
-Rev 1.5, a RYLR998  LoRa® module, five wires and ten female-female GPIO connectors.
+A python program for 2-way texting with the 33cm band
+[REYAX RYLR998](https://reyax.com/products/rylr998/) LoRa® modul,
+a Raspberry Pi 4, five wires and ten female-female GPIO connectors.
 There are no threads here, only asynchronous non-blocking I/O calls.
 
+## Trademarks
+The LoRa® Mark and Logo are trademarks of Semtech Corporation or its affiliates.
 
 ## Python Module Dependencies
 
@@ -92,5 +93,3 @@ This is a work in progress.  I'm taking my time adding IRC-like display function
      Nothing we can do about it.           
 -- Samuel Beckett. Waiting for Godot, Act 1.
 
-## Trademarks
-The LoRa® Mark and Logo are trademarks of Semtech Corporation or its affiliates.
