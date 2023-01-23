@@ -81,6 +81,8 @@ class rylr998:
     state = 0   # index into the current state table
     state_table = RCV_table # start state for the "machine"
 
+
+
     # initial receive buffer state
 
     rxbuf = ''  # string response
@@ -108,6 +110,43 @@ class rylr998:
     def txbufReset(self) -> None:
         self.txbuf = '' # clear tx buffer
         self.txlen = 0  # txlen is zero
+
+    # state machine functions
+
+    def in_rcv(self): # I would rather short-circuit inline
+        return self.state == 2 and self.state_table == RCV_table
+  
+    # character differs from RCV_table at position 1 
+    # -- change the state table or start over
+    def change_state_table(self, data):
+        self.state += 1 # advance the state index
+        match data:
+            case b'A':
+                self.state_table = self.ADDR_table
+            case b'B':
+                self.state_table = self.BAND_table
+            case b'C':
+                self.state_table = self.CRFOP_table
+            case b'E':
+                self.state_table = self.ERR_table
+            case b'I':
+                self.state_table = self.IPR_table
+            case b'M':
+                self.state_table = self.MODE_table
+            case b'N':
+                self.state_table = self.NETID_table # like a net group
+            case b'O':
+                self.state_table = self.OK_table 
+            case b'P':
+                self.state_table = self.PARAM_table
+            case b'R':
+                self.state_table = self.RCV_table  # impossibe! 
+            case b'U':
+                self.state_table = self.UID_table
+            case b'V':
+                self.state_table = self.VER_table
+            case _:
+                self.rxbufReset() # beats me start over
 
     def gpiosetup(self) -> None:
         GPIO.setmode(GPIO.BCM)
@@ -188,13 +227,20 @@ class rylr998:
             cur.init_color(cur.COLOR_BLUE,0,0,1000)
 
             # define fg,bg pairs
-            cur.init_pair(YELLOW_BLACK, cur.COLOR_YELLOW,  cur.COLOR_BLACK) # user text
-            cur.init_pair(GREEN_BLACK,  cur.COLOR_BLUE,    cur.COLOR_BLACK)
-            cur.init_pair(BLUE_BLACK,   cur.COLOR_GREEN,   cur.COLOR_BLACK) # status indicator
-            cur.init_pair(RED_BLACK,    cur.COLOR_RED,     cur.COLOR_BLACK) # errors
-            cur.init_pair(BLACK_PINK,   cur.COLOR_MAGENTA, cur.COLOR_BLACK) # received text
-            cur.init_pair(WHITE_RED,    cur.COLOR_WHITE,   cur.COLOR_RED)
-            cur.init_pair(WHITE_GREEN,  cur.COLOR_WHITE,   cur.COLOR_BLUE)  # BLUE AND GREEN SWAPPED!
+            cur.init_pair(YELLOW_BLACK, 
+                          cur.COLOR_YELLOW,  cur.COLOR_BLACK) # user text
+            cur.init_pair(GREEN_BLACK,  
+                          cur.COLOR_BLUE,    cur.COLOR_BLACK)
+            cur.init_pair(BLUE_BLACK,   
+                          cur.COLOR_GREEN,   cur.COLOR_BLACK) # status indicator
+            cur.init_pair(RED_BLACK,    
+                          cur.COLOR_RED,     cur.COLOR_BLACK) # errors
+            cur.init_pair(BLACK_PINK,   
+                          cur.COLOR_MAGENTA, cur.COLOR_BLACK) # received text
+            cur.init_pair(WHITE_RED,    
+                          cur.COLOR_WHITE,   cur.COLOR_RED)
+            cur.init_pair(WHITE_GREEN,  
+                          cur.COLOR_WHITE,   cur.COLOR_GREEN)  
 
         # receive and transmit window border initialization
 
@@ -272,7 +318,7 @@ class rylr998:
         # receive buffer and state reset
         self.rxbufReset()
  
-        # The LoRa® status indicator turns RED if the following is True
+        # The LoRa® status indicator turn beet RED if the following is True
         txflag = False # True if and only if transmitting
         stwin = derive_stwin(scr)
         stwin.noutrefresh()
@@ -313,9 +359,8 @@ class rylr998:
         # This generates the response b'+ERR=4\r\n'. Else, leave commented.
 
         # Other functions can be tested, such as the query functions below
-        # Only one such function can be uncommented at a time, or an ERR=4
-        # condition will result. A task queuing mechanism is on the road map,
-        # in the cards, a priority of the utmost urgency--when I get to it.
+        # If more than one function is called, sufficient delay between them
+        # is needed or an ERR=4 condition will result. 
         #
         # count : int  = await ATcmd('UID?')
         # count : int  = await ATcmd('VER?')
@@ -326,11 +371,14 @@ class rylr998:
         # count : int  = await ATcmd('NETWORKID?')
         # Add English interpretations of the ERR conditions
 
-        # The transmit address is needed
-        # A queue of configuration query tasks should preceed the proceedings
-        # this is the first as yet unqueued configuration query command.
-
-        count : int = await ATcmd('ADDRESS?')
+        
+        await ATcmd('ADDRESS?')
+        await asyncio.sleep(0.01)
+        await ATcmd('PARAMETER?')
+        await asyncio.sleep(0.01)
+        await ATcmd('BAND?')
+        await asyncio.sleep(0.01)
+        await ATcmd('CRFOP?')
 
         # You are about to participate in a great adventure.
         # You are about to experience the awe and mystery that
@@ -357,7 +405,6 @@ class rylr998:
                 # Phase One: parse the fixed portion of the serial port response
                 if self.state < len(self.state_table):
                     if self.state_table[self.state] == data:
-                        self.state += 1 # advance the state index
                         if self.state == 2 and self.state_table == self.RCV_table:
                             stwin.addnstr(0,0, " LoRa ", 6, cur.color_pair(WHITE_GREEN))
                             stwin.noutrefresh()
@@ -366,36 +413,13 @@ class rylr998:
                             txwin.noutrefresh()
                             dirty = True
 
+                        self.state += 1 # advance the state index
                     else:
                         if self.state == 1:
-                            self.state += 1  # advance the state
-                            match data:
-                                case b'A':
-                                    self.state_table = self.ADDR_table
-                                case b'B':
-                                    self.state_table = self.BAND_table
-                                case b'C':
-                                    self.state_table = self.CRFOP_table
-                                case b'E':
-                                    self.state_table = self.ERR_table
-                                case b'I':
-                                    self.state_table = self.IPR_table
-                                case b'M':
-                                    self.state_table = self.MODE_table
-                                case b'N':
-                                    self.state_table = self.NETID_table # like a net group
-                                case b'O':
-                                    self.state_table = self.OK_table 
-                                case b'P':
-                                    self.state_table = self.PARAM_table
-                                case b'R':
-                                    self.state_table = self.RCV_table  # impossibe! 
-                                case b'U':
-                                    self.state_table = self.UID_table
-                                case b'V':
-                                    self.state_table = self.VER_table
-                                case _:
-                                    self.rxbufReset() # beats me start over
+                            # advance the state index
+                            # if the state table cannot be changed
+                            # the rx buffer and the state will be reset
+                            self.change_state_table(data)
                         else:
                             # in this case, the state is 0 and you are lost
                             # preamble possibly -- or state > 1 and you are lost
@@ -437,19 +461,20 @@ class rylr998:
 
                         match self.state_table:
                             case self.ADDR_table:
-                                rxwin.addnstr(rxrow, rxcol, "Addr = " + self.rxbuf, self.rxlen+7, cur.color_pair(BLUE_BLACK))
+                                rxwin.addnstr(rxrow, rxcol, "addr: " + self.rxbuf, self.rxlen+6, cur.color_pair(BLUE_BLACK))
                                 rxwin.noutrefresh()  
 
                             case self.BAND_table:
-                                rxwin.addnstr(rxrow, rxcol, "Freq = " + self.rxbuf +" Hz", self.rxlen+10, cur.color_pair(BLUE_BLACK))
+                                rxwin.addnstr(rxrow, rxcol, "frequency: " + self.rxbuf +" Hz", self.rxlen+14, cur.color_pair(BLUE_BLACK))
                                 rxwin.noutrefresh()  
 
                             case self.CRFOP_table:
-                                rxwin.addstr(rxrow, rxcol, "Pwr = {} dBm".format( self.rxbuf), cur.color_pair(BLUE_BLACK))
+                                rxwin.addstr(rxrow, rxcol, "power output: {} dBm".format( self.rxbuf), cur.color_pair(BLUE_BLACK))
                                 rxwin.noutrefresh()  
 
                             case self.ERR_table:
-                                rxwin.addnstr(rxrow, rxcol,"+ERR={}".format(self.rxbuf), self.rxlen+7, cur.color_pair(RED_BLACK))
+                                rxwin.addnstr(rxrow, rxcol,"+ERR={}".format(self.rxbuf), 
+                                              self.rxlen+7, cur.color_pair(RED_BLACK))
                                 rxwin.noutrefresh()  
 
                             case self.IPR_table:
@@ -472,7 +497,18 @@ class rylr998:
                                 pass
 
                             case self.PARAM_table:
-                                pass
+                                _sp, _ba, _co, _pr = self.rxbuf.split(',')
+
+                                line =   "spreading factor: {}\n" 
+                                line +=  "bandwidth: {}\n"  
+                                line +=  "coding rate: {}\n"  
+                                line +=  "preamble: {}"
+
+                                rxwin.addstr(rxrow, rxcol, line.format(_sp, _ba, _co, _pr),
+                                             cur.color_pair(BLUE_BLACK))
+
+                                rxwin.noutrefresh()
+                                dirty = True
 
                             case self.RCV_table:
                                 # The following five lines are adapted from
@@ -535,7 +571,6 @@ class rylr998:
             ch = txwin.getch()
             if ch == -1: # cat got your tongue? no character
                 continue
-
             elif ch == cur.ascii.ETX: # CTRL-C
                 cur.noraw()     # go back to cooked mode
                 cur.resetty()   # restore the terminal
@@ -601,6 +636,7 @@ class rylr998:
                 txwin.noutrefresh()
                 dirty = True
 
+ 
 # end of the XCVR loop
 
 if __name__ == "__main__":
