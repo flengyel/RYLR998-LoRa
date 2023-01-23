@@ -52,9 +52,9 @@ sudo dtoverlay uart1
 
 ## Non-animated screenshot
 
-I'll get to an animated screenshot. For now, this screenshot shows two MobaXTerm sessions running the `rlyr998.py` program in a Raspberry Pi side-by-side. The Raspberry Pi 4 Bs are located at opposite ends of my living room. Each Raspberry Pi has its own REYAX RYLR998 module connected as above. The yellow text is that of the sender. The received text is magenta. When rylr998.py detects received text, the "LoRa" indicator flashes green; transmission of text flashes the "LoRa" indicator red. The ADDR (address), RSSI and SNR values of the last received message are shown. Text messages are limited to 40 characters (in this version). The screenshot exemplifies the conversation possible at the highest level of the amateur radio art. That's not why I wrote the code, of course. I wrote it to learn asyncio and curses. 
+I'll get to an animated screenshot. For now, this screenshot shows two MobaXTerm sessions running the `rlyr998.py` program in a Raspberry Pi side-by-side. The Raspberry Pi 4 Bs are located at opposite ends of my living room. Each Raspberry Pi has its own REYAX RYLR998 module connected as above. The yellow text is that of the sender. The received text is magenta. When rylr998.py detects received text, the "LoRa" indicator flashes green; transmission of text flashes the "LoRa" indicator red. The ADDR (address), RSSI and SNR values of the last received message are shown. Text messages are limited to 40 characters (in this version). The screenshot exemplifies the conversation possible at the highest level of the amateur radio art. Look, I felt like writing this program.  
 
-![image](https://user-images.githubusercontent.com/431946/213901591-2c250043-eabe-4aa4-af2a-d68fee45ad12.png)
+![LoRaXCVRscreenshot2](https://user-images.githubusercontent.com/431946/213977310-1b0486a5-1b4d-432c-9bf1-3be6bacd3066.png)
 
 ## TO DO
 
