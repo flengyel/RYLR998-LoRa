@@ -93,4 +93,4 @@ This is a work in progress.  I'm taking my time adding IRC-like display function
 -- Samuel Beckett. Waiting for Godot, Act 1.
 
 ## Trademarks
-   LoRa® and the LoRa logo are trademarks of Semtech Corporation.
+The LoRa® Mark and Logo are trademarks of Semtech Corporation or its affiliates.
