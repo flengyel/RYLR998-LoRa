@@ -210,10 +210,22 @@ class rylr998:
         WHITE_RED    = 6
         WHITE_GREEN  = 7          
 
+        # status window (stwin) labels
+        # coordinates are relative to the stwin
+        TXRX_LBL      = " LoRa "
+        TXRX_LBL_LEN  = 6
+        #TXRX_LBL_ROW = 0 All row numbers are 0
+        TXRX_LBL_COL  = 0
+
+        ADDR_LBL     = "ADDR"
+        ADDR_LBL_LEN = 4
+        ADDR_LBL_COL = 8
+
         def init_curses() -> None:
             cur.savetty() # this has become necessary here  
             cur.raw()  # this is unavoidable
             scr.nodelay(True) # non-blocking getch()
+            scr.bkgd(' ', cur.color_pair(WHITE_BLACK))
 
             # we compromise by setting the ESC delay to 1 msec
             # we do not want to miss any received characters
@@ -279,9 +291,9 @@ class rylr998:
             # the first ACS_VLINE lies outside stwin
             scr.vline(22, 0,  cur.ACS_VLINE, 1,  cur.color_pair(WHITE_BLACK))
             #stwin.addstr(0, 0, u" LoRa\U000000AE", cur.color_pair(WHITE_BLACK)) 
-            stwin.addstr(0, 0, u" LoRa ", cur.color_pair(WHITE_BLACK)) 
+            stwin.addnstr(0, TXRX_LBL_COL, TXRX_LBL, TXRX_LBL_LEN, cur.color_pair(WHITE_BLACK)) 
             stwin.vline(0, 6, cur.ACS_VLINE, 1,  cur.color_pair(WHITE_BLACK))
-            stwin.addnstr(0, 8, "ADDR", 4, cur.color_pair(WHITE_BLACK)) 
+            stwin.addnstr(0, ADDR_LBL_COL, ADDR_LBL, ADDR_LBL_COL, cur.color_pair(WHITE_BLACK)) 
             stwin.vline(0, 19, cur.ACS_VLINE, 1, cur.color_pair(WHITE_BLACK))
             stwin.addnstr(0, 21, "RSSI", 4, cur.color_pair(WHITE_BLACK)) 
             stwin.vline(0, 30, cur.ACS_VLINE, 1, cur.color_pair(WHITE_BLACK))
@@ -290,8 +302,8 @@ class rylr998:
             scr.vline(22, 41,  cur.ACS_VLINE, 1,  cur.color_pair(WHITE_BLACK))
             return stwin
 
-        # ATcmd() is only called within the transceiver loop (XCVR LOOP), 
-        # so it is an inner function. The XCVR LOOP parses the response 
+        # ATcmd() is only called within the transceiver loop (OUTER LOOP), 
+        # so it is an inner function. The OUTER LOOP parses the response 
         # to AT commands from the RYLR998 in two phases, incidentally.
 
         async def ATcmd(cmd: str = '') -> int:
@@ -301,8 +313,6 @@ class rylr998:
         
         init_curses()
 
-        # keep track of the cursor in each window
-        scr.bkgd(' ', cur.color_pair(WHITE_BLACK))
 
         # derived window initializations
 
@@ -336,21 +346,22 @@ class rylr998:
         txcol = 0   # txwin_x
         txwin.move(txrow, txcol)
         txwin.bkgd(' ', cur.color_pair(YELLOW_BLACK))
-        
+        txwin.noutrefresh()
+ 
         self.txbufReset()
  
         # show the rectangles etc
         scr.noutrefresh()
         dirty = True
      
-        # NOTE: the xcvr loop updates the display only if 
+        # NOTE: the OUTER LOOP updates the display only if 
         # dirty is True. There are no calls to window.refresh(), 
         # only calls to window.noutrefresh() after which the 
-        # dirty flag set. At the beginning of the xcvr loop, 
+        # dirty flag set. At the beginning of the OUTER LOOP, 
         # cur.doupdate() is called and the dirty flag is  reset,
         # provided the dirty flag is set. This speeds up the display
 
-        # Brace yourself: we are approaching THE XCVR LOOP 
+        # Brace yourself: we are approaching THE OUTER LOOP 
 
         # NOTE: AT+RCV is NOT a valid command.
         # The RYLR998 module emits "+RCV=w,x,y,z" when it receives a packet
@@ -358,31 +369,39 @@ class rylr998:
         # count : int  = await ATcmd('RCV')
         # This generates the response b'+ERR=4\r\n'. Else, leave commented.
 
-        # Other functions can be tested, such as the query functions below
-        # If more than one function is called, sufficient delay between them
-        # is needed or an ERR=4 condition will result. 
-        #
-        # count : int  = await ATcmd('UID?')
-        # count : int  = await ATcmd('VER?')
         # this next causes trouble  debug
         # count : int  = await ATcmd('RESET')
-        # count : int  = await ATcmd('BAND?')
-        # count : int  = await ATcmd('BAND=915125000')
-        # count : int  = await ATcmd('NETWORKID?')
         # Add English interpretations of the ERR conditions
 
-        
+        HUNDREDTH = 0.01  # experimentally determined
+        await ATcmd('ADDRESS=65535')
+        await asyncio.sleep(0.1)
         await ATcmd('ADDRESS?')
-        await asyncio.sleep(0.01)
+        await asyncio.sleep(HUNDREDTH)
+        await ATcmd('MODE?')
+        await asyncio.sleep(HUNDREDTH)
+        await ATcmd('IPR?')
+        await asyncio.sleep(HUNDREDTH)
+        await ATcmd('NETWORKID?')
+        await asyncio.sleep(HUNDREDTH)
         await ATcmd('PARAMETER?')
-        await asyncio.sleep(0.01)
+        await asyncio.sleep(HUNDREDTH)
+        await ATcmd('BAND=915125000')
+        await asyncio.sleep(HUNDREDTH)
         await ATcmd('BAND?')
-        await asyncio.sleep(0.01)
+        await asyncio.sleep(HUNDREDTH)
+        await ATcmd('CRFOP=20')
+        await asyncio.sleep(HUNDREDTH)
         await ATcmd('CRFOP?')
+        await asyncio.sleep(HUNDREDTH)
+        await ATcmd('UID?')
+        await asyncio.sleep(HUNDREDTH)
+        await ATcmd('VER?')
+        await asyncio.sleep(HUNDREDTH)
 
         # You are about to participate in a great adventure.
         # You are about to experience the awe and mystery that
-        # reaches from the inner functions to THE XCVR LOOP
+        # reaches from the inner functions to THE OUTER LOOP
 
         # Hold onto your chair and godspeed. 
 
@@ -406,7 +425,7 @@ class rylr998:
                 if self.state < len(self.state_table):
                     if self.state_table[self.state] == data:
                         if self.state == 2 and self.state_table == self.RCV_table:
-                            stwin.addnstr(0,0, " LoRa ", 6, cur.color_pair(WHITE_GREEN))
+                            stwin.addnstr(0,TXRX_LBL_COL, TXRX_LBL, TXRX_LBL_LEN, cur.color_pair(WHITE_GREEN))
                             stwin.noutrefresh()
                             # cursor back to tx window to avoid flicker
                             txwin.move(txrow, txcol)  
@@ -431,6 +450,7 @@ class rylr998:
                     # Phase Two: parse the data portion of the response
                     # the precondition for the second parsing phase obtains:
                     # self.state == len(self.state_table). 
+
                     # accumulate data into rxbuf after the '=' sign until '\n'
                     # The OK does not have an equal sign, so it vanishes.
 
@@ -454,6 +474,8 @@ class rylr998:
                         # updated in the status window stwin, and nothing 
                         # in the rxwin is updated.. 
 
+                        # Note: txflag => self.state_table = self.OK_table
+                        # Do not scroll if txflag and state_table == self.OK_table
                         if not txflag or self.state_table != self.OK_table:
                             row, col = rxwin.getyx() 
                             if row == 19:
@@ -478,14 +500,19 @@ class rylr998:
                                 rxwin.noutrefresh()  
 
                             case self.IPR_table:
-                                pass
+                                rxwin.addnstr(rxrow, rxcol, "uart: " + self.rxbuf + " baud", self.rxlen+11, cur.color_pair(BLUE_BLACK))
+                                rxwin.noutrefresh()
+                                # dirty = True # this will occur below
 
                             case self.MODE_table:
-                                pass
+                                rxwin.addnstr(rxrow, rxcol, "mode: " + self.rxbuf, self.rxlen+6, cur.color_pair(BLUE_BLACK))
+                                rxwin.noutrefresh()
+                                # dirty = True # this will occur below
+                                
 
                             case self.OK_table:
                                 if txflag:
-                                    stwin.addnstr(0,0, " LoRa ", 6, cur.color_pair(WHITE_BLACK))
+                                    stwin.addnstr(0,TXRX_LBL_COL, TXRX_LBL, TXRX_LBL_LEN, cur.color_pair(WHITE_BLACK))
                                     stwin.noutrefresh() # yes, that was it
                                     txflag = False
                                 else:
@@ -494,7 +521,10 @@ class rylr998:
                                 dirty = True  # no matter what happens
 
                             case self.NETID_table:
-                                pass
+                                rxwin.addnstr(rxrow, rxcol, "NETWORK ID: " + self.rxbuf, self.rxlen+12, cur.color_pair(BLUE_BLACK))
+                                rxwin.noutrefresh()
+                                # dirty = True # this will occur below
+                                
 
                             case self.PARAM_table:
                                 _sp, _ba, _co, _pr = self.rxbuf.split(',')
@@ -506,9 +536,8 @@ class rylr998:
 
                                 rxwin.addstr(rxrow, rxcol, line.format(_sp, _ba, _co, _pr),
                                              cur.color_pair(BLUE_BLACK))
-
                                 rxwin.noutrefresh()
-                                dirty = True
+                                # dirty = True # This will occur below
 
                             case self.RCV_table:
                                 # The following five lines are adapted from
@@ -532,17 +561,22 @@ class rylr998:
                                 rxwin.noutrefresh() 
 
                                 # add the ADDRESS, RSSI and SNR to the status window
-                                stwin.addnstr(0,0, " LoRa ", 6, cur.color_pair(WHITE_BLACK))
+                                stwin.addnstr(0,TXRX_LBL_COL, TXRX_LBL, TXRX_LBL_LEN, cur.color_pair(WHITE_BLACK))
                                 stwin.addstr(0, 13, addr, cur.color_pair(BLUE_BLACK))
                                 stwin.addstr(0, 26, rssi, cur.color_pair(BLUE_BLACK))
                                 stwin.addstr(0, 36, snr, cur.color_pair(BLUE_BLACK))
                                 stwin.noutrefresh()
 
                             case self.UID_table:
-                                pass
+                                rxwin.addnstr(rxrow, rxcol, "UID: " + self.rxbuf, self.rxlen+5, cur.color_pair(BLUE_BLACK))
+                                rxwin.noutrefresh()
+                                # dirty = True # this will occur below
 
                             case self.VER_table:
-                                pass
+                                rxwin.addnstr(rxrow, rxcol, "VER: " + self.rxbuf, self.rxlen+5, cur.color_pair(BLUE_BLACK))
+                                rxwin.noutrefresh()
+                                # dirty = True # this will occur below
+                                
 
                             case _:
                                 rxwin.addstr(rxrow, rxcol, "ERROR. Call Tech Support!", cur.color_pair(RED_BLACK))
@@ -563,6 +597,7 @@ class rylr998:
 
                         # falling through to the non-blocking getch() is OK here 
                         #continue # unless you change your mind--see how the code performs
+                        # pretty well, actually
 
                     else: # not a newline yet. Prioritize receive and responses from the module
                         continue # still accumulating response from /dev/ttyS0, keep listening
@@ -571,16 +606,18 @@ class rylr998:
             ch = txwin.getch()
             if ch == -1: # cat got your tongue? no character
                 continue
+
             elif ch == cur.ascii.ETX: # CTRL-C
                 cur.noraw()     # go back to cooked mode
                 cur.resetty()   # restore the terminal
                 raise KeyboardInterrupt
 
-            elif ch == cur.ascii.ESC: #ord(b'\x1b'): # b'\x1b' is ESC
+            elif ch == cur.ascii.ESC: 
                 # clear the transmit buffer
                 txcol = 0
                 self.txbufReset()
                 txwin.erase()
+                txwin.noutrefresh() # may not be needed
                 dirty = True
 
             elif ch == cur.ascii.LF:
@@ -610,7 +647,7 @@ class rylr998:
 
 
                     # flash the LoRa® indicator on transmit
-                    stwin.addnstr(0,0, " LoRa ", 6, cur.color_pair(WHITE_RED))
+                    stwin.addnstr(0,TXRX_LBL_COL, TXRX_LBL, TXRX_LBL_LEN, cur.color_pair(WHITE_RED))
                     txflag = True       # reset txflag in OK_table logic 
                     stwin.noutrefresh()
 
