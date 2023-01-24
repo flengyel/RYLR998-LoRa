@@ -62,7 +62,15 @@ I'll get to an animated screenshot. For now, this screenshot shows two MobaXTerm
 * Display the configuration parameters. Mostly done, at startup. A VFO indicator would be nice. 
 * Add function key handling for changing configuration parameters, such as frequency, netid, etc.
 * But be careful about changing the serial port parameters--you'll be sorry! 
-* I thought about using urwid, but urwid wants you to run in its loop, and I want urwid to run in my transceiver loop. I am toying with the idea of inverting urwid so that it runs in the asyncio event loop with the curses wrapper function. I would call this "widur." 
+* The python urwid library could be used with the following initialization at  beginning of ```xcvr(scr: _curses.window)```:
+    ```python
+    uloop = urwid.MainLoop(widget, event_loop=eloop)
+    uloop.start() # main_loop.py suggests using this.
+    ```
+and immediately before ```raise   KeyboardInterrupt``` within ```xcvr()``` call 
+    ```python
+    uloop.stop()
+    ```
 * You could make the windows resizable. Dunno.
 * Rewrite in micropython for the Raspberry Pico. 
 
