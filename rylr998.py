@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf8 -*-
+# 
+# branch: urwid
 #
 # A demo texting program in python for the REYAX RYLR998 LoRa® module.
 # Get on the air with a Rasperry Pi 4 Model B Rev 1.5, a RYLR998 module,  
@@ -43,6 +45,7 @@ import curses.ascii
 import locale
 locale.setlocale(locale.LC_ALL, '')
 #stdscr.addstr(0, 0, mystring.encode('UTF-8'))
+import urwid
 
 class rylr998:
     TXD1   = 14    # GPIO.BCM  pin 8
@@ -220,6 +223,13 @@ class rylr998:
         ADDR_LBL     = "ADDR"
         ADDR_LBL_LEN = 4
         ADDR_LBL_COL = 8
+
+        # set up urwid loop
+        eloop = urwid.AsyncioEventLoop(loop=asyncio.get_event_loop())
+        txt = urwid.Text(u"Hello World hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh")
+        widget = urwid.Filler(txt, 'middle')
+        uloop = urwid.MainLoop(widget, event_loop=eloop)
+        uloop.start() # main_loop.py suggests using this. 
 
         def init_curses() -> None:
             cur.savetty() # this has become necessary here  
@@ -610,6 +620,7 @@ class rylr998:
             elif ch == cur.ascii.ETX: # CTRL-C
                 cur.noraw()     # go back to cooked mode
                 cur.resetty()   # restore the terminal
+                uloop.stop()    # urwid main_loop.py suggests this
                 raise KeyboardInterrupt
 
             elif ch == cur.ascii.ESC: 
@@ -685,7 +696,7 @@ if __name__ == "__main__":
         asyncio.run(cur.wrapper(rylr.xcvr))
 
     except KeyboardInterrupt:
-        print(" Gotta book. 73!")
+        pass
 
     finally:
-        print("またね！") # ROMAJI mettane ENGLISH see you.
+        print("またね！ 73") # ROMAJI mettane ENGLISH see you.
