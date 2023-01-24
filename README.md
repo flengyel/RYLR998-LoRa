@@ -66,7 +66,7 @@ I'll get to an animated screenshot. For now, this screenshot shows two MobaXTerm
 
 ```python
 uloop = urwid.MainLoop(widget, event_loop=eloop)
-uloop.start() # main_loop.py suggests using this.
+uloop.start() # main_loop.py suggests using this instead of run().
 ```
 
 and immediately before `raise KeyboardInterrupt` within `xcvr(...)` call 
