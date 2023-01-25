@@ -65,6 +65,7 @@ I'll get to an animated screenshot. For now, this screenshot shows two MobaXTerm
 * The python urwid library could be used with the following initialization at  beginning of `xcvr(...)`:
 
 ```python
+eloop = urwid.AsyncioEventLoop(loop=asyncio.get_event_loop())
 uloop = urwid.MainLoop(widget, event_loop=eloop)
 uloop.start() # main_loop.py suggests using this instead of run().
 ```
