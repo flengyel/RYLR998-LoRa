@@ -9,8 +9,9 @@ There are no threads here, only asynchronous non-blocking I/O calls.
 ![REYAXRYLR988TwoWay](https://user-images.githubusercontent.com/431946/214753395-8db614de-1e25-42e7-bde6-571a45fcc902.gif)
 
 
-This screenshot shows two MobaXTerm sessions running the `rlyr998.py` program in two  Raspberry Pi 4 Bs located at opposite ends of my living room. (The RYLR998 has a range in the tens of kilometers line-of-site.) Each Raspberry Pi has its own REYAX RYLR998 module connected as above. The yellow text is that of the sender. The received text is magenta. When rylr998.py detects received text, the "LoRa" indicator flashes green; transmission of text flashes the "LoRa" indicator red. The ADDR (address), RSSI and SNR values of the last received message are shown. Text messages are limited to 40 characters (in this version). The screenshot exemplifies the conversation possible at the highest level of the amateur radio art. Look, I felt like writing this program.  
+This screenshot shows two MobaXTerm sessions running the `rlyr998.py` program in two  Raspberry Pi 4 Bs located at opposite ends of my living room. (The RYLR998 has a range in the tens of kilometers line-of-site.) Each Raspberry Pi has its own REYAX RYLR998 module connected as described below. The yellow text is that of the sender. The received text is magenta. When rylr998.py detects received text, the "LoRa" indicator flashes green if the message is long enough; transmission of text flashes the "LoRa" indicator red. The ADDR (address), RSSI and SNR values of the last received message are shown. Text messages are limited to 40 characters (in this version). 
 
+---
 
 ## Python Module Dependencies
 
