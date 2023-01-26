@@ -63,7 +63,7 @@ sudo dtoverlay uart1
 
 ## TO DO
 
-* Add parsing of the AT+RESET function. Though this will set CRFOP to 22dBm, which does require a license (I have one). 
+* Add parsing of the AT+RESET function. 
 * Display the configuration parameters. Mostly done, at startup. A VFO indicator would be nice. 
 * Add function key handling for changing configuration parameters, such as frequency, netid, etc.
 * But be careful about changing the serial port parameters--you'll be sorry! 
