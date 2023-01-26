@@ -5,6 +5,7 @@ A python program for 2-way texting with the 33cm band
 a Raspberry Pi 4, five wires and ten female-female GPIO connectors.
 There are no threads here, only asynchronous non-blocking I/O calls.
 
+---
 
 ![REYAXRYLR988TwoWay](https://user-images.githubusercontent.com/431946/214753395-8db614de-1e25-42e7-bde6-571a45fcc902.gif)
 
