@@ -435,8 +435,8 @@ class rylr998:
                 if self.state < len(self.state_table):
                     if self.state_table[self.state] == data:
                         if self.state == 2 and self.state_table == self.RCV_table:
-                            stwin.addnstr(0,TXRX_COL, TXRX_LBL, TXRX_LEN, 
-                                          cur.color_pair(WHITE_GREEN))
+                            stwin.addnstr(0,dsply.TXRX_COL, dsply.TXRX_LBL, dsply.TXRX_LEN, 
+                                          cur.color_pair(dsply.WHITE_GREEN))
                             stwin.noutrefresh()
                             # cursor back to tx window to avoid flicker
                             txwin.move(txrow, txcol)  
@@ -581,7 +581,7 @@ class rylr998:
 
                                 rxwin.noutrefresh() 
 
-                                stwin.addnstr(0,TXRX_COL, TXRX_LBL, TXRX_LEN, 
+                                stwin.addnstr(0,dsply.TXRX_COL, dsply.TXRX_LBL, dsply.TXRX_LEN, 
                                               cur.color_pair(dsply.WHITE_BLACK))
 
                                 # add the ADDRESS, RSSI and SNR to the status window
