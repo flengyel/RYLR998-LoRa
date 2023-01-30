@@ -6,7 +6,6 @@ a Raspberry Pi 4, five wires and ten female-female GPIO connectors.
 There are no threads here, only asynchronous non-blocking I/O calls.
 
 
----
 
 ## Python Module Dependencies
 
