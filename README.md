@@ -5,12 +5,6 @@ A python program for 2-way texting with the 33cm band
 a Raspberry Pi 4, five wires and ten female-female GPIO connectors.
 There are no threads here, only asynchronous non-blocking I/O calls.
 
----
-
-![REYAXRYLR988TwoWay](https://user-images.githubusercontent.com/431946/214753395-8db614de-1e25-42e7-bde6-571a45fcc902.gif)
-
-
-This screenshot shows two MobaXTerm sessions running the `rlyr998.py` program in two  Raspberry Pi 4 Bs located at opposite ends of my living room. (The RYLR998 has a range in the tens of kilometers line-of-site.) Each Raspberry Pi has its own REYAX RYLR998 module connected as described below. The yellow text is that of the sender. The received text is magenta. When rylr998.py detects received text, the "LoRa" indicator flashes green if the message is long enough; transmission of text flashes the "LoRa" indicator red. The ADDR (address), RSSI and SNR values of the last received message are shown. Text messages are limited to 40 characters (in this version). 
 
 ---
 
@@ -112,6 +106,15 @@ Brownlee, J., Ph.D. (2022). [Python Asyncio Jump-Start: Asynchronous Programming
 
 The LoRa® Mark and Logo are trademarks of Semtech Corporation or its affiliates.
 
+---
+
+![REYAXRYLR988TwoWay](https://user-images.githubusercontent.com/431946/214753395-8db614de-1e25-42e7-bde6-571a45fcc902.gif)
+
+
+This screenshot shows two MobaXTerm sessions running the `rlyr998.py` program in two  Raspberry Pi 4 Bs located at opposite ends of my living room. (The RYLR998 has a range in the tens of kilometers line-of-site.) Each Raspberry Pi has its own REYAX RYLR998 module connected as described below. The yellow text is that of the sender. The received text is magenta. When rylr998.py detects received text, the "LoRa" indicator flashes green if the message is long enough; transmission of text flashes the "LoRa" indicator red. The ADDR (address), RSSI and SNR values of the last received message are shown. Text messages are limited to 40 characters (in this version). 
+
+
 ## Disclaimer
 
 This is a work in progress.  I'm taking my time adding IRC-like display functions with the Python curses library slowly and deliberately with all due sloth, so slowly that I would be fired and blacklisted if I were doing this professionally; flunked and expelled without a degree and a boatload of predatory private student loans at usurious interest rates if I were in college; and defunded and defrocked if I were an academician. I am not affiliated with Semtech Corporation.
+
