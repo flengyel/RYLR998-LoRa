@@ -44,6 +44,8 @@ import locale
 locale.setlocale(locale.LC_ALL, '')
 #stdscr.addstr(0, 0, mystring.encode('UTF-8'))
 
+import urwid
+
 class Display:
     # color pair initialization constants
     WHITE_BLACK  = 0  # built in cannot change 
@@ -77,8 +79,13 @@ class Display:
     SNR_LBL = "SNR"
     SNR_LEN = 3
 
+    scr     = None  # curses standard screen
+    eloop   = None
+    widget  = None  
+    uloop   = None
 
     def __init__(self, scr) -> None:
+        self.scr = scr # set the standard screen
         cur.savetty() # this has become necessary here  
         cur.raw()  # this is unavoidable
         scr.nodelay(True) # non-blocking getch()
@@ -104,8 +111,27 @@ class Display:
         cur.init_pair(self.WHITE_RED, cur.COLOR_WHITE, cur.COLOR_RED)
         cur.init_pair(self.WHITE_GREEN, cur.COLOR_WHITE, cur.COLOR_GREEN)  
 
-    def derive_rxwin(self, scr : _curses) -> _curses.window:
-        rxbdr = scr.derwin(22,42,0,0)
+       
+        
+
+        # setup urwid
+        txt = urwid.Text(u"Nothing")
+        self.widget = urwid.Filler(txt, 'top')
+        self.eloop = urwid.AsyncioEventLoop(loop=asyncio.get_event_loop())
+        self.uloop = urwid.MainLoop(self.widget, event_loop=self.eloop)
+        self.uloop.start() # main_loop.py suggests using this instead of run().
+
+  
+    def __del__(self):
+        self.uloop.stop() # this is paired with self.uloop.start()
+        self.scr.erase()
+        #self.scr.refresh()
+        cur.noraw()     # go back to cooked mode
+        cur.resetty()   # restore the terminal
+
+
+    def derive_rxwin(self) -> _curses.window:
+        rxbdr = self.scr.derwin(22,42,0,0)
         # window.border([ls[, rs[, ts[, bs[, tl[, tr[, bl[, br]]]]]]]])
         rxbdr.border(0,0,0,0,0,0,cur.ACS_LTEE, cur.ACS_RTEE)
         rxbdr.addch(21,7, cur.ACS_TTEE)
@@ -114,8 +140,8 @@ class Display:
         rxbdr.noutrefresh()
         return rxbdr.derwin(20,40,1,1)
 
-    def derive_txwin(self, scr : _curses) -> _curses.window:
-        txbdr = scr.derwin(3,42,23,0)
+    def derive_txwin(self) -> _curses.window:
+        txbdr = self.scr.derwin(3,42,23,0)
         # window.border([ls[, rs[, ts[, bs[, tl[, tr[, bl[, br]]]]]]]])
         txbdr.border(0,0,0,0,cur.ACS_LTEE, cur.ACS_RTEE,0,0)
         txbdr.addch(0,7, cur.ACS_BTEE)
@@ -125,12 +151,12 @@ class Display:
         return txbdr.derwin(1,40,1,1)
 
     # status "window" setup
-    def derive_stwin(self, scr: _curses) -> _curses.window:
-        stwin = scr.derwin(1,40,22,1)
+    def derive_stwin(self) -> _curses.window:
+        stwin = self.scr.derwin(1,40,22,1)
         stwin.bkgd(' ', cur.color_pair(self.WHITE_BLACK))
 
         # the first ACS_VLINE lies outside stwin
-        scr.vline(22, 0,  cur.ACS_VLINE, 1,  cur.color_pair(self.WHITE_BLACK))
+        self.scr.vline(22, 0,  cur.ACS_VLINE, 1,  cur.color_pair(self.WHITE_BLACK))
         #stwin.addstr(0, 0, u" LoRa\U000000AE", cur.color_pair(self.WHITE_BLACK)) 
         stwin.addnstr(0, self.TXRX_COL, self.TXRX_LBL, self.TXRX_LEN, cur.color_pair(self.WHITE_BLACK)) 
         stwin.vline(0, 6, cur.ACS_VLINE, 1,  cur.color_pair(self.WHITE_BLACK))
@@ -144,7 +170,7 @@ class Display:
         stwin.addnstr(0, self.SNR_COL, self.SNR_LBL, self.SNR_LEN, 
                       cur.color_pair(self.WHITE_BLACK)) 
         # the last ACS_VLINE lies outside stwin
-        scr.vline(22, 41,  cur.ACS_VLINE, 1,  cur.color_pair(self.WHITE_BLACK))
+        self.scr.vline(22, 41,  cur.ACS_VLINE, 1,  cur.color_pair(self.WHITE_BLACK))
         return stwin
 
 class rylr998:
@@ -335,7 +361,7 @@ class rylr998:
 
         # derived window initializations
 
-        rxwin = dsply.derive_rxwin(scr)
+        rxwin = dsply.derive_rxwin()
         rxwin.scrollok(True)
 
         rxwin.bkgd(' ', cur.color_pair(dsply.YELLOW_BLACK)) # set bg color
@@ -349,11 +375,11 @@ class rylr998:
  
         # The LoRa® status indicator turns beet RED if the following is True
         txflag = False # True if and only if transmitting
-        stwin = dsply.derive_stwin(scr)
+        stwin = dsply.derive_stwin()
         stwin.noutrefresh()
 
         # transmit window initialization
-        txwin = dsply.derive_txwin(scr)
+        txwin = dsply.derive_txwin()
         txwin.nodelay(True)
         txwin.keypad(True)
 
@@ -637,11 +663,7 @@ class rylr998:
                 continue
 
             elif ch == cur.ascii.ETX: # CTRL-C
-                scr.erase()
-                scr.refresh()
-                cur.noraw()     # go back to cooked mode
-                cur.resetty()   # restore the terminal
-                raise KeyboardInterrupt
+                return
 
             elif ch == cur.ascii.ESC: 
                 # clear the transmit buffer
@@ -722,4 +744,4 @@ if __name__ == "__main__":
         pass
 
     finally:
-        print("またね！ 73!") # ROMAJI mettane ENGLISH see you.
+        print("73!") 
