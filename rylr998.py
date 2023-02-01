@@ -77,7 +77,6 @@ class Display:
     SNR_LBL = "SNR"
     SNR_LEN = 3
 
-
     def __init__(self, scr) -> None:
         cur.savetty() # this has become necessary here  
         cur.raw()  # this is unavoidable
@@ -184,8 +183,6 @@ class rylr998:
     state = 0   # index into the current state table
     state_table = RCV_table # start state for the "machine"
 
-
-
     # initial receive buffer state
 
     rxbuf = ''  # string response
@@ -260,7 +257,6 @@ class rylr998:
             print('GPIO setup mode')
             subprocess.run(["raspi-gpio", "get", '4,14,15'])
 
-
     def __del__(self):
         self.aio.close() # close the serial port
         GPIO.cleanup()   # clean up the GPIO
@@ -292,7 +288,6 @@ class rylr998:
         except aioserial.SerialException:
             logging.error(aioserial.SerialException)
             raise aioserial.SerialException
-
 
     # Transceiver function
     #
@@ -637,11 +632,10 @@ class rylr998:
                 continue
 
             elif ch == cur.ascii.ETX: # CTRL-C
-                scr.erase()
-                scr.refresh()
                 cur.noraw()     # go back to cooked mode
                 cur.resetty()   # restore the terminal
-                raise KeyboardInterrupt
+                print("\n")
+                return
 
             elif ch == cur.ascii.ESC: 
                 # clear the transmit buffer
@@ -722,4 +716,4 @@ if __name__ == "__main__":
         pass
 
     finally:
-        print("またね！ 73!") # ROMAJI mettane ENGLISH see you.
+        print("73!") # ROMAJI mettane ENGLISH see you.
