@@ -30,11 +30,12 @@
 # Further instructions are available in the accompanying README.md document
 #
 
-import RPi.GPIO as GPIO
+#import RPi.GPIO as GPIO
 import asyncio
 import aioserial
 from serial import EIGHTBITS, PARITY_NONE,  STOPBITS_ONE
-import subprocess # for call to raspi-gpio
+
+
 import logging
 import curses as cur
 import _curses
@@ -43,6 +44,13 @@ import curses.ascii
 import locale
 locale.setlocale(locale.LC_ALL, '')
 #stdscr.addstr(0, 0, mystring.encode('UTF-8'))
+
+try:
+    import subprocess # for call to raspi-gpio
+    import RPi.GPIO as GPIO
+    existGPIO = True
+except RuntimeError:
+    existGPIO = False
 
 class Display:
     # color pair initialization constants
@@ -249,17 +257,18 @@ class rylr998:
                 self.rxbufReset() # beats me start over
 
     def gpiosetup(self) -> None:
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setwarnings(True)
-        GPIO.setup(self.RST,GPIO.OUT,initial=GPIO.HIGH) # the default anyway
-
-        if self.debug:
-            print('GPIO setup mode')
-            subprocess.run(["raspi-gpio", "get", '4,14,15'])
+        if existGPIO:
+            GPIO.setmode(GPIO.BCM)
+            GPIO.setwarnings(True)
+            GPIO.setup(self.RST,GPIO.OUT,initial=GPIO.HIGH) # the default anyway
+            if self.debug:
+                print('GPIO setup mode')
+                subprocess.run(["raspi-gpio", "get", '4,14,15'])
 
     def __del__(self):
         self.aio.close() # close the serial port
-        GPIO.cleanup()   # clean up the GPIO
+        if existGPIO:
+            GPIO.cleanup()   # clean up the GPIO
 
     def __init__(self, port='/dev/ttyS0',baudrate=115200,
                        parity=PARITY_NONE, bytesize=EIGHTBITS,
@@ -274,7 +283,7 @@ class rylr998:
         self.timeout = timeout
         self.debug = debug
         
-        self.gpiosetup()
+      #  self.gpiosetup()
         
         try:
             self.aio: aioserial.AioSerial = aioserial.AioSerial(
@@ -706,7 +715,7 @@ class rylr998:
 
 if __name__ == "__main__":
 
-    rylr  = rylr998(debug=False)
+    rylr  = rylr998(port='/dev/ttyS8',debug=False)
 
     try:
         # how's this for an idiom?
