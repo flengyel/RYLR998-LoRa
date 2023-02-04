@@ -45,10 +45,10 @@ import locale
 locale.setlocale(locale.LC_ALL, '')
 #stdscr.addstr(0, 0, mystring.encode('UTF-8'))
 
+existGPIO = True
 try:
     import subprocess # for call to raspi-gpio
     import RPi.GPIO as GPIO
-    existGPIO = True
 except RuntimeError:
     existGPIO = False
 
@@ -283,7 +283,7 @@ class rylr998:
         self.timeout = timeout
         self.debug = debug
         
-      #  self.gpiosetup()
+        self.gpiosetup()
         
         try:
             self.aio: aioserial.AioSerial = aioserial.AioSerial(
@@ -715,7 +715,14 @@ class rylr998:
 
 if __name__ == "__main__":
 
-    rylr  = rylr998(port='/dev/ttyS8',debug=False)
+    # on the Raspberry Pi
+    if existGPIO:
+        rylr  = rylr998(debug=False)
+    else:
+        # on the PC. Change the port assignment
+        # for the C2120 USB to TTL serial port converter
+        # if necessary (add argparse)
+        rylr  = rylr998(port='/dev/ttyS8',debug=False)
 
     try:
         # how's this for an idiom?
