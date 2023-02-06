@@ -1,8 +1,10 @@
 # RYLR998-LoRa® 
 
 A python program for 2-way texting with the 33cm band
-[REYAX RYLR998](https://reyax.com/products/rylr998/) LoRa® module,
-a Raspberry Pi 4, five wires and ten female-female GPIO connectors.
+[REYAX RYLR998](https://reyax.com/products/rylr998/) LoRa® module, 
+either with a Raspberry Pi 4, five wires and ten female-female GPIO connectors; or
+with a PC and a CP2102 USB 2.0 to TTL serial converter, four wires and 
+eight female-female GPIO connectors. 
 There are no threads here, only asynchronous non-blocking I/O calls.
 
 
@@ -17,7 +19,7 @@ There are no threads here, only asynchronous non-blocking I/O calls.
 
 `pip install asyncio` and so on should work.
 
-## GPIO connections
+## GPIO connections for the Raspberry Pi
 
 The GPIO connections are as follows:
 
@@ -50,6 +52,13 @@ sudo systemctl disable hciuart.service
 sudo dtoverlay uart1
 ```
 
+## Connection to a PC with a CP2102 USB 2.0 to TTL module serial converter
+Similar to the GPIO, only VDD goes to the 3.3V output of the converter; RX and TX are swapped, as usual; and GND goes to GND.
+See the pictures below.
+![rylr998module](https://user-images.githubusercontent.com/431946/216791228-058dd28e-4c32-43dd-a351-1a0bd575dc06.jpg)
+
+
+![CP2102_USB2_to_TTL_module_serial_converter](https://user-images.githubusercontent.com/431946/216791243-bd2dd829-fa44-45e2-9f36-a1b2585429bb.jpg)
 
 
 
