@@ -52,6 +52,39 @@ try:
 except RuntimeError:
     existGPIO = False
 
+import argparse 
+
+parser = argparse.ArgumentParser()
+rylr998_config = parser.add_argument_group('rylr998 config')
+rylr998_config.add_argument('--addr', required=False, type=int, choices=range(0,65536),
+                   metavar='[0-65535]', dest='addr', default = 0,
+                   help='Module address (0-65535). Default is 0.') 
+
+def bandcheck(n : str) -> int:
+    f = int(n)
+    if f < 902125000 or f > 927875000:
+        raise argparse.ArgumentTypeError("Frequency must be in range (902125000-927875000)")
+    return f
+
+rylr998_config.add_argument('--band', required=False, type=bandcheck, 
+                   metavar='[902125000 Hz-927875000 Hz]', dest='band', default = 915125000,
+                   help='Module frequency (902125000-927875000) in Hz. Default is 915125000.') 
+
+serial_config = parser.add_argument_group('serial port config')
+serial_config.add_argument('--port', required=False, type=str, metavar='/dev/ttyS0,S1,...',
+                           default = '/dev/ttyS0', dest='port',
+                           help='Serial port device name. Default is /dev/ttyS0.')
+
+
+baudrates = [50, 75, 110, 134, 150, 200, 300, 600, 1200, 
+             1800, 2400, 4800, 9600, 19200, 28800, 38400, 
+             57600, 76800, 115200, 230400, 460800, 576000, 921600]
+
+serial_config.add_argument('--baud', required=False, type=int, 
+                           metavar='(choose from 50, 75, 110, 134, 150, 200, 300, 600, 1200, 1800, 2400, 4800, 9600, 19200, 28800, 38400, 57600, 76800, 115200, 230400, 460800, 576000, 921600)',
+                           default = 115200, dest='baud', choices = baudrates,
+                           help='Serial port baudrate. Default is 115200.')
+
 class Display:
     # color pair initialization constants
     WHITE_BLACK  = 0  # built in cannot change 
@@ -164,6 +197,8 @@ class rylr998:
 
     # default values for the serial port constructor below
 
+    args     = None   # value of parser.parse_args()
+
     port     ='/dev/ttyS0'
     baudrate = 115200
     parity   = PARITY_NONE
@@ -270,13 +305,18 @@ class rylr998:
         if existGPIO:
             GPIO.cleanup()   # clean up the GPIO
 
-    def __init__(self, port='/dev/ttyS0',baudrate=115200,
+    def __init__(self, args, port='/dev/ttyS0',baudrate=115200,
                        parity=PARITY_NONE, bytesize=EIGHTBITS,
                        stopbits= STOPBITS_ONE, timeout=None,
                        debug=False):
 
-        self.port = port
-        self.baudrate = baudrate
+        self.args = args
+        # now you can improve this, since only self and args 
+        # should be passed to init if a serial port arg group is defined
+        # move these arguments into a serial port group.
+
+        self.port = args.port
+        self.baudrate = args.baud
         self.parity = parity
         self.bytesize = bytesize
         self.stopbits = stopbits
@@ -388,7 +428,7 @@ class rylr998:
         # count : int  = await ATcmd('RESET')
         # Add English interpretations of the ERR conditions
 
-        await ATcmd('ADDRESS=65535')
+        await ATcmd('ADDRESS='+str(self.args.addr))
         await asyncio.sleep(dsply.TENTH) # apparently needed
         await ATcmd('ADDRESS?')
         await asyncio.sleep(dsply.HUNDREDTH)
@@ -400,7 +440,7 @@ class rylr998:
         await asyncio.sleep(dsply.HUNDREDTH)
         await ATcmd('PARAMETER?')
         await asyncio.sleep(dsply.HUNDREDTH)
-        await ATcmd('BAND=915125000')
+        await ATcmd('BAND='+str(self.args.band))
         await asyncio.sleep(dsply.HUNDREDTH)
         await ATcmd('BAND?')
         await asyncio.sleep(dsply.HUNDREDTH)
@@ -715,14 +755,15 @@ class rylr998:
 
 if __name__ == "__main__":
 
+    args = parser.parse_args()
     # on the Raspberry Pi
     if existGPIO:
-        rylr  = rylr998(debug=False)
+        rylr  = rylr998(args, debug=False)
     else:
         # on the PC. Change the port assignment
         # for the C2120 USB to TTL serial port converter
         # if necessary (add argparse)
-        rylr  = rylr998(port='/dev/ttyS8',debug=False)
+        rylr  = rylr998(args, port='/dev/ttyS8',debug=False)
 
     try:
         # how's this for an idiom?
