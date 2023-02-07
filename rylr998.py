@@ -70,10 +70,10 @@ def bandcheck(n : str) -> str:
     if f < 902125000 or f > 927875000:
         logging.error("Frequency must be in range (902125000-927875000)")
         raise argparse.ArgumentTypeError("Frequency must be in range (902125000-927875000)")
-    return f
+    return n
 
 rylr998_config.add_argument('--band', required=False, type=bandcheck, 
-                   metavar='[902125000 Hz-927875000 Hz]', dest='band', default = 915125000,
+                   metavar='[902125000 Hz-927875000 Hz]', dest='band', default = '915125000', # subtle type
                    help='Module frequency (902125000-927875000) in Hz. Default is 915125000.') 
 
 # serial port configuration argument group
@@ -101,7 +101,7 @@ baudchoices +=')'
 
 serial_config.add_argument('--baud', required=False, type=str, 
                            metavar='(choose from '+baudchoices,
-                           default = 115200, dest='baud', choices = baudrates,
+                           default = '115200', dest='baud', choices = baudrates,
                            help='Serial port baudrate. Default is 115200.')
 
 class Display:
@@ -339,7 +339,7 @@ class rylr998:
         # move these arguments into a serial port group.
 
         self.port = args.port     # the RYLR998 cares about this
-        self.baudrate = args.baud # and this
+        self.baudrate = args.baud # and this (type string!)
         self.parity = parity      # this is fixed
         self.bytesize = bytesize  # so is this
         self.stopbits = stopbits  # and this
