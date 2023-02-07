@@ -60,10 +60,18 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--debug', action='store_true', help = 'log DEBUG information')
 
 # rylr998 configuration argument group
+
+DEFAULT_ADDR_INT = 0 # type int
+DEFAULT_BAND = '915125000'
+DEFAULT_PORT = '/dev/ttyS0'
+DEFAULT_BAUD = '115200'
+
+
+
 rylr998_config = parser.add_argument_group('rylr998 config')
 rylr998_config.add_argument('--addr', required=False, type=int, choices=range(0,65536),
-                   metavar='[0-65535]', dest='addr', default = 0,
-                   help='Module address (0-65535). Default is 0.') 
+                   metavar='[0-65535]', dest='addr', default = DEFAULT_ADDR_INT,
+                   help='Module address (0-65535). Default is ' + str(DEFAULT_ADDR_INT)) 
 
 def bandcheck(n : str) -> str:
     f = int(n)
@@ -73,8 +81,8 @@ def bandcheck(n : str) -> str:
     return n
 
 rylr998_config.add_argument('--band', required=False, type=bandcheck, 
-                   metavar='[902125000 Hz-927875000 Hz]', dest='band', default = '915125000', # subtle type
-                   help='Module frequency (902125000-927875000) in Hz. Default is 915125000.') 
+                   metavar='[902125000 Hz-927875000 Hz]', dest='band', default = DEFAULT_BAND, # subtle type
+                   help='Module frequency (902125000-927875000) in Hz. Default is ' + DEFAULT_BAND) 
 
 # serial port configuration argument group
 serial_config = parser.add_argument_group('serial port config')
@@ -86,8 +94,8 @@ def uartcheck(s : str) -> str:
     raise argparse.ArgumentTypeError("Serial Port device name not of the form ^/dev/ttyS\d{1,3}$")
 
 serial_config.add_argument('--port', required=False, type=uartcheck, metavar='/dev/ttyS0,S1,...',
-                           default = '/dev/ttyS0', dest='port',
-                           help='Serial port device name. Default is /dev/ttyS0.')
+                           default = DEFAULT_PORT, dest='port',
+                           help='Serial port device name. Default is '+ DEFAULT_PORT)
 
 
 baudrates = ['50', '75', '110', '134', '150', '200', '300', '600', 
@@ -101,8 +109,8 @@ baudchoices +=')'
 
 serial_config.add_argument('--baud', required=False, type=str, 
                            metavar='(choose from '+baudchoices,
-                           default = '115200', dest='baud', choices = baudrates,
-                           help='Serial port baudrate. Default is 115200.')
+                           default = DEFAULT_BAUD, dest='baud', choices = baudrates,
+                           help='Serial port baudrate. Default is '+DEFAULT_BAUD)
 
 class Display:
     # color pair initialization constants
@@ -210,22 +218,23 @@ class rylr998:
     TXD1   = 14    # GPIO.BCM  pin 8
     RXD1   = 15    # GPIO.BCM  pin 10
     RST    = 4     # GPIO.BCM  pin 7
-    debug  = False # By default, don't go into debug mode
 
     aio : aioserial.AioSerial   = None  # asyncio serial port
 
     # default values for the serial port constructor below
 
-    args     = None   # value of parser.parse_args()
-
-    port     ='/dev/ttyS0'
-    baudrate = '115200'
+    port     = DEFAULT_PORT
+    baudrate = DEFAULT_BAUD
     parity   = PARITY_NONE
     bytesize = EIGHTBITS
     stopbits = STOPBITS_ONE
     timeout  = None
 
-    debug    = False
+    debug  = False # By default, don't go into debug mode
+
+    # AT command strings
+    addr     = str(DEFAULT_ADDR_INT) # the default
+    SEND_COMMAND = "SEND="+addr+','
 
     # state "machines" for various AT command and receiver responses
     
@@ -333,7 +342,8 @@ class rylr998:
     def __init__(self, args, parity=PARITY_NONE, bytesize=EIGHTBITS,
                        stopbits= STOPBITS_ONE, timeout=None):
 
-        self.args = args
+        # NOTE: do not set a variable "self.args"
+
         # now you can improve this, since only self and args 
         # should be passed to init if a serial port arg group is defined
         # move these arguments into a serial port group.
@@ -344,7 +354,11 @@ class rylr998:
         self.bytesize = bytesize  # so is this
         self.stopbits = stopbits  # and this
         self.timeout = timeout    # and this
-        self.debug = self.args.debug
+        self.debug = args.debug
+
+        # note: self.addr is a str, args.addr is an int
+        self.addr = str(args.addr) # set the default
+        self.SEND_COMMAND = 'SEND='+self.addr+','
         
         self.gpiosetup()
         
@@ -452,7 +466,7 @@ class rylr998:
         # count : int  = await ATcmd('RESET')
         # Add English interpretations of the ERR conditions
 
-        await ATcmd('ADDRESS='+str(self.args.addr)) # convert to string since this is an int
+        await ATcmd('ADDRESS='+self.addr) # this is a str 
         await asyncio.sleep(dsply.TENTH) # apparently needed
         await ATcmd('ADDRESS?')
         await asyncio.sleep(dsply.HUNDREDTH)
@@ -464,7 +478,7 @@ class rylr998:
         await asyncio.sleep(dsply.HUNDREDTH)
         await ATcmd('PARAMETER?')
         await asyncio.sleep(dsply.HUNDREDTH)
-        await ATcmd('BAND='+self.args.band)
+        await ATcmd('BAND='+args.band)
         await asyncio.sleep(dsply.HUNDREDTH)
         await ATcmd('BAND?')
         await asyncio.sleep(dsply.HUNDREDTH)
@@ -720,8 +734,8 @@ class rylr998:
 
             elif ch == cur.ascii.LF:
                 if self.txlen > 0:
-                    # need address from initialization 
-                    await ATcmd('SEND=0,'+str(self.txlen)+','+self.txbuf)
+                    # the SEND_COMMAND includes the address 
+                    await ATcmd(self.SEND_COMMAND+str(self.txlen)+','+self.txbuf)
 
                     row, col = rxwin.getyx()
                     if row == 19:
