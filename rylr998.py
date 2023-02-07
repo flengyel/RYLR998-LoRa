@@ -461,10 +461,10 @@ class rylr998:
 
         await ATcmd() # this is a str 
         await asyncio.sleep(dsply.TENTH) # apparently needed
-        #await ATcmd('ADDRESS='+self.addr) # this is a str 
-        #await asyncio.sleep(dsply.TENTH) # apparently needed
-        #await ATcmd('ADDRESS?')
-        #await asyncio.sleep(dsply.HUNDREDTH)
+        await ATcmd('ADDRESS='+self.addr) # this is a str 
+        await asyncio.sleep(dsply.TENTH) # apparently needed
+        await ATcmd('ADDRESS?')
+        await asyncio.sleep(dsply.TENTH)
         #await ATcmd('MODE?')
         #await asyncio.sleep(dsply.HUNDREDTH)
         #await ATcmd('IPR?')
