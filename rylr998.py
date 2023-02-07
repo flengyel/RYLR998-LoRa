@@ -326,9 +326,9 @@ class rylr998:
             GPIO.setmode(GPIO.BCM)
             GPIO.setwarnings(True)
             GPIO.setup(self.RST,GPIO.OUT,initial=GPIO.HIGH) # the default anyway
-            if self.debug:
-                print('GPIO setup mode')
-                subprocess.run(["raspi-gpio", "get", '4,14,15'])
+            #if self.debug:
+                #print('GPIO setup mode')
+                #subprocess.run(["raspi-gpio", "get", '4,14,15'])
 
     def __del__(self):
         try:
@@ -406,14 +406,6 @@ class rylr998:
 
         dsply  = Display(scr) 
 
-        dirty = True
-        # NOTE: the xcvr() loop updates the display only if 
-        # dirty is True. There are no calls to window.refresh(), 
-        # only calls to window.noutrefresh() after which the 
-        # dirty flag set. At the beginning of the xcvr loop, 
-        # cur.doupdate() is called and the dirty flag is  reset,
-        # provided the dirty flag is set. This speeds up the display
-
 
         # derived window initializations
 
@@ -452,7 +444,8 @@ class rylr998:
         self.txbufReset()
  
         # show the rectangles etc
-        scr.noutrefresh()
+        #scr.noutrefresh()
+        scr.refresh()  # from now on use the dirty bit
      
         # Brace yourself: we are approaching the xcvr() loop 
 
@@ -466,34 +459,44 @@ class rylr998:
         # count : int  = await ATcmd('RESET')
         # Add English interpretations of the ERR conditions
 
-        await ATcmd('ADDRESS='+self.addr) # this is a str 
+        await ATcmd() # this is a str 
         await asyncio.sleep(dsply.TENTH) # apparently needed
-        await ATcmd('ADDRESS?')
-        await asyncio.sleep(dsply.HUNDREDTH)
-        await ATcmd('MODE?')
-        await asyncio.sleep(dsply.HUNDREDTH)
-        await ATcmd('IPR?')
-        await asyncio.sleep(dsply.HUNDREDTH)
-        await ATcmd('NETWORKID?')
-        await asyncio.sleep(dsply.HUNDREDTH)
-        await ATcmd('PARAMETER?')
-        await asyncio.sleep(dsply.HUNDREDTH)
-        await ATcmd('BAND='+args.band)
-        await asyncio.sleep(dsply.HUNDREDTH)
-        await ATcmd('BAND?')
-        await asyncio.sleep(dsply.HUNDREDTH)
-        await ATcmd('CRFOP=20')
-        await asyncio.sleep(dsply.HUNDREDTH)
-        await ATcmd('CRFOP?')
-        await asyncio.sleep(dsply.HUNDREDTH)
-        await ATcmd('UID?')
-        await asyncio.sleep(dsply.HUNDREDTH)
-        await ATcmd('VER?')
-        await asyncio.sleep(dsply.HUNDREDTH)
+        #await ATcmd('ADDRESS='+self.addr) # this is a str 
+        #await asyncio.sleep(dsply.TENTH) # apparently needed
+        #await ATcmd('ADDRESS?')
+        #await asyncio.sleep(dsply.HUNDREDTH)
+        #await ATcmd('MODE?')
+        #await asyncio.sleep(dsply.HUNDREDTH)
+        #await ATcmd('IPR?')
+        #await asyncio.sleep(dsply.HUNDREDTH)
+        #await ATcmd('NETWORKID?')
+        #await asyncio.sleep(dsply.HUNDREDTH)
+        #await ATcmd('PARAMETER?')
+        #await asyncio.sleep(dsply.HUNDREDTH)
+        #await ATcmd('BAND='+args.band)
+        #await asyncio.sleep(dsply.HUNDREDTH)
+        #await ATcmd('BAND?')
+        #await asyncio.sleep(dsply.HUNDREDTH)
+        #await ATcmd('CRFOP=20')
+        #await asyncio.sleep(dsply.HUNDREDTH)
+        #await ATcmd('CRFOP?')
+        #await asyncio.sleep(dsply.HUNDREDTH)
+        #await ATcmd('UID?')
+        #await asyncio.sleep(dsply.HUNDREDTH)
+        #await ATcmd('VER?')
+        #await asyncio.sleep(dsply.HUNDREDTH)
 
         # You are about to participate in a great adventure.
         # You are about to experience the awe and mystery that
         # reaches from the inner functions to THE XCVR LOOP
+
+        dirty = True
+        # NOTE: the xcvr() loop updates the display only if 
+        # dirty is True. There are no calls to window.refresh(), 
+        # only calls to window.noutrefresh() after which the 
+        # dirty flag set. At the beginning of the xcvr loop, 
+        # cur.doupdate() is called and the dirty flag is  reset,
+        # provided the dirty flag is set. This speeds up the display
 
         # Hold onto your chair and godspeed. 
 
@@ -510,8 +513,8 @@ class rylr998:
                 data = await self.aio.read_async(size=1)
 
                 # you could use a debug window -- perhaps
-                if self.debug:
-                    print("read:{} state:{}".format(data, self.state))
+                if self.debug: # this is buggy
+                    logging.info("read:{} state:{}".format(data, self.state))
 
                 # Phase One: parse the fixed portion of the serial port response
                 if self.state < len(self.state_table):
@@ -599,13 +602,13 @@ class rylr998:
                                 rxwin.addnstr(rxrow, rxcol, "uart: " + self.rxbuf + " baud", self.rxlen+11, 
                                               cur.color_pair(dsply.BLUE_BLACK))
                                 rxwin.noutrefresh()
-                                # dirty = True # this will occur below
+                                dirty = True # this will occur below
 
                             case self.MODE_table:
                                 rxwin.addnstr(rxrow, rxcol, "mode: " + self.rxbuf, self.rxlen+6, 
                                               cur.color_pair(dsply.BLUE_BLACK))
                                 rxwin.noutrefresh()
-                                # dirty = True # this will occur below
+                                dirty = True # this will occur below
                                 
 
                             case self.OK_table:
@@ -624,7 +627,7 @@ class rylr998:
                                 rxwin.addnstr(rxrow, rxcol, "NETWORK ID: " + self.rxbuf, self.rxlen+12, 
                                               cur.color_pair(dsply.BLUE_BLACK))
                                 rxwin.noutrefresh()
-                                # dirty = True # this will occur below
+                                dirty = True # this will occur below
                                 
 
                             case self.PARAM_table:
@@ -674,18 +677,19 @@ class rylr998:
                                 stwin.addstr(0, 36, snr, 
                                              cur.color_pair(dsply.BLUE_BLACK))
                                 stwin.noutrefresh()
+                                dirty = True
 
                             case self.UID_table:
                                 rxwin.addnstr(rxrow, rxcol, "UID: " + self.rxbuf, self.rxlen+5, 
                                               cur.color_pair(dsply.BLUE_BLACK))
                                 rxwin.noutrefresh()
-                                # dirty = True # this will occur below
+                                dirty = True # this will occur below
 
                             case self.VER_table:
                                 rxwin.addnstr(rxrow, rxcol, "VER: " + self.rxbuf, self.rxlen+5, 
                                               cur.color_pair(dsply.BLUE_BLACK))
                                 rxwin.noutrefresh()
-                                # dirty = True # this will occur below
+                                dirty = True # this will occur below
                                 
 
                             case _:
@@ -699,6 +703,7 @@ class rylr998:
                         rxrow = min(19, row+1)
                         rxcol = 0 # never moves
 
+
                         # also return to the txwin
                         txwin.move(txrow, txcol)
                         txwin.noutrefresh()
@@ -708,9 +713,11 @@ class rylr998:
 
                         # falling through to the non-blocking getch() is OK here 
                         #continue # unless you change your mind--see how the code performs
-                        # pretty well, actually
 
                     else: # not a newline yet. Prioritize receive and responses from the module
+                        if self.rxlen > 240:
+                            self.rxbufReset() # this is an error
+
                         continue # still accumulating response from /dev/ttyS0, keep listening
 
             # at long last, you can speak
@@ -749,16 +756,18 @@ class rylr998:
                         rxwin.addnstr(rxrow, rxcol, self.txbuf, self.txlen, 
                                       cur.color_pair(dsply.YELLOW_BLACK))
 
+                    # forget this and you'll regret it
+                    rxwin.noutrefresh() 
                     row, col = rxwin.getyx()
                     rxrow = min(19, row+1)
                     rxcol = 0
-                    rxwin.noutrefresh()
 
                     txcol=0
                     txwin.move(txrow, txcol) # cursor to tx initial input position
                     txwin.clear()
+                    txwin.noutrefresh()
                     self.txbufReset()
-
+                   
 
                     # flash the LoRa® indicator on transmit
                     stwin.addnstr(0,dsply.TXRX_COL, dsply.TXRX_LBL, dsply.TXRX_LEN, 
