@@ -53,16 +53,22 @@ except RuntimeError:
     existGPIO = False
 
 import argparse 
+import re # regular expressions
 
 parser = argparse.ArgumentParser()
+
+parser.add_argument('--debug', action='store_true', help = 'log DEBUG information')
+
+# rylr998 configuration argument group
 rylr998_config = parser.add_argument_group('rylr998 config')
 rylr998_config.add_argument('--addr', required=False, type=int, choices=range(0,65536),
                    metavar='[0-65535]', dest='addr', default = 0,
                    help='Module address (0-65535). Default is 0.') 
 
-def bandcheck(n : str) -> int:
+def bandcheck(n : str) -> str:
     f = int(n)
     if f < 902125000 or f > 927875000:
+        logging.error("Frequency must be in range (902125000-927875000)")
         raise argparse.ArgumentTypeError("Frequency must be in range (902125000-927875000)")
     return f
 
@@ -70,18 +76,31 @@ rylr998_config.add_argument('--band', required=False, type=bandcheck,
                    metavar='[902125000 Hz-927875000 Hz]', dest='band', default = 915125000,
                    help='Module frequency (902125000-927875000) in Hz. Default is 915125000.') 
 
+# serial port configuration argument group
 serial_config = parser.add_argument_group('serial port config')
-serial_config.add_argument('--port', required=False, type=str, metavar='/dev/ttyS0,S1,...',
+
+uartPattern = re.compile('^/dev/ttyS\d{1,3}$')
+def uartcheck(s : str) -> str:
+    if uartPattern.match(s):
+        return s
+    raise argparse.ArgumentTypeError("Serial Port device name not of the form ^/dev/ttyS\d{1,3}$")
+
+serial_config.add_argument('--port', required=False, type=uartcheck, metavar='/dev/ttyS0,S1,...',
                            default = '/dev/ttyS0', dest='port',
                            help='Serial port device name. Default is /dev/ttyS0.')
 
 
-baudrates = [50, 75, 110, 134, 150, 200, 300, 600, 1200, 
-             1800, 2400, 4800, 9600, 19200, 28800, 38400, 
-             57600, 76800, 115200, 230400, 460800, 576000, 921600]
+baudrates = ['50', '75', '110', '134', '150', '200', '300', '600', 
+             '1200', '1800', '2400', '4800', '9600', '19200', '28800', '38400', 
+             '57600', '76800', '115200', '230400', '460800', '576000', '921600']
 
-serial_config.add_argument('--baud', required=False, type=int, 
-                           metavar='(choose from 50, 75, 110, 134, 150, 200, 300, 600, 1200, 1800, 2400, 4800, 9600, 19200, 28800, 38400, 57600, 76800, 115200, 230400, 460800, 576000, 921600)',
+baudchoices = '('+ baudrates[0]
+for i in range(1, len(baudrates)):
+    baudchoices +=  ', ' + baudrates[i]
+baudchoices +=')'
+
+serial_config.add_argument('--baud', required=False, type=str, 
+                           metavar='(choose from '+baudchoices,
                            default = 115200, dest='baud', choices = baudrates,
                            help='Serial port baudrate. Default is 115200.')
 
@@ -200,11 +219,13 @@ class rylr998:
     args     = None   # value of parser.parse_args()
 
     port     ='/dev/ttyS0'
-    baudrate = 115200
+    baudrate = '115200'
     parity   = PARITY_NONE
     bytesize = EIGHTBITS
     stopbits = STOPBITS_ONE
     timeout  = None
+
+    debug    = False
 
     # state "machines" for various AT command and receiver responses
     
@@ -301,27 +322,29 @@ class rylr998:
                 subprocess.run(["raspi-gpio", "get", '4,14,15'])
 
     def __del__(self):
-        self.aio.close() # close the serial port
+        try:
+            self.aio.close() # close the serial port
+        except Exception as e:
+            logging.error(str(e))
+
         if existGPIO:
             GPIO.cleanup()   # clean up the GPIO
 
-    def __init__(self, args, port='/dev/ttyS0',baudrate=115200,
-                       parity=PARITY_NONE, bytesize=EIGHTBITS,
-                       stopbits= STOPBITS_ONE, timeout=None,
-                       debug=False):
+    def __init__(self, args, parity=PARITY_NONE, bytesize=EIGHTBITS,
+                       stopbits= STOPBITS_ONE, timeout=None):
 
         self.args = args
         # now you can improve this, since only self and args 
         # should be passed to init if a serial port arg group is defined
         # move these arguments into a serial port group.
 
-        self.port = args.port
-        self.baudrate = args.baud
-        self.parity = parity
-        self.bytesize = bytesize
-        self.stopbits = stopbits
-        self.timeout = timeout
-        self.debug = debug
+        self.port = args.port     # the RYLR998 cares about this
+        self.baudrate = args.baud # and this
+        self.parity = parity      # this is fixed
+        self.bytesize = bytesize  # so is this
+        self.stopbits = stopbits  # and this
+        self.timeout = timeout    # and this
+        self.debug = self.args.debug
         
         self.gpiosetup()
         
@@ -334,9 +357,10 @@ class rylr998:
                                                  stopbits = self.stopbits,
                                                  timeout = self.timeout)
 
-        except aioserial.SerialException:
-            logging.error(aioserial.SerialException)
-            raise aioserial.SerialException
+            logging.info('Opened port '+ self.port + ' at ' + self.baudrate + 'baud') 
+        except Exception as e:
+            logging.error(str(e))
+            exit(1) # quit at this point -- no serial port then no go
 
     # Transceiver function
     #
@@ -428,7 +452,7 @@ class rylr998:
         # count : int  = await ATcmd('RESET')
         # Add English interpretations of the ERR conditions
 
-        await ATcmd('ADDRESS='+str(self.args.addr))
+        await ATcmd('ADDRESS='+str(self.args.addr)) # convert to string since this is an int
         await asyncio.sleep(dsply.TENTH) # apparently needed
         await ATcmd('ADDRESS?')
         await asyncio.sleep(dsply.HUNDREDTH)
@@ -440,7 +464,7 @@ class rylr998:
         await asyncio.sleep(dsply.HUNDREDTH)
         await ATcmd('PARAMETER?')
         await asyncio.sleep(dsply.HUNDREDTH)
-        await ATcmd('BAND='+str(self.args.band))
+        await ATcmd('BAND='+self.args.band)
         await asyncio.sleep(dsply.HUNDREDTH)
         await ATcmd('BAND?')
         await asyncio.sleep(dsply.HUNDREDTH)
@@ -758,19 +782,20 @@ if __name__ == "__main__":
     args = parser.parse_args()
     # on the Raspberry Pi
     if existGPIO:
-        rylr  = rylr998(args, debug=False)
+        rylr  = rylr998(args)
     else:
         # on the PC. Change the port assignment
         # for the C2120 USB to TTL serial port converter
         # if necessary (add argparse)
-        rylr  = rylr998(args, port='/dev/ttyS8',debug=False)
+        rylr  = rylr998(args)
 
     try:
         # how's this for an idiom?
         asyncio.run(cur.wrapper(rylr.xcvr))
 
-    except KeyboardInterrupt:
+    except KeyboardInterrupt: 
+        # note that except Exception doesn't catch KeyboardInterrupt
         pass
 
     finally:
-        print("73!") # ROMAJI mettane ENGLISH see you.
+        print("73!") 
