@@ -487,8 +487,7 @@ class rylr998:
         self.txbufReset()
  
         # show the rectangles etc
-        #scr.noutrefresh()
-        scr.refresh()  # from now on use the dirty bit
+        scr.noutrefresh()
      
         # Brace yourself: we are approaching the xcvr() loop 
 
@@ -530,11 +529,12 @@ class rylr998:
         # You are about to experience the awe and mystery that
         # reaches from the inner functions to THE XCVR LOOP
 
-        dirty = False  # transmit and RCV will set these
+        dirty = True  # transmit and RCV will set these
         # NOTE: the xcvr() loop updates the display only if 
-        # dirty is True. There only call to window.refresh() 
+        # dirty is True.  
         # is at the end of phase 2 parsing of serial output.
         # The dirty flag is set during character handling. 
+
         # At the beginning of the xcvr loop, 
         # cur.doupdate() is called and the dirty flag is  reset,
         # provided the dirty flag is set. This speeds up the display
@@ -686,9 +686,6 @@ class rylr998:
                             case _:
                                 dsply.rxaddnstr("ERROR. Call Tech Support!",25, fg_bg = dsply.RED_BLACK) 
                          
-                        #  Long lines will scroll automatically
-
-                        #dsply.rxNextRow() now included in rxaddnstr() 
 
                         # also return to the txwin
                         txwin.move(txrow, txcol)
@@ -696,13 +693,10 @@ class rylr998:
 
                         self.rxbufReset() # reset the receive buffer state and assume RCV -- this is necessary
 
-                        cur.doupdate()    # This works since at this point you're done parsing
-                        dirty = False
+                        dirty = True    # instead of doupdate() here, use the dirty bit
                         txflag = False
 
-                        # falling through to the non-blocking getch() is OK here 
-                        # test if you need to refresh the screen before running any commands...
-                        continue # unless you change your mind--see how the code performs
+                        continue # The dirty bit logic will update the screen
 
                     else: # not a newline yet. Prioritize receive and responses from the module
                         if self.rxlen > 240:
