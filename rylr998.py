@@ -55,73 +55,13 @@ except RuntimeError:
 
 import argparse 
 import re # regular expressions
-import sys
-
-parser = argparse.ArgumentParser()
-
-parser.add_argument('--debug', action='store_true', help = 'log DEBUG information')
-
-# rylr998 configuration argument group
+import sys # needed to compensate for argparses argh-parsing
 
 DEFAULT_ADDR_INT = 0 # type int
 DEFAULT_BAND = '915125000'
 DEFAULT_PORT = '/dev/ttyS0'
 DEFAULT_BAUD = '115200'
 DEFAULT_CRFOP = '22'
-
-
-rylr998_config = parser.add_argument_group('rylr998 config')
-rylr998_config.add_argument('--addr', required=False, type=int, choices=range(0,65536),
-                   metavar='[0-65535]', dest='addr', default = DEFAULT_ADDR_INT,
-                   help='Module address (0-65535). Default is ' + str(DEFAULT_ADDR_INT)) 
-
-def bandcheck(n : str) -> str:
-    f = int(n)
-    if f < 902125000 or f > 927875000:
-        logging.error("Frequency must be in range (902125000-927875000)")
-        raise argparse.ArgumentTypeError("Frequency must be in range (902125000-927875000)")
-    return n
-
-rylr998_config.add_argument('--band', required=False, type=bandcheck, 
-                   metavar='[902125000-927875000]', dest='band', default = DEFAULT_BAND, # subtle type
-                            help='Module frequency (902125000-927875000) in Hz. Default: ' + DEFAULT_BAND) 
-
-def pwrcheck(n : str) -> str:
-    p = int(n)
-    if p < 0 or p > 22:
-        logging.error("Power output must be in range (0-22)")
-        raise argparse.ArgumentTypeError("Power output must be in range (0-22)")
-    return n
-
-rylr998_config.add_argument('--crfop', required=False, type=pwrcheck, 
-                            metavar='[0-22]', dest='crfop', default = DEFAULT_CRFOP, 
-                            help='RF pwr out (0-22) in dBm. NOTE: If set, tx at least once to rx again. Default: ' + DEFAULT_CRFOP)
-
-# serial port configuration argument group
-serial_config = parser.add_argument_group('serial port config')
-
-uartPattern = re.compile('^/dev/ttyS\d{1,3}$')
-def uartcheck(s : str) -> str:
-    if uartPattern.match(s):
-        return s
-    raise argparse.ArgumentTypeError("Serial Port device name not of the form ^/dev/ttyS\d{1,3}$")
-
-serial_config.add_argument('--port', required=False, type=uartcheck, metavar='[/dev/ttyS0-/dev/ttyS999]',
-                           default = DEFAULT_PORT, dest='port',
-                           help='Serial port device name. Default: '+ DEFAULT_PORT)
-
-
-baudrates = ['300', '1200', '4800', '9600', '19200', '28800', '38400', '57600',  '115200']
-
-baudchoices = '('+ baudrates[0]
-for i in range(1, len(baudrates)):
-    baudchoices +=  '|' + baudrates[i]
-baudchoices +=')'
-
-serial_config.add_argument('--baud', required=False, type=str, 
-                           metavar=baudchoices,
-                           default = DEFAULT_BAUD, dest='baud', choices = baudrates,
-                           help='Serial port baudrate. Default: '+DEFAULT_BAUD)
 
 class Display:
     # color pair initialization constants
@@ -275,12 +215,12 @@ class rylr998:
 
     # default values for the serial port constructor below
 
-    port     = DEFAULT_PORT
-    baudrate = DEFAULT_BAUD
-    parity   = PARITY_NONE
-    bytesize = EIGHTBITS
-    stopbits = STOPBITS_ONE
-    timeout  = None
+    #port     = DEFAULT_PORT
+    #baudrate = DEFAULT_BAUD
+    #parity   = PARITY_NONE
+    #bytesize = EIGHTBITS
+    #stopbits = STOPBITS_ONE
+    #timeout  = None
 
     debug  = False # By default, don't go into debug mode
 
@@ -789,16 +729,77 @@ class rylr998:
 
 if __name__ == "__main__":
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--debug', action='store_true', help = 'log DEBUG information')
+
+    # rylr998 configuration argument group
+
+    DEFAULT_ADDR_INT = 0 # type int
+    DEFAULT_BAND = '915125000'
+    DEFAULT_PORT = '/dev/ttyS0'
+    DEFAULT_BAUD = '115200'
+    DEFAULT_CRFOP = '22'
+
+
+    rylr998_config = parser.add_argument_group('rylr998 config')
+    rylr998_config.add_argument('--addr', required=False, type=int, choices=range(0,65536),
+        metavar='[0-65535]', dest='addr', default = DEFAULT_ADDR_INT,
+        help='Module address (0-65535). Default is ' + str(DEFAULT_ADDR_INT)) 
+
+    def bandcheck(n : str) -> str:
+        f = int(n)
+        if f < 902125000 or f > 927875000:
+            logging.error("Frequency must be in range (902125000-927875000)")
+            raise argparse.ArgumentTypeError("Frequency must be in range (902125000-927875000)")
+        return n
+
+    rylr998_config.add_argument('--band', required=False, type=bandcheck, 
+        metavar='[902125000-927875000]', dest='band', default = DEFAULT_BAND, # subtle type
+        help='Module frequency (902125000-927875000) in Hz. Default: ' + DEFAULT_BAND) 
+
+    def pwrcheck(n : str) -> str:
+        p = int(n)
+        if p < 0 or p > 22:
+            logging.error("Power output must be in range (0-22)")
+            raise argparse.ArgumentTypeError("Power output must be in range (0-22)")
+        return n
+
+    rylr998_config.add_argument('--crfop', required=False, type=pwrcheck, 
+        metavar='[0-22]', dest='crfop', default = DEFAULT_CRFOP, 
+        help='RF pwr out (0-22) in dBm. NOTE: If set, tx at least once to rx again. Default: ' + DEFAULT_CRFOP)
+
+    # serial port configuration argument group
+    serial_config = parser.add_argument_group('serial port config')
+
+    uartPattern = re.compile('^/dev/ttyS\d{1,3}$')
+    def uartcheck(s : str) -> str:
+        if uartPattern.match(s):
+            return s
+        raise argparse.ArgumentTypeError("Serial Port device name not of the form ^/dev/ttyS\d{1,3}$")
+
+    serial_config.add_argument('--port', required=False, type=uartcheck, 
+        metavar='[/dev/ttyS0-/dev/ttyS999]', default = DEFAULT_PORT, dest='port',
+        help='Serial port device name. Default: '+ DEFAULT_PORT)
+
+
+    baudrates = ['300', '1200', '4800', '9600', '19200', '28800', '38400', '57600',  '115200']
+    baudchoices = '('+ baudrates[0]
+    for i in range(1, len(baudrates)):
+        baudchoices +=  '|' + baudrates[i]
+    baudchoices +=')'
+
+    serial_config.add_argument('--baud', required=False, type=str, 
+        metavar=baudchoices, default = DEFAULT_BAUD, dest='baud', choices = baudrates,
+        help='Serial port baudrate. Default: '+DEFAULT_BAUD)
+
+    # you aren't in curses while you parse command line args
     args = parser.parse_args()
-    rylr  = rylr998(args)
+    rylr  = rylr998(args) #  even here you aren't in curses
 
     try:
-        # how's this for an idiom?
-        asyncio.run(cur.wrapper(rylr.xcvr))
-
+        asyncio.run(cur.wrapper(rylr.xcvr)) # how's this for an idiom?
     except KeyboardInterrupt: 
-        # note that except Exception doesn't catch KeyboardInterrupt
+        # recall that "except Exception as e" doesn't catch KeyboardInterrupt 
         pass
-
     finally:
         print("73!") 
