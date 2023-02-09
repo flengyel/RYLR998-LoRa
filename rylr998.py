@@ -40,6 +40,7 @@ import logging
 import curses as cur
 import _curses
 import curses.ascii
+
 #import datetime
 import locale
 locale.setlocale(locale.LC_ALL, '')
@@ -54,6 +55,7 @@ except RuntimeError:
 
 import argparse 
 import re # regular expressions
+import sys
 
 parser = argparse.ArgumentParser()
 
@@ -65,7 +67,7 @@ DEFAULT_ADDR_INT = 0 # type int
 DEFAULT_BAND = '915125000'
 DEFAULT_PORT = '/dev/ttyS0'
 DEFAULT_BAUD = '115200'
-DEFAULT_CRFOP_INT = 22
+DEFAULT_CRFOP = '22'
 
 
 rylr998_config = parser.add_argument_group('rylr998 config')
@@ -84,9 +86,16 @@ rylr998_config.add_argument('--band', required=False, type=bandcheck,
                    metavar='[902125000-927875000]', dest='band', default = DEFAULT_BAND, # subtle type
                             help='Module frequency (902125000-927875000) in Hz. Default: ' + DEFAULT_BAND) 
 
-rylr998_config.add_argument('--crfop', required=False, type=int, choices=range(0,23),
-                            metavar='[0-22]', dest='crfop', default = DEFAULT_CRFOP_INT, 
-                            help='RF pwr out (0-22) in dBm. NOTE: If set, module will rx only after a tx. Default: ' + str(DEFAULT_CRFOP_INT))
+def pwrcheck(n : str) -> str:
+    p = int(n)
+    if p < 0 or p > 22:
+        logging.error("Power output must be in range (0-22)")
+        raise argparse.ArgumentTypeError("Power output must be in range (0-22)")
+    return n
+
+rylr998_config.add_argument('--crfop', required=False, type=pwrcheck, 
+                            metavar='[0-22]', dest='crfop', default = DEFAULT_CRFOP, 
+                            help='RF pwr out (0-22) in dBm. NOTE: If set, tx at least once to rx again. Default: ' + DEFAULT_CRFOP)
 
 # serial port configuration argument group
 serial_config = parser.add_argument_group('serial port config')
@@ -183,6 +192,8 @@ class Display:
         cur.init_pair(self.WHITE_RED, cur.COLOR_WHITE, cur.COLOR_RED)
         cur.init_pair(self.WHITE_GREEN, cur.COLOR_WHITE, cur.COLOR_GREEN)  
 
+        self.rx_color_pair = cur.color_pair(self.BLUE_BLACK)
+
     def derive_rxwin(self, scr : _curses) -> None:
         rxbdr = scr.derwin(22,42,0,0)
         # window.border([ls[, rs[, ts[, bs[, tl[, tr[, bl[, br]]]]]]]])
@@ -203,6 +214,18 @@ class Display:
         row, col = self.rxwin.getyx()
         self.rxrow = min(19, row+1)
         self.rxcol = 0 # never moves
+
+    def rxaddnstr(self, msg, msglen, fg_bg = BLUE_BLACK) -> None:
+        self.rxScrollUp()
+        self.rxwin.addnstr(self.rxrow, self.rxcol, msg, msglen, cur.color_pair(fg_bg))
+        self.rxNextRow()
+        self.rxwin.noutrefresh()
+
+    def rxinsnstr(self, msg, msglen, fg_bg = BLUE_BLACK) -> None:
+        self.rxScrollUp()
+        self.rxwin.insnstr(self.rxrow, self.rxcol, msg, msglen, cur.color_pair(fg_bg))
+        self.rxNextRow()
+        self.rxwin.noutrefresh()
 
     def derive_txwin(self, scr : _curses) -> _curses.window:
         txbdr = scr.derwin(3,42,23,0)
@@ -258,7 +281,7 @@ class rylr998:
     # RYLR998 configuration parameters 
     addr     = str(DEFAULT_ADDR_INT) # the default
     networkid = '18'
-    crfop    = str(DEFAULT_CRFOP_INT)
+    crfop    = None
 
     # state "machines" for various AT command and receiver responses
     
@@ -383,7 +406,9 @@ class rylr998:
 
         # note: self.addr is a str, args.addr is an int
         self.addr = str(args.addr) # set the default
-        self.crfop = str(args.crfop)
+        if  any([arg.startswith('--crfop') for arg in sys.argv[1:]]):                    
+            self.crfop = args.crfop
+
         self.gpiosetup()
         
         try:
@@ -493,8 +518,9 @@ class rylr998:
         await queue.put('BAND?')
         await queue.put('IPR='+self.baudrate)
         # CRFOP=#dBm seems to want a TX before another receive...
-        #await queue.put('CRFOP='+self.crfop)
-        #await queue.put('SEND=0,7,de WM2D')
+        if self.crfop:
+            await queue.put('CRFOP='+self.crfop)
+            await queue.put('SEND=0,'+str(len(self.crfop)+4)+',pwr:'+self.crfop)
 
         await queue.put('MODE=0')
         await queue.put('MODE?')
@@ -592,44 +618,27 @@ class rylr998:
 
                         # This logic can be factored out by encapsulating rxwin.add[n]str()
                         # in the Display class, which should be done.
-                        if not txflag or self.state_table != self.OK_table:
-                            dsply.rxScrollUp()
+                        #if not txflag or self.state_table != self.OK_table:
+                        #    dsply.rxScrollUp()
 
                         match self.state_table:
                             case self.ADDR_table:
-                                dsply.rxwin.addnstr(dsply.rxrow, dsply.rxcol, "addr: " + self.rxbuf, 
-                                              self.rxlen+6, 
-                                              cur.color_pair(dsply.BLUE_BLACK))
-                                dsply.rxwin.noutrefresh()  
+                                dsply.rxaddnstr("addr: " + self.rxbuf, self.rxlen+6)
 
                             case self.BAND_table:
-                                dsply.rxwin.addnstr(dsply.rxrow, dsply.rxcol, "frequency: " + self.rxbuf +" Hz", 
-                                              self.rxlen+14, 
-                                              cur.color_pair(dsply.BLUE_BLACK))
-                                dsply.rxwin.noutrefresh()  
+                                dsply.rxaddnstr("frequency: " + self.rxbuf +" Hz", self.rxlen+14) 
 
                             case self.CRFOP_table:
-                                dsply.rxwin.addnstr(dsply.rxrow, dsply.rxcol, "power output: {} dBm".format(self.rxbuf), 
-                                             self.rxlen+14,       
-                                             cur.color_pair(dsply.BLUE_BLACK))
-                                dsply.rxwin.noutrefresh()  
+                                dsply.rxaddnstr("power output: {} dBm".format(self.rxbuf), self.rxlen+14)       
 
                             case self.ERR_table:
-                                dsply.rxwin.addnstr(dsply.rxrow, dsply.rxcol,"+ERR={}".format(self.rxbuf), 
-                                              self.rxlen+7, cur.color_pair(dsply.RED_BLACK))
-                                dsply.rxwin.noutrefresh()  
+                                dsply.rxaddnstr("+ERR={}".format(self.rxbuf), self.rxlen+7, fg_bg=dsply.RED_BLACK)
 
                             case self.IPR_table:
-                                dsply.rxwin.addnstr(dsply.rxrow, dsply.rxcol, "uart: " + self.rxbuf + " baud", 
-                                              self.rxlen+11, 
-                                              cur.color_pair(dsply.BLUE_BLACK))
-                                dsply.rxwin.noutrefresh()
+                                dsply.rxaddnstr("uart: " + self.rxbuf + " baud", self.rxlen+11)
 
                             case self.MODE_table:
-                                dsply.rxwin.addnstr(dsply.rxrow, dsply.rxcol, "mode: " + self.rxbuf, self.rxlen+6, 
-                                              cur.color_pair(dsply.BLUE_BLACK))
-                                dsply.rxwin.noutrefresh()
-                                
+                                dsply.rxaddnstr("mode: " + self.rxbuf, self.rxlen+6)
 
                             case self.OK_table:
                                 if txflag:
@@ -639,34 +648,18 @@ class rylr998:
                                     stwin.noutrefresh() # yes, that was it
                                     txflag = False
                                 else:
-                                    dsply.rxwin.addnstr(dsply.rxrow, dsply.rxcol, "+OK", 3, cur.color_pair(dsply.BLUE_BLACK))
-                                    dsply.rxwin.noutrefresh()
+                                    dsply.rxaddnstr("+OK", 3)
 
                             case self.NETID_table:
-                                dsply.rxwin.addnstr(dsply.rxrow, dsply.rxcol, "NETWORK ID: " + self.rxbuf, self.rxlen+12, 
-                                              cur.color_pair(dsply.BLUE_BLACK))
-                                dsply.rxwin.noutrefresh()
+                                dsply.rxaddnstr("NETWORK ID: " + self.rxbuf, self.rxlen+12) 
                                 
 
                             case self.PARAM_table:
                                 _sp, _ba, _co, _pr = self.rxbuf.split(',')
-
-                                cpair = cur.color_pair(dsply.BLUE_BLACK)
-                                dsply.rxwin.addstr(dsply.rxrow, dsply.rxcol, "spreading factor: {}".format(_sp), cpair) 
-                                dsply.rxNextRow()
-
-                                dsply.rxScrollUp()
-                                dsply.rxwin.addstr(dsply.rxrow, dsply.rxcol, "bandwidth: {}".format(_ba), cpair)  
-                                dsply.rxNextRow()
-
-                                dsply.rxScrollUp()
-                                dsply.rxwin.addstr(dsply.rxrow, dsply.rxcol, "coding rate: {}".format(_co), cpair)  
-                                dsply.rxNextRow()
-
-                                dsply.rxScrollUp()
-                                dsply.rxwin.addstr(dsply.rxrow,dsply.rxcol, "preamble: {}".format(_pr), cpair)
-
-                                dsply.rxwin.noutrefresh()
+                                dsply.rxaddnstr("spreading factor: {}".format(_sp), len(_sp)+18) 
+                                dsply.rxaddnstr("bandwidth: {}".format(_ba), len(_ba)+10)  
+                                dsply.rxaddnstr("coding rate: {}".format(_co), len(_co)+13)  
+                                dsply.rxaddnstr("preamble: {}".format(_pr), len(_pr)+10)
 
                             case self.RCV_table:
                                 # The following five lines are adapted from
@@ -681,15 +674,11 @@ class rylr998:
                                 if n == 40:
                                     # prevent auto scrolling if EOL at the
                                     # end of the window
-                                    dsply.rxwin.insnstr(dsply.rxrow, dsply.rxcol, msg, n, 
-                                                  cur.color_pair(dsply.BLACK_PINK))
+                                    dsply.rxinsnstr(msg, n, fg_bg = dsply.BLACK_PINK)
                                 else:
-                                    # otherwise, take advantage of auto scroll
-                                    # if n > 40.
-                                    dsply.rxwin.addnstr(dsply.rxrow, dsply.rxcol, msg, n, 
-                                                  cur.color_pair(dsply.BLACK_PINK))
+                                    # take advantage of auto scroll if n > 40.
+                                    dsply.rxaddnstr(msg, n, fg_bg = dsply.BLACK_PINK) 
 
-                                dsply.rxwin.noutrefresh() 
 
                                 stwin.addnstr(0,dsply.TXRX_COL, dsply.TXRX_LBL, dsply.TXRX_LEN, 
                                               cur.color_pair(dsply.WHITE_BLACK))
@@ -704,24 +693,18 @@ class rylr998:
                                 stwin.noutrefresh()
 
                             case self.UID_table:
-                                dsply.rxwin.addnstr(dsply.rxrow, dsply.rxcol, "UID: " + self.rxbuf, self.rxlen+5, 
-                                              cur.color_pair(dsply.BLUE_BLACK))
-                                dsply.rxwin.noutrefresh()
+                                dsply.rxaddnstr("UID: " + self.rxbuf, self.rxlen+5) 
 
                             case self.VER_table:
-                                dsply.rxwin.addnstr(dsply.rxrow, dsply.rxcol, "VER: " + self.rxbuf, self.rxlen+5, 
-                                              cur.color_pair(dsply.BLUE_BLACK))
-                                dsply.rxwin.noutrefresh()
+                                dsply.rxaddnstr("VER: " + self.rxbuf, self.rxlen+5) 
                                 
 
                             case _:
-                                dsply.rxwin.addstr(dsply.rxrow, dsply.rxcol, "ERROR. Call Tech Support!", 
-                                             cur.color_pair(dsply.RED_BLACK))
-                                dsply.rxwin.noutrefresh()  
+                                dsply.rxaddnstr("ERROR. Call Tech Support!",25, fg_bg = dsply.RED_BLACK) 
                          
                         #  Long lines will scroll automatically
 
-                        dsply.rxNextRow()
+                        #dsply.rxNextRow() now included in rxaddnstr() 
 
                         # also return to the txwin
                         txwin.move(txrow, txcol)
@@ -752,10 +735,9 @@ class rylr998:
                     cmd = await queue.get() 
                     if type(cmd) == type(''):
                         await ATcmd(cmd)
-                        # this will introduce a bug but ok
                         txflag = True  # as if you are transmitting
                     else: # assume int or float sleepy time
-                        await asyncio.sleep(cmd)
+                        await asyncio.sleep(cmd) # this isn't needed anywhere...
                 continue
 
             elif ch == cur.ascii.ETX: # CTRL-C
@@ -775,23 +757,16 @@ class rylr998:
             elif ch == cur.ascii.LF:
                 if self.txlen > 0:
                     # the SEND_COMMAND includes the address 
-                    # actually  you don't have to send to your address!!!
+                    # Don't be silly: you don't have to or want to send only to your address!!!
                     # you could send to some other address
                     await ATcmd('SEND='+self.addr+','+str(self.txlen)+','+self.txbuf)
 
-                    dsply.rxScrollUp()
 
                     # use insnsstr() here to avoid scrolling if 40 characters (the maximum)
                     if self.txlen == 40:
-                        dsply.rxwin.insnstr(dsply.rxrow, dsply.rxcol, self.txbuf, self.txlen, 
-                                      cur.color_pair(dsply.YELLOW_BLACK))
+                        dsply.rxinsnstr(self.txbuf, self.txlen, fg_bg = dsply.YELLOW_BLACK)
                     else:
-                        dsply.rxwin.addnstr(dsply.rxrow, dsply.rxcol, self.txbuf, self.txlen, 
-                                      cur.color_pair(dsply.YELLOW_BLACK))
-
-                    # forget this and you'll regret it
-                    dsply.rxwin.noutrefresh() 
-                    dsply.rxNextRow()
+                        dsply.rxaddnstr(self.txbuf, self.txlen, fg_bg = dsply.YELLOW_BLACK)
 
                     txcol=0
                     txwin.move(txrow, txcol) # cursor to tx initial input position
