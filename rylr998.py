@@ -445,14 +445,14 @@ class rylr998:
         # one at a time
 
         queue = asyncio.Queue()  # no limit
+        await queue.put('IPR='+self.baudrate) #  chicken and egg
         await queue.put('ADDRESS='+self.addr)  
         await queue.put('NETWORKID='+self.networkid) # this is a str
         await queue.put('BAND='+args.band)
-        await queue.put('PARAMETER=9,7,1,12')
+        await queue.put('PARAMETER=9,7,1,12') # need argparse for this
         await queue.put('ADDRESS?')
         await queue.put('NETWORKID?')
         await queue.put('BAND?')
-        await queue.put('IPR='+self.baudrate)
         # CRFOP=#dBm seems to want a TX before another receive...
         if self.crfop:
             await queue.put('CRFOP='+self.crfop)
@@ -470,19 +470,14 @@ class rylr998:
         # reaches from the inner functions to THE XCVR LOOP
 
         dirty = True  # transmit and RCV will set these
-        # NOTE: the xcvr() loop updates the display only if 
-        # dirty is True.  
-        # is at the end of phase 2 parsing of serial output.
-        # The dirty flag is set during character handling. 
-
-        # At the beginning of the xcvr loop, 
-        # cur.doupdate() is called and the dirty flag is  reset,
-        # provided the dirty flag is set. This speeds up the display
 
         # Hold onto your chair and godspeed. 
 
         while True:
-            # update the screen only if the dirty bit was set
+            # At the beginning of the xcvr loop, 
+            # cur.doupdate() is called and the dirty flag is  reset,
+            # provided the dirty flag is set. This speeds up the display
+
             if dirty:
                 cur.doupdate() # oh baby
                 dirty = False # reset the dirty bit
@@ -542,9 +537,6 @@ class rylr998:
                         self.rxbuf = self.rxbuf[:-2]
                         self.rxlen -= 2
 
-
-
-
                         match self.state_table:
                             case self.ADDR_table:
                                 dsply.rxaddnstr("addr: " + self.rxbuf, self.rxlen+6)
@@ -577,7 +569,6 @@ class rylr998:
                             case self.NETID_table:
                                 dsply.rxaddnstr("NETWORK ID: " + self.rxbuf, self.rxlen+12) 
                                 
-
                             case self.PARAM_table:
                                 _sp, _ba, _co, _pr = self.rxbuf.split(',')
                                 dsply.rxaddnstr("spreading factor: {}".format(_sp), len(_sp)+18) 
@@ -603,7 +594,6 @@ class rylr998:
                                     # take advantage of auto scroll if n > 40.
                                     dsply.rxaddnstr(msg, n, fg_bg = dsply.BLACK_PINK) 
 
-
                                 stwin.addnstr(0,dsply.TXRX_COL, dsply.TXRX_LBL, dsply.TXRX_LEN, 
                                               cur.color_pair(dsply.WHITE_BLACK))
 
@@ -622,7 +612,6 @@ class rylr998:
                             case self.VER_table:
                                 dsply.rxaddnstr("VER: " + self.rxbuf, self.rxlen+5) 
                                 
-
                             case _:
                                 dsply.rxaddnstr("ERROR. Call Tech Support!",25, fg_bg = dsply.RED_BLACK) 
                          
@@ -634,27 +623,26 @@ class rylr998:
                         self.rxbufReset() # reset the receive buffer state and assume RCV -- this is necessary
 
                         dirty = True    # instead of doupdate() here, use the dirty bit
-                        txflag = False
+                        txflag = False  # RCV or any of the parsed AT commands reset this
 
                         continue # The dirty bit logic will update the screen
 
                     else: # not a newline yet. Prioritize receive and responses from the module
-                        if self.rxlen > 240:
+                        if self.rxlen > 240: # hardware should prevent this from occurring.
                             self.rxbufReset() # this is an error
                         continue # still accumulating chars from serial port, keep listening
 
             # at long last, you can speak
             ch = txwin.getch()
             if ch == -1: # cat got your tongue? 
-
-                # if you are transmitting, wait for the OK
-                # some commands get receive a +OK. Wait for those
+                # dequeue AT commands only if not waiting for AT response to finish
+                # receive will take priority if you are receiving
                 if not txflag and  not queue.empty(): # check if there is a command
                     cmd = await queue.get()
                     if cmd.startswith('SEND='):
                         # parse the command SEND=#,msglen,msg) 
-                        _, txlen, msg = cmd.split(',', 2) # the 2 here accounts for commas in msg
-                        msglen = int(txlen)
+                        _, _msglen, msg = cmd.split(',', 2) # the 2 here accounts for commas in msg
+                        msglen = int(_msglen) # _msglen is a string
                         # use insnsstr() here to avoid scrolling if 40 characters (the maximum)
                         if msglen == 40:
                             dsply.rxinsnstr(msg, msglen, fg_bg = dsply.YELLOW_BLACK)
@@ -672,11 +660,10 @@ class rylr998:
                                   cur.color_pair(dsply.WHITE_RED))
                         stwin.noutrefresh()
 
-                        # really True this time
-                        dirty = True
-                    txflag = True  # as if you are transmitting
-                    await ATcmd( cmd )
-                continue
+                        dirty = True # really True this time 
+                    txflag = True  # do not dequeue if response expected
+                    await ATcmd( cmd ) # send command to serial port to rylr998
+                continue # remember that RCV and AT cmd responses take priority
 
             elif ch == cur.ascii.ETX: # CTRL-C
                 cur.noraw()     # go back to cooked mode
@@ -697,10 +684,6 @@ class rylr998:
                     # the SEND_COMMAND includes the address 
                     # Don't be silly: you don't have to or want to send only to your address!!!
                     # you could send to some other address
-
-                    #await ATcmd('SEND='+self.addr+','+str(self.txlen)+','+self.txbuf)
-                    # now that you have working queues, queue the ATcmd and set
-                    # the txflag in one place
 
                     await queue.put('SEND='+self.addr+','+str(self.txlen)+','+self.txbuf)
 
@@ -734,11 +717,12 @@ if __name__ == "__main__":
 
     # rylr998 configuration argument group
 
-    DEFAULT_ADDR_INT = 0 # type int
-    DEFAULT_BAND = '915125000'
-    DEFAULT_PORT = '/dev/ttyS0'
-    DEFAULT_BAUD = '115200'
-    DEFAULT_CRFOP = '22'
+    # defined elsewhere (upstairs)
+    #DEFAULT_ADDR_INT = 0 # type int
+    #DEFAULT_BAND = '915125000'
+    #DEFAULT_PORT = '/dev/ttyS0'
+    #DEFAULT_BAUD = '115200'
+    #DEFAULT_CRFOP = '22'
 
 
     rylr998_config = parser.add_argument_group('rylr998 config')
