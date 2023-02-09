@@ -710,8 +710,32 @@ class rylr998:
                 # if you are transmitting, wait for the OK
                 # some commands get receive a +OK. Wait for those
                 if not txflag and  not queue.empty(): # check if there is a command
-                    await ATcmd( await queue.get() )
+                    cmd = await queue.get()
+                    if cmd.startswith('SEND='):
+                        # parse the command SEND=#,msglen,msg) 
+                        _, txlen, msg = cmd.split(',')
+                        msglen = int(txlen)
+                        # use insnsstr() here to avoid scrolling if 40 characters (the maximum)
+                        if msglen == 40:
+                            dsply.rxinsnstr(msg, msglen, fg_bg = dsply.YELLOW_BLACK)
+                        else:
+                            dsply.rxaddnstr(msg, msglen, fg_bg = dsply.YELLOW_BLACK)
+
+                        txcol=0
+                        txwin.move(txrow, txcol) # cursor to tx initial input position
+                        txwin.clear()
+                        txwin.noutrefresh()
+                        self.txbufReset()
+
+                        # flash the LoRa® indicator on transmit
+                        stwin.addnstr(0,dsply.TXRX_COL, dsply.TXRX_LBL, dsply.TXRX_LEN, 
+                                  cur.color_pair(dsply.WHITE_RED))
+                        stwin.noutrefresh()
+
+                        # really True this time
+                        dirty = True
                     txflag = True  # as if you are transmitting
+                    await ATcmd( cmd )
                 continue
 
             elif ch == cur.ascii.ETX: # CTRL-C
@@ -733,30 +757,13 @@ class rylr998:
                     # the SEND_COMMAND includes the address 
                     # Don't be silly: you don't have to or want to send only to your address!!!
                     # you could send to some other address
-                    await ATcmd('SEND='+self.addr+','+str(self.txlen)+','+self.txbuf)
 
+                    #await ATcmd('SEND='+self.addr+','+str(self.txlen)+','+self.txbuf)
+                    # now that you have working queues, queue the ATcmd and set
+                    # the txflag in one place
 
-                    # use insnsstr() here to avoid scrolling if 40 characters (the maximum)
-                    if self.txlen == 40:
-                        dsply.rxinsnstr(self.txbuf, self.txlen, fg_bg = dsply.YELLOW_BLACK)
-                    else:
-                        dsply.rxaddnstr(self.txbuf, self.txlen, fg_bg = dsply.YELLOW_BLACK)
+                    await queue.put('SEND='+self.addr+','+str(self.txlen)+','+self.txbuf)
 
-                    txcol=0
-                    txwin.move(txrow, txcol) # cursor to tx initial input position
-                    txwin.clear()
-                    txwin.noutrefresh()
-                    self.txbufReset()
-                   
-
-                    # flash the LoRa® indicator on transmit
-                    stwin.addnstr(0,dsply.TXRX_COL, dsply.TXRX_LBL, dsply.TXRX_LEN, 
-                                  cur.color_pair(dsply.WHITE_RED))
-                    txflag = True       # reset txflag in OK_table logic 
-                    stwin.noutrefresh()
-
-                    # really True this time
-                    dirty = True
 
             elif ch == cur.ascii.BS: # Backspace
                 self.txbuf = self.txbuf[:-1]
