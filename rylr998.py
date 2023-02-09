@@ -161,7 +161,6 @@ class Display:
 
 
     # this needs to be part of the Display class
-
     rxrow = 0   # rxwin_y relative window coordinates
     rxcol = 0   # rxwin_x
     rxwin = None 
@@ -192,7 +191,14 @@ class Display:
         cur.init_pair(self.WHITE_RED, cur.COLOR_WHITE, cur.COLOR_RED)
         cur.init_pair(self.WHITE_GREEN, cur.COLOR_WHITE, cur.COLOR_GREEN)  
 
-        self.rx_color_pair = cur.color_pair(self.BLUE_BLACK)
+    # receive and transmit window border initialization
+
+    # The next two inner functions restrict access to the receive 
+    # and transmit window border variables rxbdr and txbdr, resp., 
+    # and return the derived receive and transmit windows 
+    # rxwin and txwin, respectively.
+
+    # Relative coordinates are congenial - might remove magic numbers
 
     def derive_rxwin(self, scr : _curses) -> None:
         rxbdr = scr.derwin(22,42,0,0)
@@ -204,6 +210,7 @@ class Display:
         rxbdr.noutrefresh()
         self.rxwin = rxbdr.derwin(20,40,1,1)
 
+    # move up to avoid overwriting
     def rxScrollUp(self) -> None:
         row, col = self.rxwin.getyx()
         if row == 19:
@@ -240,24 +247,23 @@ class Display:
     # status "window" setup
     def derive_stwin(self, scr: _curses) -> _curses.window:
         stwin = scr.derwin(1,40,22,1)
-        stwin.bkgd(' ', cur.color_pair(self.WHITE_BLACK))
+        fg_bg = cur.color_pair(self.WHITE_BLACK)
+        stwin.bkgd(' ', fg_bg)
 
         # the first ACS_VLINE lies outside stwin
-        scr.vline(22, 0,  cur.ACS_VLINE, 1,  cur.color_pair(self.WHITE_BLACK))
+        scr.vline(22, 0,  cur.ACS_VLINE, 1, fg_bg )
         #stwin.addstr(0, 0, u" LoRa\U000000AE", cur.color_pair(self.WHITE_BLACK)) 
-        stwin.addnstr(0, self.TXRX_COL, self.TXRX_LBL, self.TXRX_LEN, cur.color_pair(self.WHITE_BLACK)) 
-        stwin.vline(0, 6, cur.ACS_VLINE, 1,  cur.color_pair(self.WHITE_BLACK))
-        stwin.addnstr(0, self.ADDR_COL, self.ADDR_LBL, self.ADDR_COL, cur.color_pair(self.WHITE_BLACK)) 
-        stwin.vline(0, 19, cur.ACS_VLINE, 1, cur.color_pair(self.WHITE_BLACK))
+        stwin.addnstr(0, self.TXRX_COL, self.TXRX_LBL, self.TXRX_LEN, fg_bg) 
+        stwin.vline(0, 6, cur.ACS_VLINE, 1,  fg_bg)
+        stwin.addnstr(0, self.ADDR_COL, self.ADDR_LBL, self.ADDR_COL, fg_bg) 
+        stwin.vline(0, 19, cur.ACS_VLINE, 1, fg_bg)
 
-        stwin.addnstr(0, self.RSSI_COL, self.RSSI_LBL, self.RSSI_LEN, 
-                      cur.color_pair(self.WHITE_BLACK)) 
-        stwin.vline(0, 30, cur.ACS_VLINE, 1, cur.color_pair(self.WHITE_BLACK))
+        stwin.addnstr(0, self.RSSI_COL, self.RSSI_LBL, self.RSSI_LEN, fg_bg)
+        stwin.vline(0, 30, cur.ACS_VLINE, 1, fg_bg)
 
-        stwin.addnstr(0, self.SNR_COL, self.SNR_LBL, self.SNR_LEN, 
-                      cur.color_pair(self.WHITE_BLACK)) 
+        stwin.addnstr(0, self.SNR_COL, self.SNR_LBL, self.SNR_LEN, fg_bg)
         # the last ACS_VLINE lies outside stwin
-        scr.vline(22, 41,  cur.ACS_VLINE, 1,  cur.color_pair(self.WHITE_BLACK))
+        scr.vline(22, 41,  cur.ACS_VLINE, 1,  fg_bg)
         return stwin
 
 class rylr998:
@@ -444,15 +450,6 @@ class rylr998:
             count : int  = await self.aio.write_async(bytes(command, 'utf8'))
             return count
 
-        # receive and transmit window border initialization
-
-        # The next two inner functions restrict access to the receive 
-        # and transmit window border variables rxbdr and txbdr, resp., 
-        # and return the derived receive and transmit windows 
-        # rxwin and txwin, respectively.
-
-        # Relative coordinates are congenial - might remove magic numbers
-
         dsply  = Display(scr) 
 
         # derived window initializations
@@ -605,21 +602,8 @@ class rylr998:
                         self.rxbuf = self.rxbuf[:-2]
                         self.rxlen -= 2
 
-                        # move up to avoid overwriting
-                        # A subtle bug was introduced with the txflag.
-                        # The guarded code below assumes that a line will 
-                        # be added to the rxwin, a condition that fails
-                        # during transmit when only the LoRa® indicator is
-                        # updated in the status window stwin, and nothing 
-                        # in the rxwin is updated.. 
 
-                        # Note: txflag => self.state_table = self.OK_table
-                        # Do not scroll if txflag and state_table == self.OK_table
 
-                        # This logic can be factored out by encapsulating rxwin.add[n]str()
-                        # in the Display class, which should be done.
-                        #if not txflag or self.state_table != self.OK_table:
-                        #    dsply.rxScrollUp()
 
                         match self.state_table:
                             case self.ADDR_table:
@@ -732,12 +716,8 @@ class rylr998:
                 # if you are transmitting, wait for the OK
                 # some commands get receive a +OK. Wait for those
                 if not txflag and  not queue.empty(): # check if there is a command
-                    cmd = await queue.get() 
-                    if type(cmd) == type(''):
-                        await ATcmd(cmd)
-                        txflag = True  # as if you are transmitting
-                    else: # assume int or float sleepy time
-                        await asyncio.sleep(cmd) # this isn't needed anywhere...
+                    await ATcmd( await queue.get() )
+                    txflag = True  # as if you are transmitting
                 continue
 
             elif ch == cur.ascii.ETX: # CTRL-C
@@ -809,14 +789,7 @@ class rylr998:
 if __name__ == "__main__":
 
     args = parser.parse_args()
-    # on the Raspberry Pi
-    if existGPIO:
-        rylr  = rylr998(args)
-    else:
-        # on the PC. Change the port assignment
-        # for the C2120 USB to TTL serial port converter
-        # if necessary (add argparse)
-        rylr  = rylr998(args)
+    rylr  = rylr998(args)
 
     try:
         # how's this for an idiom?
