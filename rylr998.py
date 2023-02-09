@@ -713,7 +713,7 @@ class rylr998:
                     cmd = await queue.get()
                     if cmd.startswith('SEND='):
                         # parse the command SEND=#,msglen,msg) 
-                        _, txlen, msg = cmd.split(',')
+                        _, txlen, msg = cmd.split(',', 2) # the 2 here accounts for commas in msg
                         msglen = int(txlen)
                         # use insnsstr() here to avoid scrolling if 40 characters (the maximum)
                         if msglen == 40:
