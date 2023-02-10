@@ -54,7 +54,6 @@ except RuntimeError:
     existGPIO = False
 
 import argparse 
-import re # regular expressions
 import sys # needed to compensate for argparses argh-parsing
 
 DEFAULT_ADDR_INT = 0 # type int
@@ -62,6 +61,8 @@ DEFAULT_BAND = '915125000'
 DEFAULT_PORT = '/dev/ttyS0'
 DEFAULT_BAUD = '115200'
 DEFAULT_CRFOP = '22'
+DEFAULT_MODE  = '0'
+DEFAULT_NETID = '18'
 
 class Display:
     # color pair initialization constants
@@ -221,8 +222,9 @@ class rylr998:
 
     # RYLR998 configuration parameters 
     addr     = str(DEFAULT_ADDR_INT) # the default
-    networkid = '18'
+    netid    = str(DEFAULT_NETID)
     crfop    = None
+    mode     = str(DEFAULT_MODE) 
 
     # state "machines" for various AT command and receiver responses
     
@@ -336,13 +338,17 @@ class rylr998:
         self.bytesize = bytesize  # so is this
         self.stopbits = stopbits  # and this
         self.timeout = timeout    # and this
-        self.debug = args.debug
 
+        self.debug = args.debug
 
         # note: self.addr is a str, args.addr is an int
         self.addr = str(args.addr) # set the default
+        # the odd behavior of crfop seems to require this
         if  any([arg.startswith('--crfop') for arg in sys.argv[1:]]):                    
             self.crfop = args.crfop
+
+        self.mode = str(args.mode)
+        self.netid = str(args.netid)
 
         self.gpiosetup()
         
@@ -431,7 +437,7 @@ class rylr998:
         queue = asyncio.Queue()  # no limit
         await queue.put('IPR='+self.baudrate) #  chicken and egg
         await queue.put('ADDRESS='+self.addr)  
-        await queue.put('NETWORKID='+self.networkid) # this is a str
+        await queue.put('NETWORKID='+self.netid) # this is a str
         await queue.put('BAND='+args.band)
         await queue.put('PARAMETER=9,7,1,12') # need argparse for this
         await queue.put('ADDRESS?')
@@ -439,11 +445,13 @@ class rylr998:
         await queue.put('BAND?')
         # CRFOP=#dBm seems to want a TX before another receive...
         if self.crfop:
+            # This is not good!
             await queue.put('CRFOP='+self.crfop)
             await queue.put('SEND=0,'+str(len(self.crfop)+4)+',pwr:'+self.crfop)
 
-        await queue.put('MODE=0')
-        await queue.put('MODE?')
+        #await queue.put('SEND=0,'+str(len(self.mode)+5)+',MODE='+self.mode)
+        await queue.put('MODE='+self.mode)
+        # AT+MODE? will reset the mode!
         await queue.put('PARAMETER?') # maybe not properly tested??
         await queue.put('UID?')
         await queue.put('VER?')
@@ -546,7 +554,7 @@ class rylr998:
                                     stwin.addnstr(0,dsply.TXRX_COL, dsply.TXRX_LBL, dsply.TXRX_LEN, 
                                                   cur.color_pair(dsply.WHITE_BLACK))
                                     stwin.noutrefresh() # yes, that was it
-                                    txflag = False
+                                    txflag = False # will be reset below
                                 else:
                                     dsply.rxaddnstr("+OK", 3)
 
@@ -692,6 +700,7 @@ class rylr998:
 # end of the XCVR loop
 
 if __name__ == "__main__":
+    import re # regular expressions for argument checking
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--debug', action='store_true', help = 'log DEBUG information')
@@ -704,23 +713,23 @@ if __name__ == "__main__":
     #DEFAULT_PORT = '/dev/ttyS0'
     #DEFAULT_BAUD = '115200'
     #DEFAULT_CRFOP = '22'
-
+    #DEFAULT_MODE = '0'
 
     rylr998_config = parser.add_argument_group('rylr998 config')
     rylr998_config.add_argument('--addr', required=False, type=int, choices=range(0,65536),
-        metavar='[0-65535]', dest='addr', default = DEFAULT_ADDR_INT,
-        help='Module address (0-65535). Default is ' + str(DEFAULT_ADDR_INT)) 
+        metavar='[0..65535]', dest='addr', default = DEFAULT_ADDR_INT,
+        help='Module address (0..65535). Default is ' + str(DEFAULT_ADDR_INT)) 
 
     def bandcheck(n : str) -> str:
         f = int(n)
-        if f < 902125000 or f > 927875000:
-            logging.error("Frequency must be in range (902125000-927875000)")
-            raise argparse.ArgumentTypeError("Frequency must be in range (902125000-927875000)")
+        if f < 902250000 or f > 927750000:
+            logging.error("Frequency must be in range (902250000..927750000)")
+            raise argparse.ArgumentTypeError("Frequency must be in range (902250000..927750000)")
         return n
 
     rylr998_config.add_argument('--band', required=False, type=bandcheck, 
-        metavar='[902125000-927875000]', dest='band', default = DEFAULT_BAND, # subtle type
-        help='Module frequency (902125000-927875000) in Hz. Default: ' + DEFAULT_BAND) 
+        metavar='[902250000..927750000]', dest='band', default = DEFAULT_BAND, # subtle type
+        help='Module frequency (902125000..927875000) in Hz. Default: ' + DEFAULT_BAND) 
 
     def pwrcheck(n : str) -> str:
         p = int(n)
@@ -730,8 +739,39 @@ if __name__ == "__main__":
         return n
 
     rylr998_config.add_argument('--crfop', required=False, type=pwrcheck, 
-        metavar='[0-22]', dest='crfop', default = DEFAULT_CRFOP, 
-        help='RF pwr out (0-22) in dBm. NOTE: If set, tx at least once to rx again. Default: ' + DEFAULT_CRFOP)
+        metavar='[0..22]', dest='crfop', default = DEFAULT_CRFOP, 
+        help='RF pwr out (0..22) in dBm. NOTE: If set, tx at least once to rx again. Default: ' + DEFAULT_CRFOP)
+
+
+    modePattern = re.compile('^(0)|(1)|(2,(\d{2,5}),(\d{2,5}))$')
+    def modecheck(s : str) -> str:
+        p =  modePattern.match(s)
+        if p is not None:   
+            if p.group(1) is not None or p.group(2) is not None:
+                return s
+            # mode 2
+            r_ms = int(p.group(4))
+            s_ms = int(p.group(5))  # dumb bug: you overwrote s, which was an int!!
+            if r_ms > 29 and r_ms < 60001 and s_ms > 29 and s_ms < 60001:
+                return s
+        logging.error("Mode must match 0|1|2,30..60000,30..60000")
+        raise argparse.ArgumentTypeError("Mode must match 0|1|2,30..60000,30..60000")
+
+
+    rylr998_config.add_argument('--mode', required=False, type=modecheck,
+        metavar='[0|1|2,30..60000,30..60000]', dest='mode', default = DEFAULT_MODE,
+        help='Mode 0: transceiver mode. 1: sleep mode. 2,x,y: receive for x msec sleep for y msec indefinitely. Default: ' + DEFAULT_MODE)
+
+    netidPattern = re.compile('^3|4|5|6|7|8|9|10|11|12|13|14|15|18$')
+    def netidcheck(s : str) -> str:
+        if netidPattern.match(s):
+            return str(s)
+        logging.error('NETWORK ID must match (3..15|18)')
+        raise argparse.ArgumentTypeError('NETWORK ID must match (3..15|18)')
+
+    rylr998_config.add_argument('--netid', required=False, type=netidcheck,
+        metavar='[3..15|18]', dest='netid', default = DEFAULT_NETID,
+        help='NETWORK ID. Default: ' + DEFAULT_NETID)
 
     # serial port configuration argument group
     serial_config = parser.add_argument_group('serial port config')
@@ -745,7 +785,6 @@ if __name__ == "__main__":
     serial_config.add_argument('--port', required=False, type=uartcheck, 
         metavar='[/dev/ttyS0-/dev/ttyS999]', default = DEFAULT_PORT, dest='port',
         help='Serial port device name. Default: '+ DEFAULT_PORT)
-
 
     baudrates = ['300', '1200', '4800', '9600', '19200', '28800', '38400', '57600',  '115200']
     baudchoices = '('+ baudrates[0]
