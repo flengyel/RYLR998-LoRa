@@ -149,6 +149,10 @@ class Display:
         rxbdr.addch(21,31, cur.ACS_TTEE)
         rxbdr.noutrefresh()
         self.rxwin = rxbdr.derwin(20,40,1,1)
+        self.rxwin.scrollok(True)
+        self.rxwin.bkgd(' ', cur.color_pair(self.YELLOW_BLACK)) # set bg color
+        self.rxwin.noutrefresh() # updates occur in one place in the xcvr() loop
+
 
     # move up to avoid overwriting
     def rxScrollUp(self) -> None:
@@ -212,15 +216,6 @@ class rylr998:
     RST    = 4     # GPIO.BCM  pin 7
 
     aio : aioserial.AioSerial   = None  # asyncio serial port
-
-    # default values for the serial port constructor below
-
-    #port     = DEFAULT_PORT
-    #baudrate = DEFAULT_BAUD
-    #parity   = PARITY_NONE
-    #bytesize = EIGHTBITS
-    #stopbits = STOPBITS_ONE
-    #timeout  = None
 
     debug  = False # By default, don't go into debug mode
 
@@ -335,12 +330,6 @@ class rylr998:
     def __init__(self, args, parity=PARITY_NONE, bytesize=EIGHTBITS,
                        stopbits= STOPBITS_ONE, timeout=None):
 
-        # NOTE: do not set a variable "self.args"
-
-        # now you can improve this, since only self and args 
-        # should be passed to init if a serial port arg group is defined
-        # move these arguments into a serial port group.
-
         self.port = args.port     # the RYLR998 cares about this
         self.baudrate = args.baud # and this (type string!)
         self.parity = parity      # this is fixed
@@ -395,11 +384,6 @@ class rylr998:
         # derived window initializations
 
         dsply.derive_rxwin(scr)
-        dsply.rxwin.scrollok(True)
-
-        dsply.rxwin.bkgd(' ', cur.color_pair(dsply.YELLOW_BLACK)) # set bg color
-        dsply.rxwin.noutrefresh() # updates occur in one place in the xcvr() loop
-
         
         # receive buffer and state reset
         self.rxbufReset()
@@ -441,8 +425,8 @@ class rylr998:
         # count : int  = await ATcmd('RESET')
         # Add English interpretations of the ERR conditions
 
-        # sorry, these commands have to be enqueued and handled
-        # one at a time
+        # sorry, these commands have to be enqueued and dequeued
+        # one at a time within the transceiver loop
 
         queue = asyncio.Queue()  # no limit
         await queue.put('IPR='+self.baudrate) #  chicken and egg
@@ -467,7 +451,7 @@ class rylr998:
 
         # You are about to participate in a great adventure.
         # You are about to experience the awe and mystery that
-        # reaches from the inner functions to THE XCVR LOOP
+        # reaches from the inner functions to THE OUTER LOOP
 
         dirty = True  # transmit and RCV will set these
 
@@ -598,12 +582,9 @@ class rylr998:
                                               cur.color_pair(dsply.WHITE_BLACK))
 
                                 # add the ADDRESS, RSSI and SNR to the status window
-                                stwin.addstr(0, 13, addr, 
-                                             cur.color_pair(dsply.BLUE_BLACK))
-                                stwin.addstr(0, 26, rssi, 
-                                             cur.color_pair(dsply.BLUE_BLACK))
-                                stwin.addstr(0, 36, snr, 
-                                             cur.color_pair(dsply.BLUE_BLACK))
+                                stwin.addstr(0, 13, addr, cur.color_pair(dsply.BLUE_BLACK))
+                                stwin.addstr(0, 26, rssi, cur.color_pair(dsply.BLUE_BLACK))
+                                stwin.addstr(0, 36, snr, cur.color_pair(dsply.BLUE_BLACK))
                                 stwin.noutrefresh()
 
                             case self.UID_table:
