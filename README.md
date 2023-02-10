@@ -7,7 +7,45 @@ with a PC and a CP2102 USB 2.0 to TTL serial converter, four wires and
 eight female-female GPIO connectors. 
 There are no threads here, only asynchronous non-blocking I/O calls.
 
+## Usage
+```bash
+usage: rylr998.py [-h] [--debug] [--addr [0..65535]]
+                  [--band [902250000..927750000]] [--crfop [0..22]]
+                  [--mode [0|1|2,30..60000,30..60000]] [--netid [3..15|18]]
+                  [--parameter [...]] [--port [/dev/ttyS0-/dev/ttyS999]]
+                  [--baud (300|1200|4800|9600|19200|28800|38400|57600|115200)]
 
+options:
+  -h, --help            show this help message and exit
+  --debug               log DEBUG information
+
+rylr998 config:
+  --addr [0..65535]     Module address (0..65535). Default is 0
+  --band [902250000..927750000]
+                        Module frequency (902250000..927750000) in Hz. NOTE:
+                        the full 33cm ISM band limits 902 MHz and 928 MHz are
+                        guarded by the maximum configurable bandwidth of 500
+                        KHz (250 KHz on either side of the configured
+                        frequency). See the PARAMETER argument for bandwidth
+                        configuration. Default: 915125000
+  --crfop [0..22]       RF pwr out (0..22) in dBm. NOTE: whenever crfop is
+                        set, the module will stop receiving. Transmit at least
+                        once after setting crfop to receive normally. Default:
+                        22
+  --mode [0|1|2,30..60000,30..60000]
+                        Mode 0: transceiver mode. Mode 1: sleep mode. Mode
+                        2,x,y: receive for x msec sleep for y msec and so on,
+                        indefinitely. Default: 0
+  --netid [3..15|18]    NETWORK ID. Note: PARAMETER values depend on NETWORK
+                        ID. Default: 18
+  --parameter [...]     PARAMETER. coming soon! Default: 9,7,1,12
+
+serial port config:
+  --port [/dev/ttyS0-/dev/ttyS999]
+                        Serial port device name. Default: /dev/ttyS0
+  --baud (300|1200|4800|9600|19200|28800|38400|57600|115200)
+                        Serial port baudrate. Default: 115200
+```
 
 ## Python Module Dependencies
 
