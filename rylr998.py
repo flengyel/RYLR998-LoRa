@@ -729,7 +729,7 @@ if __name__ == "__main__":
 
     rylr998_config.add_argument('--band', required=False, type=bandcheck, 
         metavar='[902250000..927750000]', dest='band', default = DEFAULT_BAND, # subtle type
-        help='Module frequency (902125000..927875000) in Hz. Default: ' + DEFAULT_BAND) 
+                                help='Module frequency (902250000..927750000) in Hz. NOTE: the full 33cm ISM band limits 902 MHz and 928 MHz are guarded by the maximum configurable bandwidth of 500 KHz (250 KHz on either side of the configured frequency). See the PARAMETER argument for bandwidth configuration. Default: ' + DEFAULT_BAND) 
 
     def pwrcheck(n : str) -> str:
         p = int(n)
@@ -740,7 +740,7 @@ if __name__ == "__main__":
 
     rylr998_config.add_argument('--crfop', required=False, type=pwrcheck, 
         metavar='[0..22]', dest='crfop', default = DEFAULT_CRFOP, 
-        help='RF pwr out (0..22) in dBm. NOTE: If set, tx at least once to rx again. Default: ' + DEFAULT_CRFOP)
+        help='RF pwr out (0..22) in dBm. NOTE: whenever crfop is set, the module will stop receiving. Transmit at least once after setting crfop to receive normally. Default: ' + DEFAULT_CRFOP)
 
 
     modePattern = re.compile('^(0)|(1)|(2,(\d{2,5}),(\d{2,5}))$')
@@ -760,7 +760,7 @@ if __name__ == "__main__":
 
     rylr998_config.add_argument('--mode', required=False, type=modecheck,
         metavar='[0|1|2,30..60000,30..60000]', dest='mode', default = DEFAULT_MODE,
-        help='Mode 0: transceiver mode. 1: sleep mode. 2,x,y: receive for x msec sleep for y msec indefinitely. Default: ' + DEFAULT_MODE)
+        help='Mode 0: transceiver mode. Mode 1: sleep mode. Mode 2,x,y: receive for x msec sleep for y msec and so on, indefinitely. Default: ' + DEFAULT_MODE)
 
     netidPattern = re.compile('^3|4|5|6|7|8|9|10|11|12|13|14|15|18$')
     def netidcheck(s : str) -> str:
@@ -771,7 +771,13 @@ if __name__ == "__main__":
 
     rylr998_config.add_argument('--netid', required=False, type=netidcheck,
         metavar='[3..15|18]', dest='netid', default = DEFAULT_NETID,
-        help='NETWORK ID. Default: ' + DEFAULT_NETID)
+        help='NETWORK ID. Note: PARAMETER values depend on NETWORK ID. Default: ' + DEFAULT_NETID)
+
+    def paramcheck(s : str) -> str:
+        return '9,7,1,12'
+
+    rylr998_config.add_argument('--parameter', required=False, type=paramcheck,         metavar='[...]', dest='parameter', default='9,7,1,12',
+        help='PARAMETER. coming soon! Default: 9,7,1,12')
 
     # serial port configuration argument group
     serial_config = parser.add_argument_group('serial port config')
