@@ -63,6 +63,11 @@ DEFAULT_BAUD = '115200'
 DEFAULT_CRFOP = '22'
 DEFAULT_MODE  = '0'
 DEFAULT_NETID = '18'
+DEFAULT_SPREADING_FACTOR = '9'
+DEFAULT_BANDWIDTH = '7'
+DEFAULT_CODING_RATE = '1'
+DEFAULT_PREAMBLE = '12'
+DEFAULT_PARAMETER = DEFAULT_SPREADING_FACTOR + ',' + DEFAULT_BANDWIDTH + ',' + DEFAULT_CODING_RATE + ',' + DEFAULT_PREAMBLE 
 
 class Display:
     # color pair initialization constants
@@ -221,10 +226,15 @@ class rylr998:
     debug  = False # By default, don't go into debug mode
 
     # RYLR998 configuration parameters 
-    addr     = str(DEFAULT_ADDR_INT) # the default
-    netid    = str(DEFAULT_NETID)
-    crfop    = None
-    mode     = str(DEFAULT_MODE) 
+    addr      = str(DEFAULT_ADDR_INT) # the default
+    netid     = str(DEFAULT_NETID)
+    crfop     = None # set to None because of unexpected module behavior
+    mode      = str(DEFAULT_MODE) 
+    parameter = str(DEFAULT_PARAMETER)
+    spreading_factor = str(DEFAULT_SPREADING_FACTOR)
+    bandwidth = str(DEFAULT_BANDWIDTH)
+    coding_rate = str(DEFAULT_CODING_RATE)
+    preamble  = str(DEFAULT_PREAMBLE)
 
     # state "machines" for various AT command and receiver responses
     
@@ -350,6 +360,12 @@ class rylr998:
         self.mode = str(args.mode)
         self.netid = str(args.netid)
 
+        self.spreading_factor, self.bandwidth, self.coding_rate, self.preamble = args.parameter.split(',')
+        if self.netid != DEFAULT_NETID and self.preamble != 12:
+            logging.error('Preamble must be 12 if NETWORKID is not equal to the default ' + DEFAULT_NETID + '.')
+            raise argparse.ArgumentTypeError('Preamble must be 12 if NETWORKID is not equal to the default ' + DEFAULT_NETID + '.' )
+            return
+
         self.gpiosetup()
         
         try:
@@ -439,7 +455,8 @@ class rylr998:
         await queue.put('ADDRESS='+self.addr)  
         await queue.put('NETWORKID='+self.netid) # this is a str
         await queue.put('BAND='+args.band)
-        await queue.put('PARAMETER=9,7,1,12') # need argparse for this
+        #await queue.put('PARAMETER=9,7,1,12') # need argparse for this
+        await queue.put('PARAMETER='+self.spreading_factor+','+self.bandwidth+','+self.coding_rate+','+self.preamble)
         await queue.put('ADDRESS?')
         await queue.put('NETWORKID?')
         await queue.put('BAND?')
@@ -790,7 +807,7 @@ if __name__ == "__main__":
         raise argparse.ArgumentTypeError('argument must match 7..11,7..9,1..4,4..24 subject to constraints on spreading factor, bandwidth and NETWORK ID')
 
     rylr998_config.add_argument('--parameter', required=False, type=paramcheck,         metavar='[7..11,7..9,1..4,4..24]', dest='parameter', default='9,7,1,12',
-        help='PARAMETER. Set the RF parameters Spreading Factor, Bandwidth, Coding Rate, Preamble. Spreading factor 7..11, default 9. Bandwidth 7..9, where 7 is 125 KHz (only if spreading factor is in 7..9); 8 is 250 KHz (only if spreading factor is in 7..10); 9 is 500 KHz (only if spreading factor is in 7..11). Default bandwidth is 7. Coding rate is 1..4, default 4. Preamble is 4..25 if the NETWORK ID is 18; otherwise the preamble must be 12.  Default PARAMETER: 9,7,1,12')
+        help='PARAMETER. Set the RF parameters Spreading Factor, Bandwidth, Coding Rate, Preamble. Spreading factor 7..11, default 9. Bandwidth 7..9, where 7 is 125 KHz (only if spreading factor is in 7..9); 8 is 250 KHz (only if spreading factor is in 7..10); 9 is 500 KHz (only if spreading factor is in 7..11). Default bandwidth is 7. Coding rate is 1..4, default 4. Preamble is 4..25 if the NETWORK ID is 18; otherwise the preamble must be 12.  Default: ' + DEFAULT_PARAMETER)
 
     # serial port configuration argument group
     serial_config = parser.add_argument_group('serial port config')
