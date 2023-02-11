@@ -356,15 +356,19 @@ class rylr998:
         # the odd behavior of crfop seems to require this
         if  any([arg.startswith('--crfop') for arg in sys.argv[1:]]):                    
             self.crfop = args.crfop
+        else:
+            self.crfop = None
 
         self.mode = str(args.mode)
         self.netid = str(args.netid)
 
-        self.spreading_factor, self.bandwidth, self.coding_rate, self.preamble = args.parameter.split(',')
-        if self.netid != DEFAULT_NETID and self.preamble != 12:
-            logging.error('Preamble must be 12 if NETWORKID is not equal to the default ' + DEFAULT_NETID + '.')
-            raise argparse.ArgumentTypeError('Preamble must be 12 if NETWORKID is not equal to the default ' + DEFAULT_NETID + '.' )
-            return
+        if any([arg.startswith('--parameter') for arg in sys.argv[1:]]):                    
+            self.spreading_factor, self.bandwidth, self.coding_rate, self.preamble = args.parameter.split(',')
+            if self.netid != DEFAULT_NETID and self.preamble != 12:
+                logging.error('Preamble must be 12 if NETWORKID is not equal to the default ' + DEFAULT_NETID + '.')
+                raise argparse.ArgumentTypeError('Preamble must be 12 if NETWORKID is not equal to the default ' + DEFAULT_NETID + '.' )
+        else:
+            self.parameter = None  # check whether to update
 
         self.gpiosetup()
         
@@ -455,8 +459,8 @@ class rylr998:
         await queue.put('ADDRESS='+self.addr)  
         await queue.put('NETWORKID='+self.netid) # this is a str
         await queue.put('BAND='+args.band)
-        #await queue.put('PARAMETER=9,7,1,12') # need argparse for this
-        await queue.put('PARAMETER='+self.spreading_factor+','+self.bandwidth+','+self.coding_rate+','+self.preamble)
+        if self.parameter: # if this was an argument, use it
+            await queue.put('PARAMETER='+self.spreading_factor+','+self.bandwidth+','+self.coding_rate+','+self.preamble)
         await queue.put('ADDRESS?')
         await queue.put('NETWORKID?')
         await queue.put('BAND?')
@@ -468,7 +472,6 @@ class rylr998:
 
         #await queue.put('SEND=0,'+str(len(self.mode)+5)+',MODE='+self.mode)
         await queue.put('MODE='+self.mode)
-        # AT+MODE? will reset the mode!
         await queue.put('UID?')
         await queue.put('VER?')
         await queue.put('CRFOP?')
