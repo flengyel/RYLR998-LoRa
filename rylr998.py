@@ -452,10 +452,10 @@ class rylr998:
         #await queue.put('SEND=0,'+str(len(self.mode)+5)+',MODE='+self.mode)
         await queue.put('MODE='+self.mode)
         # AT+MODE? will reset the mode!
-        await queue.put('PARAMETER?') # maybe not properly tested??
         await queue.put('UID?')
         await queue.put('VER?')
         await queue.put('CRFOP?')
+        await queue.put('PARAMETER?') # maybe not properly tested??
 
         # You are about to participate in a great adventure.
         # You are about to experience the awe and mystery that
@@ -562,9 +562,9 @@ class rylr998:
                                 dsply.rxaddnstr("NETWORK ID: " + self.rxbuf, self.rxlen+12) 
                                 
                             case self.PARAM_table:
-                                _sp, _ba, _co, _pr = self.rxbuf.split(',')
+                                _sp, _ba, _co, _pr = self.rxbuf.split(',', 3)
                                 dsply.rxaddnstr("spreading factor: {}".format(_sp), len(_sp)+18) 
-                                dsply.rxaddnstr("bandwidth: {}".format(_ba), len(_ba)+10)  
+                                dsply.rxaddnstr("bandwidth: {}".format(_ba), len(_ba)+11)  
                                 dsply.rxaddnstr("coding rate: {}".format(_co), len(_co)+13)  
                                 dsply.rxaddnstr("preamble: {}".format(_pr), len(_pr)+10)
 
