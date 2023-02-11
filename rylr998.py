@@ -113,7 +113,7 @@ class Display:
 
     def __init__(self, scr) -> None:
         cur.savetty() # this has become necessary here  
-        cur.raw()  # this is unavoidable
+        cur.raw()  # raw, almost vegan character handling needed
         scr.nodelay(True) # non-blocking getch()
         scr.bkgd(' ', cur.color_pair(self.WHITE_BLACK))
 
@@ -230,7 +230,7 @@ class rylr998:
     netid     = str(DEFAULT_NETID)
     crfop     = None # set to None because of unexpected module behavior
     mode      = str(DEFAULT_MODE) 
-    parameter = str(DEFAULT_PARAMETER)
+    parameter = str(DEFAULT_PARAMETER) # this probably should be None
     spreading_factor = str(DEFAULT_SPREADING_FACTOR)
     bandwidth = str(DEFAULT_BANDWIDTH)
     coding_rate = str(DEFAULT_CODING_RATE)
@@ -481,7 +481,9 @@ class rylr998:
         # You are about to experience the awe and mystery that
         # reaches from the inner functions to THE OUTER LOOP
 
-        dirty = True  # transmit and RCV will set these
+        dirty = True  # transmit and RCV will set this
+
+        lock = asyncio.Lock() # lock when running AT commands
 
         # Hold onto your chair and godspeed. 
 
@@ -552,21 +554,27 @@ class rylr998:
                         match self.state_table:
                             case self.ADDR_table:
                                 dsply.rxaddnstr("addr: " + self.rxbuf, self.rxlen+6)
+                                lock.release()
 
                             case self.BAND_table:
                                 dsply.rxaddnstr("frequency: " + self.rxbuf +" Hz", self.rxlen+14) 
+                                lock.release()
 
                             case self.CRFOP_table:
                                 dsply.rxaddnstr("power output: {} dBm".format(self.rxbuf), self.rxlen+14)       
+                                lock.release()
 
                             case self.ERR_table:
                                 dsply.rxaddnstr("+ERR={}".format(self.rxbuf), self.rxlen+7, fg_bg=dsply.RED_BLACK)
+                                lock.release()
 
                             case self.IPR_table:
                                 dsply.rxaddnstr("uart: " + self.rxbuf + " baud", self.rxlen+11)
+                                lock.release()
 
                             case self.MODE_table:
                                 dsply.rxaddnstr("mode: " + self.rxbuf, self.rxlen+6)
+                                lock.release()
 
                             case self.OK_table:
                                 if txflag:
@@ -577,9 +585,11 @@ class rylr998:
                                     txflag = False # will be reset below
                                 else:
                                     dsply.rxaddnstr("+OK", 3)
+                                lock.release()
 
                             case self.NETID_table:
                                 dsply.rxaddnstr("NETWORK ID: " + self.rxbuf, self.rxlen+12) 
+                                lock.release()
                                 
                             case self.PARAM_table:
                                 _sp, _ba, _co, _pr = self.rxbuf.split(',', 3)
@@ -587,6 +597,7 @@ class rylr998:
                                 dsply.rxaddnstr("bandwidth: {}".format(_ba), len(_ba)+11)  
                                 dsply.rxaddnstr("coding rate: {}".format(_co), len(_co)+13)  
                                 dsply.rxaddnstr("preamble: {}".format(_pr), len(_pr)+10)
+                                lock.release()
 
                             case self.RCV_table:
                                 # The following five lines are adapted from
@@ -614,17 +625,20 @@ class rylr998:
                                 stwin.addstr(0, 26, rssi, cur.color_pair(dsply.BLUE_BLACK))
                                 stwin.addstr(0, 36, snr, cur.color_pair(dsply.BLUE_BLACK))
                                 stwin.noutrefresh()
+                                # no release here because
 
                             case self.UID_table:
                                 dsply.rxaddnstr("UID: " + self.rxbuf, self.rxlen+5) 
+                                lock.release()
 
                             case self.VER_table:
                                 dsply.rxaddnstr("VER: " + self.rxbuf, self.rxlen+5) 
+                                lock.release()
                                 
                             case _:
                                 dsply.rxaddnstr("ERROR. Call Tech Support!",25, fg_bg = dsply.RED_BLACK) 
+                                lock.release()
                          
-
                         # also return to the txwin
                         txwin.move(txrow, txcol)
                         txwin.noutrefresh()
@@ -632,7 +646,7 @@ class rylr998:
                         self.rxbufReset() # reset the receive buffer state and assume RCV -- this is necessary
 
                         dirty = True    # instead of doupdate() here, use the dirty bit
-                        txflag = False  # RCV or any of the parsed AT commands reset this
+                        # RCV does not release the lock since there is no AT command for which a response is expected
 
                         continue # The dirty bit logic will update the screen
 
@@ -646,7 +660,9 @@ class rylr998:
             if ch == -1: # cat got your tongue? 
                 # dequeue AT commands only if not waiting for AT response to finish
                 # receive will take priority if you are receiving
-                if not txflag and  not queue.empty(): # check if there is a command
+                # use a lock instead of the txflag, which is for the tx indictor
+                if not lock.locked() and  not queue.empty(): # check if there is a command
+                    await lock.acquire()
                     cmd = await queue.get()
                     if cmd.startswith('SEND='):
                         # parse the command SEND=#,msglen,msg) 
@@ -668,9 +684,8 @@ class rylr998:
                         stwin.addnstr(0,dsply.TXRX_COL, dsply.TXRX_LBL, dsply.TXRX_LEN, 
                                   cur.color_pair(dsply.WHITE_RED))
                         stwin.noutrefresh()
-
+                        txflag = True # transmitting 
                         dirty = True # really True this time 
-                    txflag = True  # do not dequeue if response expected
                     await ATcmd( cmd ) # send command to serial port to rylr998
                 continue # remember that RCV and AT cmd responses take priority
 
@@ -691,7 +706,7 @@ class rylr998:
             elif ch == cur.ascii.LF:
                 if self.txlen > 0:
                     # the SEND_COMMAND includes the address 
-                    # Don't be silly: you don't have to or want to send only to your address!!!
+                    # Don't be silly: you don't have to send only to your address!!!
                     # you could send to some other address
 
                     await queue.put('SEND='+self.addr+','+str(self.txlen)+','+self.txbuf)
@@ -749,7 +764,7 @@ if __name__ == "__main__":
 
     rylr998_config.add_argument('--band', required=False, type=bandcheck, 
         metavar='[902250000..927750000]', dest='band', default = DEFAULT_BAND, # subtle type
-                                help='Module frequency (902250000..927750000) in Hz. NOTE: the full 33cm ISM band limits 902 MHz and 928 MHz are guarded by the maximum configurable bandwidth of 500 KHz (250 KHz on either side of the configured frequency). See the PARAMETER argument for bandwidth configuration. Default: ' + DEFAULT_BAND) 
+        help='Module frequency (902250000..927750000) in Hz. NOTE: the full 33cm ISM band limits 902 MHz and 928 MHz are guarded by the maximum configurable bandwidth of 500 KHz (250 KHz on either side of the configured frequency). See the PARAMETER argument for bandwidth configuration. Default: ' + DEFAULT_BAND) 
 
     def pwrcheck(n : str) -> str:
         p = int(n)
@@ -809,7 +824,7 @@ if __name__ == "__main__":
         logging.error('argument must match 7..11,7..9,1..4,4..24 subject to constraints on spreading factor, bandwidth and NETWORK ID')
         raise argparse.ArgumentTypeError('argument must match 7..11,7..9,1..4,4..24 subject to constraints on spreading factor, bandwidth and NETWORK ID')
 
-    rylr998_config.add_argument('--parameter', required=False, type=paramcheck,         metavar='[7..11,7..9,1..4,4..24]', dest='parameter', default='9,7,1,12',
+    rylr998_config.add_argument('--parameter', required=False, type=paramcheck,         metavar='[7..11,7..9,1..4,4..24]', dest='parameter', default=DEFAULT_PARAMETER,
         help='PARAMETER. Set the RF parameters Spreading Factor, Bandwidth, Coding Rate, Preamble. Spreading factor 7..11, default 9. Bandwidth 7..9, where 7 is 125 KHz (only if spreading factor is in 7..9); 8 is 250 KHz (only if spreading factor is in 7..10); 9 is 500 KHz (only if spreading factor is in 7..11). Default bandwidth is 7. Coding rate is 1..4, default 4. Preamble is 4..25 if the NETWORK ID is 18; otherwise the preamble must be 12.  Default: ' + DEFAULT_PARAMETER)
 
     # serial port configuration argument group
@@ -822,7 +837,7 @@ if __name__ == "__main__":
         raise argparse.ArgumentTypeError("Serial Port device name not of the form ^/dev/ttyS\d{1,3}$")
 
     serial_config.add_argument('--port', required=False, type=uartcheck, 
-        metavar='[/dev/ttyS0-/dev/ttyS999]', default = DEFAULT_PORT, dest='port',
+        metavar='[/dev/ttyS0../dev/ttyS999]', default = DEFAULT_PORT, dest='port',
         help='Serial port device name. Default: '+ DEFAULT_PORT)
 
     baudrates = ['300', '1200', '4800', '9600', '19200', '28800', '38400', '57600',  '115200']
