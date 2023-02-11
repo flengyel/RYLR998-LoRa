@@ -773,11 +773,24 @@ if __name__ == "__main__":
         metavar='[3..15|18]', dest='netid', default = DEFAULT_NETID,
         help='NETWORK ID. Note: PARAMETER values depend on NETWORK ID. Default: ' + DEFAULT_NETID)
 
+    paramPattern = re.compile('^([7-9]|1[01]),([7-9]),([1-4]),([4-9]|1\d|2[0-5])$')
     def paramcheck(s : str) -> str:
-        return '9,7,1,12'
+        def sfbw(sf, bw):
+            _sf = int(sf)
+            _bw = int(bw)
+            return ( _bw == 7 and _sf < 10 or _bw == 8 and _sf < 11 or _bw == 9 and _sf < 12)
+        if paramPattern.match(s):
+            # check constraints other than NETWORK ID
+            sf, bw, _, _ = s.split(',')
+            if sfbw(sf, bw):
+                return s
+            logging.error('Incompatible spreading factor and bandwidth values')
+            raise argparse.ArgumentTypeError('PARAMETER: incompatible spreading factor and bandwidth values') 
+        logging.error('argument must match 7..11,7..9,1..4,4..24 subject to constraints on spreading factor, bandwidth and NETWORK ID')
+        raise argparse.ArgumentTypeError('argument must match 7..11,7..9,1..4,4..24 subject to constraints on spreading factor, bandwidth and NETWORK ID')
 
-    rylr998_config.add_argument('--parameter', required=False, type=paramcheck,         metavar='[...]', dest='parameter', default='9,7,1,12',
-        help='PARAMETER. coming soon! Default: 9,7,1,12')
+    rylr998_config.add_argument('--parameter', required=False, type=paramcheck,         metavar='[7..11,7..9,1..4,4..24]', dest='parameter', default='9,7,1,12',
+        help='PARAMETER. Set the RF parameters Spreading Factor, Bandwidth, Coding Rate, Preamble. Spreading factor 7..11, default 9. Bandwidth 7..9, where 7 is 125 KHz (only if spreading factor is in 7..9); 8 is 250 KHz (only if spreading factor is in 7..10); 9 is 500 KHz (only if spreading factor is in 7..11). Default bandwidth is 7. Coding rate is 1..4, default 4. Preamble is 4..25 if the NETWORK ID is 18; otherwise the preamble must be 12.  Default PARAMETER: 9,7,1,12')
 
     # serial port configuration argument group
     serial_config = parser.add_argument_group('serial port config')
