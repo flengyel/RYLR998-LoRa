@@ -108,7 +108,10 @@ See the pictures below.
 
 ![CP2102_USB2_to_TTL_module_serial_converter](https://user-images.githubusercontent.com/431946/216791243-bd2dd829-fa44-45e2-9f36-a1b2585429bb.jpg)
 
-
+## A hardware bug in the REYAX RYLR998 version RYLR998_REYAX_V1.1.0?
+The AT command AT+CRFOP=## will cause the module to stop receiving until at 
+least one AT+SEND command is issued, after which the module 
+will receive as normal. I have written to REYAX about this.
 
 
 ## TO DO
