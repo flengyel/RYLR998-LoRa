@@ -214,6 +214,39 @@ class Display:
         scr.vline(22, 41,  cur.ACS_VLINE, 1,  fg_bg)
         return stwin
 
+    def xlateError(self, errCode: str) -> None:
+        match errCode:
+            case '1':
+                errStr = "AT command missing 0x0D 0x0A."
+            case '2':
+                errStr = "AT command missing 'AT'."
+            case '4':
+                errStr = "Unknown AT command."
+            case '5':
+                errStr = "Data length specified does not match the data length."
+            case '10':
+                errStr = "Transmit time exceeds limit."
+            case '12':
+                errStr = "CRC error on receive."
+            case '13':
+                errStr = "TX data exceeds 240 bytes."
+            case '14':
+                errStr = "Failed to write flash memory."
+            case '15':
+                errStr = "Unknown failure."
+            case '17':
+                errStr = "Last TX was not completed."
+            case '18':
+                errStr = "Preamble value is not allowed."
+            case '19':
+                errStr = "RX failure. Header error."
+            case '20':
+                errStr = "Invalid time in MODE 2 setting."
+            case _:
+                errStr = "Unknown error code."
+        errString = "ERR={}: {}".format(errCode, errStr)
+        self.rxaddnstr(errString, len(errString), fg_bg=self.RED_BLACK)
+        
 class rylr998:
     TXD1   = 14    # GPIO.BCM  pin 8
     RXD1   = 15    # GPIO.BCM  pin 10
@@ -330,6 +363,8 @@ class rylr998:
             #if self.debug:
                 #print('GPIO setup mode')
                 #subprocess.run(["raspi-gpio", "get", '4,14,15'])
+
+        
 
     def __del__(self):
         try:
@@ -589,7 +624,6 @@ class rylr998:
                                 semaphore.release()
 
                             case self.ERR_table:
-                                dsply.rxaddnstr("+ERR={}".format(self.rxbuf), self.rxlen+7, fg_bg=dsply.RED_BLACK)
                                 # NOTE: we may receive an error without first having acquired the  semaphore. 
                                 # The asyncio.Semaphore() allows the semaphore to be released without having 
                                 # been first acquired(). However, there may be many errors, which could increase
@@ -599,7 +633,9 @@ class rylr998:
                                 try:
                                     semaphore.release()
                                 except ValueError:
-                                    dsply.rxaddnstr("+ERR={}".format(self.rxbuf), self.rxlen+7, fg_bg=dsply.RED_BLACK)
+                                    pass
+                                finally:
+                                    dsply.xlateError(self.rxbuf)
 
                                   
                             case self.IPR_table:
