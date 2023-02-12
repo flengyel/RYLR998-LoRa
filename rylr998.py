@@ -490,12 +490,18 @@ class rylr998:
 
         dirty = True  # transmit and RCV will set this
 
-        # unlike lock, a semaphore allows more calls to release
-        # than to acquire. This is useful when an ERR=## is returned
+        # Unlike lock, a semaphore allows more calls to release()
+        # than to acquire(). This is useful when an ERR=## is returned
         # from the module, say a CRC error, which can happen.
-        # Otherwise we have to catch the RuntimeError excpetion.
+        # However, we still want lock-like behavior, so we use
+        # a bounded semaphore with an initial count of 1 and
+        # catch ValueError exceptions when these occur without
+        # a corresponding AT command. An unbounded semaphore could
+        # allow an indefinite number of releases, which will raise
+        # the count above the initial value and will allow AT
+        # commands to be dequeued before prior commands finish.
 
-        semaphore = asyncio.Semaphore() 
+        semaphore = asyncio.BoundedSemaphore(value=1) 
 
         # Hold onto your chair and godspeed. 
 
@@ -584,20 +590,18 @@ class rylr998:
 
                             case self.ERR_table:
                                 dsply.rxaddnstr("+ERR={}".format(self.rxbuf), self.rxlen+7, fg_bg=dsply.RED_BLACK)
-                                # NOTE: we may receive an error
-                                # without first having acquired the
-                                # semaphore. The asyncio.Semaphore()
-                                # allows the semaphore to be released
-                                # without having been first acquired().
-                                # Here the semaphore can be acquired
-                                # at most once, but an ERR=# can occur
-                                # without the semaphore having been
-                                # acquired, so a lock is not ideal.
-                                # One would have to check for the
-                                # RuntimeError exception and pass 
-                                # in that case.
-                                semaphore.release()
+                                # NOTE: we may receive an error without first having acquired the  semaphore. 
+                                # The asyncio.Semaphore() allows the semaphore to be released without having 
+                                # been first acquired(). However, there may be many errors, which could increase
+                                # the internal counter of the semaphore beyond the initial value of 1. We use 
+                                # asyncio.BoundedSemaphore(value = 1) and catch the ValueError exception, since
+                                # an indefinite number of ERR=# responses can occur.
+                                try:
+                                    semaphore.release()
+                                except ValueError:
+                                    dsply.rxaddnstr("+ERR={}".format(self.rxbuf), self.rxlen+7, fg_bg=dsply.RED_BLACK)
 
+                                  
                             case self.IPR_table:
                                 dsply.rxaddnstr("uart: " + self.rxbuf + " baud", self.rxlen+11)
                                 semaphore.release()
