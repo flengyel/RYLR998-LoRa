@@ -83,12 +83,14 @@ The GPIO connections are as follows:
 * RXD to GPIO 14 TXD1 this is physical pin 8
 * GND to GND physical pin 9.
 
-**WARNING:** get this wrong and you could fry your Raspberry Pi 4 and your REYAX RYLR998 LoRa® module. I haven't had problems, knock wood, but the [MIT license](https://github.com/flengyel/RYLR998-LoRa/blob/main/LICENSE) comes with no warranty. Check your connections! Under no circumstances apply 5V to the RYLR998 LoRa® module. Only 3.3V. 
+**WARNING:** get this wrong and you could fry your Raspberry Pi 4 and your REYAX RYLR998 LoRa® module. 
+I haven't had problems, knock wood, but the [MIT license](https://github.com/flengyel/RYLR998-LoRa/blob/main/LICENSE) 
+comes with no warranty. Check your connections! Under no circumstances apply 5V to the RYLR998 LoRa® module. Only 3.3V. 
 
 ## Disable Bluetooth and enable uart1 (/dev/ttyS0)
 
-
-1. Ensure that the login shell over the serial port is disabled, but the serial port is enabled. In `sudo raspi-config`, select Interfacing Options, then select Serial. Answer "no" to "Would you like a login shell to be accessible over serial?" and answer "yes"  to "woud you like the serial port hardware to be enabled?".
+1. Ensure that the login shell over the serial port is disabled, but the serial port is enabled. 
+In `sudo raspi-config`, select Interfacing Options, then select Serial. Answer "no" to "Would you like a login shell to be accessible over serial?" and answer "yes"  to "woud you like the serial port hardware to be enabled?".
 
 2. Disable Bluetooth in ```/boot/config.txt``` by appending 
 ```bash
@@ -107,6 +109,7 @@ sudo dtoverlay uart1
 ```
 
 ## Connection to a PC with a CP2102 USB 2.0 to TTL module serial converter
+
 Similar to the GPIO, only VDD goes to the 3.3V output of the converter; RX and TX are swapped, as usual; and GND goes to GND.
 See the pictures below.
 ![rylr998module](https://user-images.githubusercontent.com/431946/216791228-058dd28e-4c32-43dd-a351-1a0bd575dc06.jpg)
@@ -115,6 +118,7 @@ See the pictures below.
 ![CP2102_USB2_to_TTL_module_serial_converter](https://user-images.githubusercontent.com/431946/216791243-bd2dd829-fa44-45e2-9f36-a1b2585429bb.jpg)
 
 ## A hardware bug in the REYAX RYLR998 version RYLR998_REYAX_V1.1.0?
+
 The AT command AT+CRFOP=## will cause the module to stop receiving until at 
 least one AT+SEND command is issued, after which the module 
 will receive as normal. I have written to REYAX about this.
@@ -122,19 +126,19 @@ will receive as normal. I have written to REYAX about this.
 
 ## TO DO
 
-* Add parsing of the AT+RESET function. i
-- DONE. The code uses a guarded semaphore that can be aquired at 
-most once, but released as often as needed. This was a better
-choice than asyncio.Lock(). There are two cases when the module
-returns an error. First, an AT command returned an error. In this case
-the semaphore was acquired and can be released. Second, an ERR=# 
-can be returned by the module during receive, such as a CRC error, 
-or some other error. In that case, it is convenient to release
-the semaphore without having first acquired it. 
-So asyncio.Semaphore() was a better choice than asyncio.Lock(), 
-which raises a RuntimeError exception if a lock is released
-without having been acquired. Passing on the RuntimeError
-could mask other problems.
+* ~Add parsing of the AT+RESET function.~ DONE. The code uses an `asyncio.BoundedSemaphore()` 
+call to assign a semaphore that can be aquired and released at most once. This was a better
+choice than `asyncio.Lock()` or `asyncio.Semaphore()`. There are two cases when the module returns an error. First, when 
+an AT command returns an error. In this case the semaphore was acquired and can be released. 
+Second, an ERR=# can be returned by the module during receive, such as a CRC error. 
+In that case, `semaphore.release()` raises a `ValueError`, which is andled. This makes a
+`asyncio.BoundedSemaphore()` a better choice than `asyncio.Lock()`, which raises a 
+`RuntimeError` exception if a lock is released without having been acquired. Passing on the `RuntimeError`
+exception could mask other problems. An unbounded semaphore could allow the semaphore to be released as many
+times as errors were received. That in turn could  allow the semaphore to be acquired
+more than once, which allow sending an AT command before a previous command finished. (Unlikely
+because receiving is prioritized over AT commands, but the serial I/O channel is treated as a shared
+resource that can be accessed in one direction at a time only.)
 * Translate ERR=## codes to text.
 * Display the configuration parameters. Mostly done, at startup. A VFO indicator would be nice (this is almost a joke). 
 * Add function key handling for changing configuration parameters, such as frequency, netid, etc.
