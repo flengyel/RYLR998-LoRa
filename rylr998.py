@@ -490,7 +490,12 @@ class rylr998:
 
         dirty = True  # transmit and RCV will set this
 
-        lock = asyncio.Lock() # lock when running AT commands
+        # unlike lock, a semaphore allows more calls to release
+        # than to acquire. This is useful when an ERR=## is returned
+        # from the module, say a CRC error, which can happen.
+        # Otherwise we have to catch the RuntimeError excpetion.
+
+        lock = asyncio.Semaphore() 
 
         # Hold onto your chair and godspeed. 
 
@@ -567,27 +572,39 @@ class rylr998:
                         match self.state_table:
                             case self.ADDR_table:
                                 dsply.rxaddnstr("addr: " + self.rxbuf, self.rxlen+6)
-                                lock.release()
+                                semaphore.release()
 
                             case self.BAND_table:
                                 dsply.rxaddnstr("frequency: " + self.rxbuf +" Hz", self.rxlen+14) 
-                                lock.release()
+                                semaphore.release()
 
                             case self.CRFOP_table:
                                 dsply.rxaddnstr("power output: {} dBm".format(self.rxbuf), self.rxlen+14)       
-                                lock.release()
+                                semaphore.release()
 
                             case self.ERR_table:
                                 dsply.rxaddnstr("+ERR={}".format(self.rxbuf), self.rxlen+7, fg_bg=dsply.RED_BLACK)
-                                lock.release()
+                                # NOTE: we may receive an error
+                                # without first having acquired the
+                                # semaphore. The asyncio.Semaphore()
+                                # allows the semaphore to be released
+                                # without having been first acquired().
+                                # Here the semaphore can be acquired
+                                # at most once, but an ERR=# can occur
+                                # without the semaphore having been
+                                # acquired, so a lock is not ideal.
+                                # One would have to check for the
+                                # RuntimeError exception and pass 
+                                # in that case.
+                                semaphore.release()
 
                             case self.IPR_table:
                                 dsply.rxaddnstr("uart: " + self.rxbuf + " baud", self.rxlen+11)
-                                lock.release()
+                                semaphore.release()
 
                             case self.MODE_table:
                                 dsply.rxaddnstr("mode: " + self.rxbuf, self.rxlen+6)
-                                lock.release()
+                                semaphore.release()
 
                             case self.OK_table:
                                 if txflag:
@@ -598,11 +615,11 @@ class rylr998:
                                     txflag = False # will be reset below
                                 else:
                                     dsply.rxaddnstr("+OK", 3)
-                                lock.release()
+                                semaphore.release()
 
                             case self.NETID_table:
                                 dsply.rxaddnstr("NETWORK ID: " + self.rxbuf, self.rxlen+12) 
-                                lock.release()
+                                semaphore.release()
                                 
                             case self.PARAM_table:
                                 _sp, _ba, _co, _pr = self.rxbuf.split(',', 3)
@@ -610,7 +627,7 @@ class rylr998:
                                 dsply.rxaddnstr("bandwidth: {}".format(_ba), len(_ba)+11)  
                                 dsply.rxaddnstr("coding rate: {}".format(_co), len(_co)+13)  
                                 dsply.rxaddnstr("preamble: {}".format(_pr), len(_pr)+10)
-                                lock.release()
+                                semaphore.release()
 
                             case self.RCV_table:
                                 # The following five lines are adapted from
@@ -642,11 +659,11 @@ class rylr998:
 
                             case self.READY_table:
                                 dsply.rxaddnstr("+READY", 6)
-                                lock.release()
+                                semaphore.release()
 
                             case self.RESET_table:
                                 dsply.rxaddnstr("+RESET", 6)
-                                # do not release the lock yet 
+                                # do not release the semaphore.yet 
                                 # because we are waiting for two responses 
                                 # to the command AT+RESET
                                 self.rxbufReset() 
@@ -657,15 +674,15 @@ class rylr998:
 
                             case self.UID_table:
                                 dsply.rxaddnstr("UID: " + self.rxbuf, self.rxlen+5) 
-                                lock.release()
+                                semaphore.release()
 
                             case self.VER_table:
                                 dsply.rxaddnstr("VER: " + self.rxbuf, self.rxlen+5) 
-                                lock.release()
+                                semaphore.release()
                                 
                             case _:
                                 dsply.rxaddnstr("ERROR. Call Tech Support!",25, fg_bg = dsply.RED_BLACK) 
-                                lock.release()
+                                semaphore.release()
                          
                         # also return to the txwin
                         txwin.move(txrow, txcol)
@@ -674,7 +691,7 @@ class rylr998:
                         self.rxbufReset() # reset the receive buffer state and assume RCV -- this is necessary
 
                         dirty = True    # instead of doupdate() here, use the dirty bit
-                        # RCV does not release the lock since there is no AT command for which a response is expected
+                        # RCV does not release the semaphore.since there is no AT command for which a response is expected
 
                         continue # The dirty bit logic will update the screen
 
@@ -688,9 +705,10 @@ class rylr998:
             if ch == -1: # cat got your tongue? 
                 # dequeue AT commands only if not waiting for AT response to finish
                 # receive will take priority if you are receiving
-                # use a lock instead of the txflag, which is for the tx indictor
-                if not lock.locked() and  not queue.empty(): # check if there is a command
-                    await lock.acquire()
+                # use a semaphore.instead of the txflag, which is for the tx indictor
+                # check if there is a command
+                if not semaphore.locked() and  not queue.empty(): 
+                    await semaphore.acquire()
                     cmd = await queue.get()
                     if cmd.startswith('SEND='):
                         # parse the command SEND=#,msglen,msg) 
