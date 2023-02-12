@@ -495,7 +495,7 @@ class rylr998:
         # from the module, say a CRC error, which can happen.
         # Otherwise we have to catch the RuntimeError excpetion.
 
-        lock = asyncio.Semaphore() 
+        semaphore = asyncio.Semaphore() 
 
         # Hold onto your chair and godspeed. 
 
