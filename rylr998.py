@@ -34,8 +34,6 @@
 import asyncio
 import aioserial
 from serial import EIGHTBITS, PARITY_NONE,  STOPBITS_ONE
-
-
 import logging
 import curses as cur
 import _curses
@@ -224,11 +222,12 @@ class rylr998:
     aio : aioserial.AioSerial   = None  # asyncio serial port
 
     debug  = False # By default, don't go into debug mode
+    reset  = False
 
     # RYLR998 configuration parameters 
     addr      = str(DEFAULT_ADDR_INT) # the default
     netid     = str(DEFAULT_NETID)
-    crfop     = None # set to None because of unexpected module behavior
+    crfop     = str(DEFAULT_CRFOP) # will be set to None if --crfop is absent because of unexpected module behavior
     mode      = str(DEFAULT_MODE) 
     parameter = str(DEFAULT_PARAMETER) # this probably should be None
     spreading_factor = str(DEFAULT_SPREADING_FACTOR)
@@ -248,6 +247,8 @@ class rylr998:
     OK_table    = [b'+',b'O',b'K']
     PARAM_table = [b'+',b'P',b'A',b'R',b'A',b'M',b'E',b'T',b'E',b'R',b'=']
     RCV_table   = [b'+',b'R',b'C',b'V',b'='] # receive is the default "state"
+    RESET_table = [b'+',b'R',b'E',b'S',b'E',b'T'] # RESET detected in state 2 if state_table == RCV_table
+    READY_table = [b'+',b'R',b'E',b'A',b'D',b'Y'] # if RESET received, state_table = READY_table
     UID_table   = [b'+',b'U',b'I',b'D',b'=']
     VER_table   = [b'+',b'V',b'E',b'R',b'=']
  
@@ -350,6 +351,7 @@ class rylr998:
         self.timeout = timeout    # and this
 
         self.debug = args.debug
+        self.reset = args.reset   # not much of a command
 
         # note: self.addr is a str, args.addr is an int
         self.addr = str(args.addr) # set the default
@@ -455,6 +457,16 @@ class rylr998:
         # one at a time within the transceiver loop
 
         queue = asyncio.Queue()  # no limit
+
+        if self.reset:
+            await queue.put('RESET')
+
+        # CRFOP=#dBm seems to want a TX before another receive...
+        # there doesn't seem to be much I can do about this...
+        if self.crfop:   
+            await queue.put('CRFOP='+self.crfop)
+            await queue.put('SEND=0,'+str(len(self.crfop)+4)+',pwr:'+self.crfop)
+
         await queue.put('IPR='+self.baudrate) #  chicken and egg
         await queue.put('ADDRESS='+self.addr)  
         await queue.put('NETWORKID='+self.netid) # this is a str
@@ -464,11 +476,6 @@ class rylr998:
         await queue.put('ADDRESS?')
         await queue.put('NETWORKID?')
         await queue.put('BAND?')
-        # CRFOP=#dBm seems to want a TX before another receive...
-        if self.crfop:
-            # This is not good!
-            await queue.put('CRFOP='+self.crfop)
-            await queue.put('SEND=0,'+str(len(self.crfop)+4)+',pwr:'+self.crfop)
 
         #await queue.put('SEND=0,'+str(len(self.mode)+5)+',MODE='+self.mode)
         await queue.put('MODE='+self.mode)
@@ -524,6 +531,12 @@ class rylr998:
                             # if the state table cannot be changed
                             # the rx buffer and the state will be reset
                             self.change_state_table(data)
+                        elif self.state == 2 and data == b'E' and self.state_table == self.RCV_table:
+                            # This has to be a reset. 
+                            # advance the state index
+                            self.state += 1
+                            # continue in RESET state
+                            self.state_table = self.RESET_table
                         else:
                             # in this case, the state is 0 and you are lost
                             # preamble possibly -- or state > 1 and you are lost
@@ -626,6 +639,21 @@ class rylr998:
                                 stwin.addstr(0, 36, snr, cur.color_pair(dsply.BLUE_BLACK))
                                 stwin.noutrefresh()
                                 # no release here because
+
+                            case self.READY_table:
+                                dsply.rxaddnstr("+READY", 6)
+                                lock.release()
+
+                            case self.RESET_table:
+                                dsply.rxaddnstr("+RESET", 6)
+                                # do not release the lock yet 
+                                # because we are waiting for two responses 
+                                # to the command AT+RESET
+                                self.rxbufReset() 
+                                # instead of going into the RCV_table state,
+                                # go into the READY_table state
+                                self.state_table = self.READY_table
+                                continue  
 
                             case self.UID_table:
                                 dsply.rxaddnstr("UID: " + self.rxbuf, self.rxlen+5) 
@@ -739,6 +767,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--debug', action='store_true', help = 'log DEBUG information')
+    parser.add_argument('--reset', action='store_true', help = 'Software reset')
 
     # rylr998 configuration argument group
 
@@ -751,6 +780,7 @@ if __name__ == "__main__":
     #DEFAULT_MODE = '0'
 
     rylr998_config = parser.add_argument_group('rylr998 config')
+
     rylr998_config.add_argument('--addr', required=False, type=int, choices=range(0,65536),
         metavar='[0..65535]', dest='addr', default = DEFAULT_ADDR_INT,
         help='Module address (0..65535). Default is ' + str(DEFAULT_ADDR_INT)) 
