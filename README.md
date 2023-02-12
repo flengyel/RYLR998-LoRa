@@ -131,12 +131,12 @@ call to assign a semaphore that can be aquired and released at most once. This w
 choice than `asyncio.Lock()` or `asyncio.Semaphore()`. There are two cases when the module returns an error. First, when 
 an AT command returns an error. In this case the semaphore was acquired and can be released. 
 Second, an ERR=# can be returned by the module during receive, such as a CRC error. 
-In that case, `semaphore.release()` raises a `ValueError`, which is andled. This makes a
+In that case, `semaphore.release()` raises a `ValueError`, which is handled. This makes a
 `asyncio.BoundedSemaphore()` a better choice than `asyncio.Lock()`, which raises a 
 `RuntimeError` exception if a lock is released without having been acquired. Passing on the `RuntimeError`
 exception could mask other problems. An unbounded semaphore could allow the semaphore to be released as many
 times as errors were received. That in turn could  allow the semaphore to be acquired
-more than once, which allow sending an AT command before a previous command finished. (Unlikely
+more than once, which would allow sending an AT command before a previous command finished. (Unlikely
 because receiving is prioritized over AT commands, but the serial I/O channel is treated as a shared
 resource that can be accessed in one direction at a time only.)
 * Translate ERR=## codes to text.
