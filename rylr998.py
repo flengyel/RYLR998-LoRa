@@ -733,12 +733,12 @@ class rylr998:
                         dirty = True    # instead of doupdate() here, use the dirty bit
                         # RCV does not release the semaphore.since there is no AT command for which a response is expected
 
-                        continue # The dirty bit logic will update the screen
+                    continue # The dirty bit logic will update the screen
 
-                    else: # not a newline yet. Prioritize receive and responses from the module
-                        if self.rxlen > 240: # hardware should prevent this from occurring.
-                            self.rxbufReset() # this is an error
-                        continue # still accumulating chars from serial port, keep listening
+                   # else: # not a newline yet. Prioritize receive and responses from the module
+                   #     if self.rxlen > 240: # hardware should prevent this from occurring.
+                   #         self.rxbufReset() # this is an error
+                   #     continue # still accumulating chars from serial port, keep listening
 
             # at long last, you can speak
             ch = txwin.getch()
