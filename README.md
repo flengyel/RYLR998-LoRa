@@ -126,22 +126,12 @@ will receive as normal. I have written to REYAX about this.
 
 ## TO DO
 
-* ~Add parsing of the AT+RESET function.~ DONE. The code uses an `asyncio.BoundedSemaphore()` 
-call to assign a semaphore that can be aquired and released at most once. This was a better
-choice than `asyncio.Lock()` or `asyncio.Semaphore()`. There are two cases when the module returns an error. First, when 
-an AT command returns an error. In this case the semaphore was acquired and can be released. 
-Second, an ERR=# can be returned by the module during receive, such as a CRC error. 
-In that case, `semaphore.release()` raises a `ValueError`, which is handled. This makes a
-`asyncio.BoundedSemaphore()` a better choice than `asyncio.Lock()`, which raises a 
-`RuntimeError` exception if a lock is released without having been acquired. Passing on the `RuntimeError`
-exception could mask other problems. An unbounded semaphore could allow the semaphore to be released as many
-times as errors were received. That in turn could  allow the semaphore to be acquired
-more than once, which would allow sending an AT command before a previous command finished. (Unlikely
-because receiving is prioritized over AT commands, but the serial I/O channel is treated as a shared
-resource that can be accessed in one direction at a time only.)
-* Translate ERR=## codes to text.
+* ~Add parsing of the AT+RESET function.~ DONE. 
+* ~Replace  `asyncio.BoundedSemaphore()` with a boolean flag.~ DONE. A boolean `waitForReply`  is sufficent.
+* ~Translate ERR=## codes to text.~ DONE
 * Display the configuration parameters. Mostly done, at startup. A VFO indicator would be nice (this is almost a joke). 
 * Add function key handling for changing configuration parameters, such as frequency, netid, etc.
+* Store the AT command response variables in the rylr998 object instance!
 * But be careful about changing the serial port parameters--you'll be sorry! 
 * The python urwid library could be used with the following initialization at  beginning of `xcvr(...)`:
 
