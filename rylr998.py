@@ -863,7 +863,7 @@ if __name__ == "__main__":
 
     rylr998_config.add_argument('--band', required=False, type=bandcheck, 
         metavar='[902250000..927750000]', dest='band', default = DEFAULT_BAND, # subtle type
-        help='Module frequency (902250000..927750000) in Hz. NOTE: the full 33cm ISM band limits 902 MHz and 928 MHz are guarded by the maximum configurable bandwidth of 500 KHz (250 KHz on either side of the configured frequency). See the PARAMETER argument for bandwidth configuration. Default: ' + DEFAULT_BAND) 
+        help='Module frequency (902250000..927750000) in Hz. NOTE: the full 33cm ISM band limits 902 MHz and 928 MHz are guarded by the maximum configurable bandwidth of 500 KHz (250 KHz on either side of the configured frequency). See PARAMETER for bandwidth configuration. Default: ' + DEFAULT_BAND) 
 
     def pwrcheck(n : str) -> str:
         p = int(n)
@@ -874,7 +874,7 @@ if __name__ == "__main__":
 
     rylr998_config.add_argument('--crfop', required=False, type=pwrcheck, 
         metavar='[0..22]', dest='crfop', default = DEFAULT_CRFOP, 
-        help='RF pwr out (0..22) in dBm. NOTE: whenever crfop is set, the module will stop receiving. Transmit at least once after setting crfop to receive normally. Default: ' + DEFAULT_CRFOP)
+        help='RF pwr out (0..22) in dBm. Default: ' + DEFAULT_CRFOP)
 
 
     modePattern = re.compile('^(0)|(1)|(2,(\d{2,5}),(\d{2,5}))$')
