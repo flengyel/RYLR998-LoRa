@@ -262,7 +262,7 @@ class rylr998:
     netid     = str(DEFAULT_NETID)
     crfop     = str(DEFAULT_CRFOP) # will be set to None if --crfop is absent because of unexpected module behavior
     mode      = str(DEFAULT_MODE) 
-    parameter = str(DEFAULT_PARAMETER) # this probably should be None
+    parameter = str(DEFAULT_PARAMETER) 
     spreading_factor = str(DEFAULT_SPREADING_FACTOR)
     bandwidth = str(DEFAULT_BANDWIDTH)
     coding_rate = str(DEFAULT_CODING_RATE)
@@ -393,7 +393,7 @@ class rylr998:
         self.timeout = timeout    # and this
 
         self.debug = args.debug
-        self.reset = args.reset   # not much of a command
+        #self.reset = args.reset   # not much of a command
         self.factory = args.factory  # if factory  reset
 
         # note: self.addr is a str, args.addr is an int
@@ -501,9 +501,6 @@ class rylr998:
 
         queue = asyncio.Queue()  # no limit
 
-        if self.reset:
-            await queue.put('RESET')
-
         if self.factory:
             await queue.put('FACTORY')
             await queue.put('DELAY,'+str(dsply.FOURTHSEC))
@@ -514,6 +511,11 @@ class rylr998:
         await queue.put('ADDRESS='+self.addr)  
         await queue.put('NETWORKID='+self.netid) # this is a str
         await queue.put('BAND='+args.band)
+        if self.crfop:   
+            await queue.put('CRFOP='+self.crfop)
+            #await queue.put('SEND=0,'+str(len(self.crfop)+4)+',pwr:'+self.crfop)
+            if not self.parameter:
+                await queue.put('PARAMETER='+DEFAULT_PARAMETER)
         if self.parameter: # if this was an argument, use it
             await queue.put('PARAMETER='+self.spreading_factor+','+self.bandwidth+','+self.coding_rate+','+self.preamble)
         await queue.put('ADDRESS?')
@@ -524,11 +526,11 @@ class rylr998:
         await queue.put('MODE='+self.mode)
         await queue.put('UID?')
         await queue.put('VER?')
-        if self.crfop:   
-            await queue.put('CRFOP='+self.crfop)
-            await queue.put('SEND=0,'+str(len(self.crfop)+4)+',pwr:'+self.crfop)
         await queue.put('CRFOP?')
         await queue.put('PARAMETER?') # maybe not properly tested??
+        #if self.reset:
+        #    await queue.put('RESET')
+
 
         # You are about to participate in a great adventure.
         # You are about to experience the awe and mystery that
@@ -831,7 +833,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--debug', action='store_true', help = 'log DEBUG information')
-    parser.add_argument('--reset', action='store_true', help = 'Software reset')
+    # reset seems to result in CRC errors on receive. Could be because
+    # I am leaving RST floating...
+    #parser.add_argument('--reset', action='store_true', help = 'Software reset')
     parser.add_argument('--factory', action='store_true', help = 'Factory reset')
 
     # rylr998 configuration argument group
