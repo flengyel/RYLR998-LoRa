@@ -274,6 +274,7 @@ class rylr998:
     BAND_table  = [b'+',b'B',b'A',b'N',b'D',b'=']
     CRFOP_table = [b'+',b'C',b'R',b'F',b'O',b'P',b'=']
     ERR_table   = [b'+',b'E',b'R',b'R',b'=']
+    FACT_table  = [b'+',b'F',b'A',b'C',b'T',b'O',b'R',b'Y'] # reset to factory defaults
     IPR_table   = [b'+',b'I',b'P',b'R',b'=']
     MODE_table  = [b'+',b'M',b'O',b'D',b'E',b'=']
     NETID_table = [b'+',b'N',b'E',b'T',b'W',b'O',b'R',b'K',b'I',b'D',b'=']
@@ -304,11 +305,13 @@ class rylr998:
     # NOTE: the receive buffer state is part of the RYLR998 object
     # but the curses receive window state is maintained in the xcvr() function
 
-    def rxbufReset(self) -> None:
+    # the state table can be overriden. This is used in the transition
+    # from the RESET_table state to the READY_table state.
+    def rxbufReset(self, state_table = RCV_table) -> None:
         self.rxbuf = ''
         self.rxlen = 0
         self.state = 0
-        self.state_table = self.RCV_table # default since RCV takes priority
+        self.state_table = state_table # default since RCV takes priority
 
     # reset the transmit buffer state
     # NOTE: the transmit buffer state is part of the RYRL998 object
@@ -336,6 +339,8 @@ class rylr998:
                 self.state_table = self.CRFOP_table
             case b'E':
                 self.state_table = self.ERR_table
+            case b'F': # factory
+                self.state_table = self.FACT_table
             case b'I':
                 self.state_table = self.IPR_table
             case b'M':
@@ -536,7 +541,8 @@ class rylr998:
         # the count above the initial value and will allow AT
         # commands to be dequeued before prior commands finish.
 
-        semaphore = asyncio.BoundedSemaphore(value=1) 
+        # a state variable is enough
+        waitForReply =  False # asyncio.BoundedSemaphore(value=1) 
 
         # Hold onto your chair and godspeed. 
 
@@ -585,7 +591,7 @@ class rylr998:
                             self.state_table = self.RESET_table
                         else:
                             # in this case, the state is 0 and you are lost
-                            # preamble possibly -- or state > 1 and you are lost
+                            # preamble possibly -- or state > 1 or 2 and you are lost
                             self.rxbufReset() 
 
                     continue  # parsing output takes priority over input
@@ -613,38 +619,31 @@ class rylr998:
                         match self.state_table:
                             case self.ADDR_table:
                                 dsply.rxaddnstr("addr: " + self.rxbuf, self.rxlen+6)
-                                semaphore.release()
+                                waitForReply = False
 
                             case self.BAND_table:
                                 dsply.rxaddnstr("frequency: " + self.rxbuf +" Hz", self.rxlen+14) 
-                                semaphore.release()
+                                waitForReply = False
 
                             case self.CRFOP_table:
                                 dsply.rxaddnstr("power output: {} dBm".format(self.rxbuf), self.rxlen+14)       
-                                semaphore.release()
+                                waitForReply = False
 
                             case self.ERR_table:
-                                # NOTE: we may receive an error without first having acquired the  semaphore. 
-                                # The asyncio.Semaphore() allows the semaphore to be released without having 
-                                # been first acquired(). However, there may be many errors, which could increase
-                                # the internal counter of the semaphore beyond the initial value of 1. We use 
-                                # asyncio.BoundedSemaphore(value = 1) and catch the ValueError exception, since
-                                # an indefinite number of ERR=# responses can occur.
-                                try:
-                                    semaphore.release()
-                                except ValueError:
-                                    pass
-                                finally:
-                                    dsply.xlateError(self.rxbuf)
-
+                                dsply.xlateError(self.rxbuf)
+                                waitForReply = False
                                   
+                            case self.FACT_table:
+                                dsply.rxaddnstr(self.rxbuf + " defaults", self.rxlen+9)
+                                waitForReply = False
+
                             case self.IPR_table:
                                 dsply.rxaddnstr("uart: " + self.rxbuf + " baud", self.rxlen+11)
-                                semaphore.release()
+                                waitForReply = False
 
                             case self.MODE_table:
                                 dsply.rxaddnstr("mode: " + self.rxbuf, self.rxlen+6)
-                                semaphore.release()
+                                waitForReply = False
 
                             case self.OK_table:
                                 if txflag:
@@ -655,11 +654,11 @@ class rylr998:
                                     txflag = False # will be reset below
                                 else:
                                     dsply.rxaddnstr("+OK", 3)
-                                semaphore.release()
+                                waitForReply = False
 
                             case self.NETID_table:
                                 dsply.rxaddnstr("NETWORK ID: " + self.rxbuf, self.rxlen+12) 
-                                semaphore.release()
+                                waitForReply = False
                                 
                             case self.PARAM_table:
                                 _sp, _ba, _co, _pr = self.rxbuf.split(',', 3)
@@ -667,7 +666,7 @@ class rylr998:
                                 dsply.rxaddnstr("bandwidth: {}".format(_ba), len(_ba)+11)  
                                 dsply.rxaddnstr("coding rate: {}".format(_co), len(_co)+13)  
                                 dsply.rxaddnstr("preamble: {}".format(_pr), len(_pr)+10)
-                                semaphore.release()
+                                waitForReply = False
 
                             case self.RCV_table:
                                 # The following five lines are adapted from
@@ -695,34 +694,32 @@ class rylr998:
                                 stwin.addstr(0, 26, rssi, cur.color_pair(dsply.BLUE_BLACK))
                                 stwin.addstr(0, 36, snr, cur.color_pair(dsply.BLUE_BLACK))
                                 stwin.noutrefresh()
-                                # no release here because
+                                # not waiting for a reply from the module
+                                # so we do not reset the waitForReply flag
 
                             case self.READY_table:
                                 dsply.rxaddnstr("+READY", 6)
-                                semaphore.release()
+                                waitForReply = False
 
                             case self.RESET_table:
                                 dsply.rxaddnstr("+RESET", 6)
-                                # do not release the semaphore.yet 
-                                # because we are waiting for two responses 
-                                # to the command AT+RESET
-                                self.rxbufReset() 
+                                # do not reset waitForReply yet: now waiting for READY 
                                 # instead of going into the RCV_table state,
                                 # go into the READY_table state
-                                self.state_table = self.READY_table
-                                continue  
+                                self.rxbufReset(state_table = self.READY_table) 
+                                continue  # keep receiving
 
                             case self.UID_table:
                                 dsply.rxaddnstr("UID: " + self.rxbuf, self.rxlen+5) 
-                                semaphore.release()
+                                waitForReply = False
 
                             case self.VER_table:
                                 dsply.rxaddnstr("VER: " + self.rxbuf, self.rxlen+5) 
-                                semaphore.release()
+                                waitForReply = False
                                 
                             case _:
                                 dsply.rxaddnstr("ERROR. Call Tech Support!",25, fg_bg = dsply.RED_BLACK) 
-                                semaphore.release()
+                                waitForReply = False
                          
                         # also return to the txwin
                         txwin.move(txrow, txcol)
@@ -731,7 +728,8 @@ class rylr998:
                         self.rxbufReset() # reset the receive buffer state and assume RCV -- this is necessary
 
                         dirty = True    # instead of doupdate() here, use the dirty bit
-                        # RCV does not release the semaphore.since there is no AT command for which a response is expected
+                        # RCV does not reset waitForReply, since there is no AT command i
+                        # for which a response is expected
 
                     continue # The dirty bit logic will update the screen
 
@@ -745,10 +743,10 @@ class rylr998:
             if ch == -1: # cat got your tongue? 
                 # dequeue AT commands only if not waiting for AT response to finish
                 # receive will take priority if you are receiving
-                # use a semaphore.instead of the txflag, which is for the tx indictor
+                # use a waitForReply.instead of the txflag, which is for the tx indictor
                 # check if there is a command
-                if not semaphore.locked() and  not queue.empty(): 
-                    await semaphore.acquire()
+                if not waitForReply and  not queue.empty(): 
+                    waitForReply = True
                     cmd = await queue.get()
                     if cmd.startswith('SEND='):
                         # parse the command SEND=#,msglen,msg) 
