@@ -506,7 +506,7 @@ class rylr998:
 
         if self.factory:
             await queue.put('FACTORY')
-            await queue.put('DELAY,'+str(dsply.HALFSEC))
+            await queue.put('DELAY,'+str(dsply.FOURTHSEC))
 
         # CRFOP=#dBm seems to want a TX before another receive...
         # there doesn't seem to be much I can do about this...
