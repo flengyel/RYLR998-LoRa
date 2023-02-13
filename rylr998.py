@@ -267,6 +267,8 @@ class rylr998:
     bandwidth = str(DEFAULT_BANDWIDTH)
     coding_rate = str(DEFAULT_CODING_RATE)
     preamble  = str(DEFAULT_PREAMBLE)
+    version   = ''
+    uid       = '' 
 
     # state "machines" for various AT command and receiver responses
     
@@ -392,6 +394,7 @@ class rylr998:
 
         self.debug = args.debug
         self.reset = args.reset   # not much of a command
+        self.factory = args.factory  # if factory  reset
 
         # note: self.addr is a str, args.addr is an int
         self.addr = str(args.addr) # set the default
@@ -501,12 +504,11 @@ class rylr998:
         if self.reset:
             await queue.put('RESET')
 
+        if self.factory:
+            await queue.put('FACTORY')
+
         # CRFOP=#dBm seems to want a TX before another receive...
         # there doesn't seem to be much I can do about this...
-        if self.crfop:   
-            await queue.put('CRFOP='+self.crfop)
-            await queue.put('SEND=0,'+str(len(self.crfop)+4)+',pwr:'+self.crfop)
-
         await queue.put('IPR='+self.baudrate) #  chicken and egg
         await queue.put('ADDRESS='+self.addr)  
         await queue.put('NETWORKID='+self.netid) # this is a str
@@ -521,6 +523,9 @@ class rylr998:
         await queue.put('MODE='+self.mode)
         await queue.put('UID?')
         await queue.put('VER?')
+        if self.crfop:   
+            await queue.put('CRFOP='+self.crfop)
+            await queue.put('SEND=0,'+str(len(self.crfop)+4)+',pwr:'+self.crfop)
         await queue.put('CRFOP?')
         await queue.put('PARAMETER?') # maybe not properly tested??
 
@@ -530,19 +535,8 @@ class rylr998:
 
         dirty = True  # transmit and RCV will set this
 
-        # Unlike lock, a semaphore allows more calls to release()
-        # than to acquire(). This is useful when an ERR=## is returned
-        # from the module, say a CRC error, which can happen.
-        # However, we still want lock-like behavior, so we use
-        # a bounded semaphore with an initial count of 1 and
-        # catch ValueError exceptions when these occur without
-        # a corresponding AT command. An unbounded semaphore could
-        # allow an indefinite number of releases, which will raise
-        # the count above the initial value and will allow AT
-        # commands to be dequeued before prior commands finish.
-
-        # a state variable is enough
-        waitForReply =  False # asyncio.BoundedSemaphore(value=1) 
+        # a state variable is enough to synchronize AT commands
+        waitForReply =  False 
 
         # Hold onto your chair and godspeed. 
 
@@ -619,14 +613,17 @@ class rylr998:
                         match self.state_table:
                             case self.ADDR_table:
                                 dsply.rxaddnstr("addr: " + self.rxbuf, self.rxlen+6)
+                                self.addr = self.rxbuf
                                 waitForReply = False
 
                             case self.BAND_table:
                                 dsply.rxaddnstr("frequency: " + self.rxbuf +" Hz", self.rxlen+14) 
+                                self.band = self.rxbuf
                                 waitForReply = False
 
                             case self.CRFOP_table:
                                 dsply.rxaddnstr("power output: {} dBm".format(self.rxbuf), self.rxlen+14)       
+                                self.crfop = self.rxbuf
                                 waitForReply = False
 
                             case self.ERR_table:
@@ -634,15 +631,17 @@ class rylr998:
                                 waitForReply = False
                                   
                             case self.FACT_table:
-                                dsply.rxaddnstr(self.rxbuf + " defaults", self.rxlen+9)
+                                dsply.rxaddnstr("Factory defaults", 16)
                                 waitForReply = False
 
                             case self.IPR_table:
                                 dsply.rxaddnstr("uart: " + self.rxbuf + " baud", self.rxlen+11)
+                                self.baudrate = self.rxbuf
                                 waitForReply = False
 
                             case self.MODE_table:
                                 dsply.rxaddnstr("mode: " + self.rxbuf, self.rxlen+6)
+                                self.mode = self.rxbuf
                                 waitForReply = False
 
                             case self.OK_table:
@@ -658,14 +657,15 @@ class rylr998:
 
                             case self.NETID_table:
                                 dsply.rxaddnstr("NETWORK ID: " + self.rxbuf, self.rxlen+12) 
+                                self.netid = self.rxbuf
                                 waitForReply = False
                                 
                             case self.PARAM_table:
-                                _sp, _ba, _co, _pr = self.rxbuf.split(',', 3)
-                                dsply.rxaddnstr("spreading factor: {}".format(_sp), len(_sp)+18) 
-                                dsply.rxaddnstr("bandwidth: {}".format(_ba), len(_ba)+11)  
-                                dsply.rxaddnstr("coding rate: {}".format(_co), len(_co)+13)  
-                                dsply.rxaddnstr("preamble: {}".format(_pr), len(_pr)+10)
+                                self.spreading_factor, self.bandwidth, self.coding_rate, self.preamble = self.rxbuf.split(',', 3)
+                                dsply.rxaddnstr("spreading factor: {}".format(self.spreading_factor), len(self.spreading_factor)+18) 
+                                dsply.rxaddnstr("bandwidth: {}".format(self.bandwidth), len(self.bandwidth)+11)  
+                                dsply.rxaddnstr("coding rate: {}".format(self.coding_rate), len(self.coding_rate)+13)  
+                                dsply.rxaddnstr("preamble: {}".format(self.preamble), len(self.preamble)+10)
                                 waitForReply = False
 
                             case self.RCV_table:
@@ -711,10 +711,12 @@ class rylr998:
 
                             case self.UID_table:
                                 dsply.rxaddnstr("UID: " + self.rxbuf, self.rxlen+5) 
+                                self.uid = self.rxbuf
                                 waitForReply = False
 
                             case self.VER_table:
                                 dsply.rxaddnstr("VER: " + self.rxbuf, self.rxlen+5) 
+                                self.version = self.rxbuf
                                 waitForReply = False
                                 
                             case _:
@@ -770,6 +772,8 @@ class rylr998:
                         stwin.noutrefresh()
                         txflag = True # transmitting 
                         dirty = True # really True this time 
+                    # this seems to be needed between AT commands
+                    await asyncio.sleep(dsply.TENTHSEC) # for AT commands
                     await ATcmd( cmd ) # send command to serial port to rylr998
                 continue # remember that RCV and AT cmd responses take priority
 
@@ -824,6 +828,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--debug', action='store_true', help = 'log DEBUG information')
     parser.add_argument('--reset', action='store_true', help = 'Software reset')
+    parser.add_argument('--factory', action='store_true', help = 'Factory reset')
 
     # rylr998 configuration argument group
 
