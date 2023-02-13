@@ -506,6 +506,7 @@ class rylr998:
 
         if self.factory:
             await queue.put('FACTORY')
+            await queue.put('DELAY,'+str(dsply.HALFSEC))
 
         # CRFOP=#dBm seems to want a TX before another receive...
         # there doesn't seem to be much I can do about this...
@@ -772,8 +773,11 @@ class rylr998:
                         stwin.noutrefresh()
                         txflag = True # transmitting 
                         dirty = True # really True this time 
-                    # this seems to be needed between AT commands
-                    await asyncio.sleep(dsply.TENTHSEC) # for AT commands
+                    elif cmd.startswith('DELAY,'):
+                        _,delay = cmd.split(',',1)
+                        await asyncio.sleep(float(delay))
+                        waitForReply = False # not an AT command!
+                        continue # use this to escape
                     await ATcmd( cmd ) # send command to serial port to rylr998
                 continue # remember that RCV and AT cmd responses take priority
 
