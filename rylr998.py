@@ -55,7 +55,7 @@ import argparse
 import sys # needed to compensate for argparses argh-parsing
 
 DEFAULT_ADDR_INT = 0 # type int
-DEFAULT_BAND = '915125000'
+DEFAULT_BAND = '915000000'
 DEFAULT_PORT = '/dev/ttyS0'
 DEFAULT_BAUD = '115200'
 DEFAULT_CRFOP = '22'
@@ -413,7 +413,11 @@ class rylr998:
                 logging.error('Preamble must be 12 if NETWORKID is not equal to the default ' + DEFAULT_NETID + '.')
                 raise argparse.ArgumentTypeError('Preamble must be 12 if NETWORKID is not equal to the default ' + DEFAULT_NETID + '.' )
         else:
-            self.parameter = None  # check whether to update
+            self.parameter = DEFAULT_PARAMETER  # set the default
+            self.spreading_factor = str(DEFAULT_SPREADING_FACTOR)
+            self.bandwidth        = str(DEFAULT_BANDWIDTH)
+            self.coding_rate      = str(DEFAULT_CODING_RATE)
+            self.preamble         = str(DEFAULT_PREAMBLE)
 
         self.gpiosetup()
         
@@ -505,31 +509,23 @@ class rylr998:
             await queue.put('FACTORY')
             await queue.put('DELAY,'+str(dsply.FOURTHSEC))
 
-        # CRFOP=#dBm seems to want a TX before another receive...
-        # there doesn't seem to be much I can do about this...
         await queue.put('IPR='+self.baudrate) #  chicken and egg
         await queue.put('ADDRESS='+self.addr)  
         await queue.put('NETWORKID='+self.netid) # this is a str
         await queue.put('BAND='+args.band)
-        if self.crfop:   
-            await queue.put('CRFOP='+self.crfop)
-            #await queue.put('SEND=0,'+str(len(self.crfop)+4)+',pwr:'+self.crfop)
-            if not self.parameter:
-                await queue.put('PARAMETER='+DEFAULT_PARAMETER)
-        if self.parameter: # if this was an argument, use it
-            await queue.put('PARAMETER='+self.spreading_factor+','+self.bandwidth+','+self.coding_rate+','+self.preamble)
-        await queue.put('ADDRESS?')
-        await queue.put('NETWORKID?')
-        await queue.put('BAND?')
 
-        #await queue.put('SEND=0,'+str(len(self.mode)+5)+',MODE='+self.mode)
+        if self.crfop:   
+            await queue.put('CRFOP='+self.crfop) # the next is needed to receive again!
+        await queue.put('PARAMETER='+self.spreading_factor+','+self.bandwidth+','+self.coding_rate+','+self.preamble)
+
+        await queue.put('ADDRESS?')
+        await queue.put('BAND?')
+        await queue.put('CRFOP?')
         await queue.put('MODE='+self.mode)
+        await queue.put('NETWORKID?')
+        await queue.put('PARAMETER?') 
         await queue.put('UID?')
         await queue.put('VER?')
-        await queue.put('CRFOP?')
-        await queue.put('PARAMETER?') # maybe not properly tested??
-        #if self.reset:
-        #    await queue.put('RESET')
 
 
         # You are about to participate in a great adventure.
@@ -836,7 +832,7 @@ if __name__ == "__main__":
     # reset seems to result in CRC errors on receive. Could be because
     # I am leaving RST floating...
     #parser.add_argument('--reset', action='store_true', help = 'Software reset')
-    parser.add_argument('--factory', action='store_true', help = 'Factory reset')
+    parser.add_argument('--factory', action='store_true', help = 'Factory reset to manufacturer defaults. BAND: 915MHz,  UART: 115200, Spreading Factor: 9, Bandwidth: 125kHz (7), Coding Rate: 1, Preamble Length: 12, Address: 0, Network ID: 18, CRFOP: 22')
 
     # rylr998 configuration argument group
 
@@ -874,7 +870,7 @@ if __name__ == "__main__":
 
     rylr998_config.add_argument('--crfop', required=False, type=pwrcheck, 
         metavar='[0..22]', dest='crfop', default = DEFAULT_CRFOP, 
-        help='RF pwr out (0..22) in dBm. Default: ' + DEFAULT_CRFOP)
+        help='RF pwr out (0..22) in dBm. Default: FACTORY setting of ' + DEFAULT_CRFOP + ' or the last configured value.')
 
 
     modePattern = re.compile('^(0)|(1)|(2,(\d{2,5}),(\d{2,5}))$')

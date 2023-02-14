@@ -20,7 +20,10 @@ usage: rylr998.py [-h] [--debug] [--factory] [--addr [0..65535]]
 options:
   -h, --help            show this help message and exit
   --debug               log DEBUG information
-  --factory             Factory reset
+  --factory             Factory reset to manufacturer defaults. BAND:
+                        915MHz, UART: 115200, Spreading Factor: 9,
+                        Bandwidth: 125kHz (7), Coding Rate: 1, Preamble
+                        Length: 12, Address: 0, Network ID: 18, CRFOP: 22
 
 rylr998 config:
   --addr [0..65535]     Module address (0..65535). Default is 0
@@ -29,9 +32,10 @@ rylr998 config:
                         NOTE: the full 33cm ISM band limits 902 MHz and
                         928 MHz are guarded by the maximum configurable
                         bandwidth of 500 KHz (250 KHz on either side of
-                        the configured frequency). See the PARAMETER
-                        for bandwidth configuration. Default: 915125000
-  --crfop [0..22]       RF pwr out (0..22) in dBm. Default: 22
+                        the configured frequency). See PARAMETER for
+                        bandwidth configuration. Default: 915000000
+  --crfop [0..22]       RF pwr out (0..22) in dBm. Default: FACTORY
+                        setting of 22 or the last configured value.
   --mode [0|1|2,30..60000,30..60000]
                         Mode 0: transceiver mode. Mode 1: sleep mode.
                         Mode 2,x,y: receive for x msec sleep for y msec
