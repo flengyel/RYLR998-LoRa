@@ -801,23 +801,59 @@ class rylr998:
 
                     await queue.put('SEND='+self.addr+','+str(self.txlen)+','+self.txbuf)
 
+            elif ch == cur.KEY_LEFT:
+                txcol = max(0, txcol - 1)
+
+                #s = 'txcol:'+str(txcol)+ ' txlen:'+str(self.txlen)
+                #dsply.rxaddnstr(s, len(s))
+
+                txwin.move(txrow, txcol)
+                txwin.noutrefresh()
+                dirty = True
+
+            elif ch == cur.KEY_RIGHT:
+                txcol = min(txcol+1, self.txlen)
+                #s = 'txcol:'+str(txcol)+ ' txlen:'+str(self.txlen)
+                #dsply.rxaddnstr(s, len(s))
+                txwin.move(txrow, txcol)
+                txwin.noutrefresh()
+                dirty = True
+
+            elif ch == cur.KEY_DC: # Delete
+                self.txbuf = self.txbuf[0:txcol] + self.txbuf[txcol+1:min(39,self.txlen)]
+                self.txlen = max(txcol, self.txlen-1)
+                txwin.delch(txrow,txcol)
+                if self.txlen < 40:
+                    txwin.addnstr(txrow, 0, self.txbuf ,self.txlen)
+                else:
+                    txwin.insnstr(txrow, 0, self.txbuf, self.txlen)
+                txwin.move(txrow,txcol)
+                txwin.noutrefresh()
+                dirty = True
 
             elif ch == cur.ascii.BS: # Backspace
-                self.txbuf = self.txbuf[:-1]
-                self.txlen = max(0, self.txlen-1)
-                txcol = max(0, txcol-1)
+                self.txbuf = self.txbuf[0:max(0,txcol-1)]+self.txbuf[txcol:self.txlen]
+                self.txlen = max(0,txcol-1) + max(0, self.txlen-txcol) 
+                txcol= max(0, txcol-1)
                 txwin.delch(txrow, txcol)
+                if self.txlen < 40:
+                    txwin.addstr(txrow, 0, self.txbuf)
+                else:
+                    txwin.insstr(txrow, 0, self.txbuf)
+                txwin.move(txrow, txcol)
                 txwin.noutrefresh()
                 dirty = True
 
             elif cur.ascii.isascii(ch):
-                if self.txlen < 40:
-                    self.txbuf += str(chr(ch))
-                else:
-                    # overwrite the end if at position 40
-                    self.txbuf = self.txbuf[:-1] + str(chr(ch))
+                self.txbuf = self.txbuf[0:txcol] + str(chr(ch)) + self.txbuf[txcol:min(39,self.txlen)]
                 self.txlen = min(40, self.txlen+1) #  
+                #txwin.insnstr(txrow, txcol, str(chr(ch)),1)
+                if self.txlen < 40:
+                    txwin.addnstr(txrow, 0, self.txbuf ,self.txlen)
+                else:
+                    txwin.insnstr(txrow, 0, self.txbuf, self.txlen)
                 txcol = min(39, txcol+1)
+                txwin.move(txrow, txcol)
                 txwin.noutrefresh()
                 dirty = True
 
