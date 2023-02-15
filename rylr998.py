@@ -544,6 +544,13 @@ class rylr998:
             # cur.doupdate() is called and the dirty flag is  reset,
             # provided the dirty flag is set. This speeds up the display
 
+            #if self.debug and self.txlen > 0:
+            #   s = 'txcol:'+str(txcol)+ ' txlen:'+str(self.txlen) + ' txbuf:' + self.txbuf
+            #   dsply.rxaddnstr(s, len(s))
+            #   txwin.move(txrow, txcol)
+            #   txwin.noutrefresh()
+            #   dirty = True
+
             if dirty:
                 cur.doupdate() # oh baby
                 dirty = False # reset the dirty bit
@@ -798,30 +805,26 @@ class rylr998:
                     # the SEND_COMMAND includes the address 
                     # Don't be silly: you don't have to send only to your address!!!
                     # you could send to some other address
-
                     await queue.put('SEND='+self.addr+','+str(self.txlen)+','+self.txbuf)
 
             elif ch == cur.KEY_LEFT:
                 txcol = max(0, txcol - 1)
-
-                #s = 'txcol:'+str(txcol)+ ' txlen:'+str(self.txlen)
-                #dsply.rxaddnstr(s, len(s))
-
                 txwin.move(txrow, txcol)
                 txwin.noutrefresh()
                 dirty = True
 
             elif ch == cur.KEY_RIGHT:
-                txcol = min(txcol+1, self.txlen)
-                #s = 'txcol:'+str(txcol)+ ' txlen:'+str(self.txlen)
-                #dsply.rxaddnstr(s, len(s))
+                txcol = min(min(txcol+1, self.txlen-1), 39)
                 txwin.move(txrow, txcol)
                 txwin.noutrefresh()
                 dirty = True
 
             elif ch == cur.KEY_DC: # Delete
-                self.txbuf = self.txbuf[0:txcol] + self.txbuf[txcol+1:min(39,self.txlen)]
-                self.txlen = max(txcol, self.txlen-1)
+                if txcol >= self.txlen:
+                    continue
+                # txcol must be to the left of a character to delete somethin  to the right
+                self.txbuf = self.txbuf[0:txcol] + self.txbuf[txcol+1:min(40,self.txlen)]
+                self.txlen = max(0,min(40, self.txlen) -1)
                 txwin.delch(txrow,txcol)
                 if self.txlen < 40:
                     txwin.addnstr(txrow, 0, self.txbuf ,self.txlen)
@@ -845,6 +848,8 @@ class rylr998:
                 dirty = True
 
             elif cur.ascii.isascii(ch):
+                if self.txlen == 40 and txcol < 40:
+                    continue   # don't change!
                 self.txbuf = self.txbuf[0:txcol] + str(chr(ch)) + self.txbuf[txcol:min(39,self.txlen)]
                 self.txlen = min(40, self.txlen+1) #  
                 #txwin.insnstr(txrow, txcol, str(chr(ch)),1)
