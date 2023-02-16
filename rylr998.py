@@ -795,7 +795,7 @@ class rylr998:
                 dirty = True
 
             elif ch == cur.KEY_RIGHT:
-                txcol = min(min(txcol+1, self.txlen-1), 39)
+                txcol = min(txcol+1, self.txlen, 39)
                 txwin.move(txrow, txcol)
                 txwin.noutrefresh()
                 dirty = True
@@ -805,7 +805,7 @@ class rylr998:
                     continue
                 # txcol must be to the left of a character to delete somethin  to the right
                 self.txbuf = self.txbuf[0:txcol] + self.txbuf[txcol+1:min(40,self.txlen)]
-                self.txlen = max(0,min(40, self.txlen) -1)
+                self.txlen = max(0,min(40, self.txlen)-1)
                 txwin.delch(txrow,txcol)
                 if self.txlen < 40:
                     txwin.addnstr(txrow, 0, self.txbuf ,self.txlen)
