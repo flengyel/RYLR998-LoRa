@@ -283,8 +283,8 @@ class rylr998:
     OK_table    = [b'+',b'O',b'K']
     PARAM_table = [b'+',b'P',b'A',b'R',b'A',b'M',b'E',b'T',b'E',b'R',b'=']
     RCV_table   = [b'+',b'R',b'C',b'V',b'='] # receive is the default "state"
-    RESET_table = [b'+',b'R',b'E',b'S',b'E',b'T'] # RESET detected in state 2 if state_table == RCV_table
-    READY_table = [b'+',b'R',b'E',b'A',b'D',b'Y'] # if RESET received, state_table = READY_table
+#    RESET_table = [b'+',b'R',b'E',b'S',b'E',b'T'] # RESET detected in state 2 if state_table == RCV_table
+#    READY_table = [b'+',b'R',b'E',b'A',b'D',b'Y'] # if RESET received, state_table = READY_table
     UID_table   = [b'+',b'U',b'I',b'D',b'=']
     VER_table   = [b'+',b'V',b'E',b'R',b'=']
  
@@ -583,19 +583,12 @@ class rylr998:
                             # if the state table cannot be changed
                             # the rx buffer and the state will be reset
                             self.change_state_table(data)
-                        elif self.state == 2 and data == b'E' and self.state_table == self.RCV_table:
-                            # This has to be a reset. 
-                            # advance the state index
-                            self.state += 1
-                            # continue in RESET state
-                            self.state_table = self.RESET_table
                         else:
                             # in this case, the state is 0 and you are lost
-                            # preamble possibly -- or state > 1 or 2 and you are lost
+                            # preamble possibly -- or state > 1 and you are lost
                             self.rxbufReset() 
 
                     continue  # parsing output takes priority over input
-
                 else:
                     # Phase Two: parse the data portion of the response
                     # the precondition for the second parsing phase obtains:
@@ -702,18 +695,6 @@ class rylr998:
                                 stwin.noutrefresh()
                                 # not waiting for a reply from the module
                                 # so we do not reset the waitForReply flag
-
-                            case self.READY_table:
-                                dsply.rxaddnstr("+READY", 6)
-                                waitForReply = False
-
-                            case self.RESET_table:
-                                dsply.rxaddnstr("+RESET", 6)
-                                # do not reset waitForReply yet: now waiting for READY 
-                                # instead of going into the RCV_table state,
-                                # go into the READY_table state
-                                self.rxbufReset(state_table = self.READY_table) 
-                                continue  # keep receiving
 
                             case self.UID_table:
                                 dsply.rxaddnstr("UID: " + self.rxbuf, self.rxlen+5) 
