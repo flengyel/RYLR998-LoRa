@@ -61,7 +61,7 @@ serial port config:
 
 ## Python Module Dependencies
 
-* python 3.9+
+* python 3.10+
 * rPI.GPIO
 * [asyncio](https://pypi.org/project/asyncio/)
 * [aioserial](https://pypi.org/project/aioserial/) 1.3.1+
