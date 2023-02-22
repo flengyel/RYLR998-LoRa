@@ -947,14 +947,14 @@ if __name__ == "__main__":
     # serial port configuration argument group
     serial_config = parser.add_argument_group('serial port config')
 
-    uartPattern = re.compile('^/dev/ttyS\d{1,3}$')
+    uartPattern = re.compile('^/dev/tty(S|USB)\d{1,3}$')
     def uartcheck(s : str) -> str:
         if uartPattern.match(s):
             return s
-        raise argparse.ArgumentTypeError("Serial Port device name not of the form ^/dev/ttyS\d{1,3}$")
+        raise argparse.ArgumentTypeError("Serial Port device name not of the form ^/dev/tty(S|USB)\d{1,3}$")
 
     serial_config.add_argument('--port', required=False, type=uartcheck, 
-        metavar='[/dev/ttyS0../dev/ttyS999]', default = DEFAULT_PORT, dest='port',
+        metavar='[/dev/ttyS0../dev/ttyS999|/dev/ttyUSB0../dev/ttyUSB999]', default = DEFAULT_PORT, dest='port',
         help='Serial port device name. Default: '+ DEFAULT_PORT)
 
     baudrates = ['300', '1200', '4800', '9600', '19200', '28800', '38400', '57600',  '115200']
