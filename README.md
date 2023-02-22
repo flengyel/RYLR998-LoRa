@@ -11,52 +11,49 @@ There are no threads here, only asynchronous non-blocking I/O calls.
 ```bash
 usage: rylr998.py [-h] [--debug] [--factory] [--addr [0..65535]]
                   [--band [902250000..927750000]] [--crfop [0..22]]
-                  [--mode [0|1|2,30..60000,30..60000]]
-                  [--netid [3..15|18]]
+                  [--mode [0|1|2,30..60000,30..60000]] [--netid [3..15|18]]
                   [--parameter [7..11,7..9,1..4,4..24]]
-                  [--port [/dev/ttyS0../dev/ttyS999]]
+                  [--port [/dev/ttyS0../dev/ttyS999|/dev/ttyUSB0../dev/ttyUSB999]]
                   [--baud (300|1200|4800|9600|19200|28800|38400|57600|115200)]
 
 options:
   -h, --help            show this help message and exit
   --debug               log DEBUG information
-  --factory             Factory reset to manufacturer defaults. BAND:
-                        915MHz, UART: 115200, Spreading Factor: 9,
-                        Bandwidth: 125kHz (7), Coding Rate: 1, Preamble
-                        Length: 12, Address: 0, Network ID: 18, CRFOP: 22
+  --factory             Factory reset to manufacturer defaults. BAND: 915MHz,
+                        UART: 115200, Spreading Factor: 9, Bandwidth: 125kHz
+                        (7), Coding Rate: 1, Preamble Length: 12, Address: 0,
+                        Network ID: 18, CRFOP: 22
 
 rylr998 config:
   --addr [0..65535]     Module address (0..65535). Default is 0
   --band [902250000..927750000]
-                        Module frequency (902250000..927750000) in Hz.
-                        NOTE: the full 33cm ISM band limits 902 MHz and
-                        928 MHz are guarded by the maximum configurable
-                        bandwidth of 500 KHz (250 KHz on either side of
-                        the configured frequency). See PARAMETER for
-                        bandwidth configuration. Default: 915000000
-  --crfop [0..22]       RF pwr out (0..22) in dBm. Default: FACTORY
-                        setting of 22 or the last configured value.
+                        Module frequency (902250000..927750000) in Hz. NOTE:
+                        the full 33cm ISM band limits 902 MHz and 928 MHz are
+                        guarded by the maximum configurable bandwidth of 500
+                        KHz (250 KHz on either side of the configured
+                        frequency). See PARAMETER for bandwidth configuration.
+                        Default: 915000000
+  --crfop [0..22]       RF pwr out (0..22) in dBm. Default: FACTORY setting of
+                        22 or the last configured value.
   --mode [0|1|2,30..60000,30..60000]
-                        Mode 0: transceiver mode. Mode 1: sleep mode.
-                        Mode 2,x,y: receive for x msec sleep for y msec
-                        and so on, indefinitely. Default: 0
-  --netid [3..15|18]    NETWORK ID. Note: PARAMETER values depend on
-                        NETWORK ID. Default: 18
+                        Mode 0: transceiver mode. Mode 1: sleep mode. Mode
+                        2,x,y: receive for x msec sleep for y msec and so on,
+                        indefinitely. Default: 0
+  --netid [3..15|18]    NETWORK ID. Note: PARAMETER values depend on NETWORK
+                        ID. Default: 18
   --parameter [7..11,7..9,1..4,4..24]
-                        PARAMETER. Set the RF parameters Spreading
-                        Factor, Bandwidth, Coding Rate, Preamble.
-                        Spreading factor 7..11, default 9. Bandwidth
-                        7..9, where 7 is 125 KHz (only if spreading
-                        factor is in 7..9); 8 is 250 KHz (only if
-                        spreading factor is in 7..10); 9 is 500 KHz (only
-                        if spreading factor is in 7..11). Default
+                        PARAMETER. Set the RF parameters Spreading Factor,
+                        Bandwidth, Coding Rate, Preamble. Spreading factor
+                        7..11, default 9. Bandwidth 7..9, where 7 is 125 KHz
+                        (only if spreading factor is in 7..9); 8 is 250 KHz
+                        (only if spreading factor is in 7..10); 9 is 500 KHz
+                        (only if spreading factor is in 7..11). Default
                         bandwidth is 7. Coding rate is 1..4, default 4.
-                        Preamble is 4..25 if the NETWORK ID is 18;
-                        otherwise the preamble must be 12. Default:
-                        9,7,1,12
+                        Preamble is 4..25 if the NETWORK ID is 18; otherwise
+                        the preamble must be 12. Default: 9,7,1,12
 
 serial port config:
-  --port [/dev/ttyS0../dev/ttyS999]
+  --port [/dev/ttyS0../dev/ttyS999|/dev/ttyUSB0../dev/ttyUSB999]
                         Serial port device name. Default: /dev/ttyS0
   --baud (300|1200|4800|9600|19200|28800|38400|57600|115200)
                         Serial port baudrate. Default: 115200
