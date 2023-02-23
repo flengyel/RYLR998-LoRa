@@ -9,7 +9,7 @@ There are no threads here, only asynchronous non-blocking I/O calls.
 
 ## Usage
 ```bash
-usage: rylr998.py [-h] [--debug] [--noGPIO] [--factory] [--addr [0..65535]]
+usage: rylr998.py [-h] [--debug] [--factory] [--noGPIO] [--addr [0..65535]]
                   [--band [902250000..927750000]] [--crfop [0..22]]
                   [--mode [0|1|2,30..60000,30..60000]] [--netid [3..15|18]]
                   [--parameter [7..11,7..9,1..4,4..24]]
@@ -19,12 +19,12 @@ usage: rylr998.py [-h] [--debug] [--noGPIO] [--factory] [--addr [0..65535]]
 options:
   -h, --help            show this help message and exit
   --debug               log DEBUG information
-  --noGPIO              Don't use rPI.GPIO module even if available. Useful if
-                        using a USB to TTL converter.
   --factory             Factory reset to manufacturer defaults. BAND: 915MHz,
                         UART: 115200, Spreading Factor: 9, Bandwidth: 125kHz
                         (7), Coding Rate: 1, Preamble Length: 12, Address: 0,
                         Network ID: 18, CRFOP: 22
+  --noGPIO              Do not use rPI.GPIO module even if available. Useful
+                        if using a USB to TTL converter with the RYLR998.
 
 rylr998 config:
   --addr [0..65535]     Module address (0..65535). Default is 0

@@ -857,8 +857,9 @@ if __name__ == "__main__":
     # reset seems to result in CRC errors on receive. Wait for firmware
     # revision
     #parser.add_argument('--reset', action='store_true', help = 'Software reset')
-    parser.add_argument('--noGPIO', action='store_true', help = "Don't use rPI.GPIO module even if available. Useful if using a USB to TTL converter.")
     parser.add_argument('--factory', action='store_true', help = 'Factory reset to manufacturer defaults. BAND: 915MHz,  UART: 115200, Spreading Factor: 9, Bandwidth: 125kHz (7), Coding Rate: 1, Preamble Length: 12, Address: 0, Network ID: 18, CRFOP: 22')
+
+    parser.add_argument('--noGPIO', action='store_true', help = "Do not use rPI.GPIO module even if available. Useful if using a USB to TTL converter with the RYLR998.")
 
     # rylr998 configuration argument group
 
