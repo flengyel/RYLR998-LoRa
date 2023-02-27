@@ -88,7 +88,7 @@ class Display:
     # coordinates are relative to the stwin
     TXRX_LBL      = " LoRa "
     TXRX_LEN  = 6
-    #TXRX_ROW = 0 All row numbers are 0
+    TXRX_ROW = 0 
     TXRX_COL  = 0
 
     ADDR_LBL = "ADDR"
@@ -99,10 +99,24 @@ class Display:
     RSSI_LBL = "RSSI"
     RSSI_LEN = 4
 
-    SNR_COL = 31
+    SNR_COL = 32
     SNR_LBL = "SNR"
     SNR_LEN = 3
 
+    VFO_LBL = "VFO"
+    VFO_LEN = 3
+    VFO_ROW = 2
+    VFO_COL = 1
+
+    PWR_LBL = "PWR"
+    PWR_LEN = 3
+    PWR_ROW = 2
+    PWR_COL = 17
+
+    NETID_LBL = "NETWORK ID"
+    NETID_LEN = 10
+    NETID_ROW = 2
+    NETID_COL = 26 
 
     # this needs to be part of the Display class
     rxrow = 0   # rxwin_y relative window coordinates
@@ -183,25 +197,27 @@ class Display:
         self.rxwin.noutrefresh()
 
     def derive_txwin(self, scr : _curses) -> _curses.window:
-        txbdr = scr.derwin(3,42,23,0)
+        txbdr = scr.derwin(3,42,25,0)
         # window.border([ls[, rs[, ts[, bs[, tl[, tr[, bl[, br]]]]]]]])
         txbdr.border(0,0,0,0,cur.ACS_LTEE, cur.ACS_RTEE,0,0)
-        txbdr.addch(0,7, cur.ACS_BTEE)
-        txbdr.addch(0,20, cur.ACS_BTEE)
-        txbdr.addch(0,31, cur.ACS_BTEE)
+        txbdr.addch(0,16, cur.ACS_BTEE)
+        txbdr.addch(0,25, cur.ACS_BTEE)
+        #txbdr.addch(0,31, cur.ACS_BTEE)
         txbdr.noutrefresh()
         return txbdr.derwin(1,40,1,1)
 
     # status "window" setup
     def derive_stwin(self, scr: _curses) -> _curses.window:
-        stwin = scr.derwin(1,40,22,1)
+        stwin = scr.derwin(3,40,22,1)
         fg_bg = cur.color_pair(self.WHITE_BLACK)
         stwin.bkgd(' ', fg_bg)
 
         # the first ACS_VLINE lies outside stwin
         scr.vline(22, 0,  cur.ACS_VLINE, 1, fg_bg )
-        #stwin.addstr(0, 0, u" LoRa\U000000AE", cur.color_pair(self.WHITE_BLACK)) 
-        stwin.addnstr(0, self.TXRX_COL, self.TXRX_LBL, self.TXRX_LEN, fg_bg) 
+        scr.vline(23, 0,  cur.ACS_LTEE, 1, fg_bg )
+        scr.vline(24, 0,  cur.ACS_VLINE, 1, fg_bg )
+        stwin.addnstr(0, self.TXRX_COL, self.TXRX_LBL, 
+                         self.TXRX_LEN, fg_bg) 
         stwin.vline(0, 6, cur.ACS_VLINE, 1,  fg_bg)
         stwin.addnstr(0, self.ADDR_COL, self.ADDR_LBL, self.ADDR_COL, fg_bg) 
         stwin.vline(0, 19, cur.ACS_VLINE, 1, fg_bg)
@@ -209,9 +225,33 @@ class Display:
         stwin.addnstr(0, self.RSSI_COL, self.RSSI_LBL, self.RSSI_LEN, fg_bg)
         stwin.vline(0, 30, cur.ACS_VLINE, 1, fg_bg)
 
+
         stwin.addnstr(0, self.SNR_COL, self.SNR_LBL, self.SNR_LEN, fg_bg)
+        # second line
+        stwin.hline(1,0,cur.ACS_HLINE,42)
+        stwin.addch(1,6, cur.ACS_BTEE)
+        stwin.addch(1,19, cur.ACS_BTEE)
+        stwin.addch(1,30, cur.ACS_BTEE)
+
+        stwin.addnstr(self.VFO_ROW, self.VFO_COL,
+                      self.VFO_LBL, self.VFO_LEN, fg_bg)
+
+        stwin.addnstr(self.PWR_ROW, self.PWR_COL,
+                      self.PWR_LBL, self.PWR_LEN, fg_bg)
+
+        stwin.addnstr(self.NETID_ROW, self.NETID_COL,
+                      self.NETID_LBL, self.NETID_LEN, fg_bg)
+
         # the last ACS_VLINE lies outside stwin
         scr.vline(22, 41,  cur.ACS_VLINE, 1,  fg_bg)
+        scr.vline(23, 41,  cur.ACS_RTEE, 1,  fg_bg)
+        scr.vline(24, 41,  cur.ACS_VLINE, 1,  fg_bg)
+
+
+        scr.addch(23,16,cur.ACS_TTEE)
+        scr.addch(24,16,cur.ACS_VLINE)
+        scr.addch(23,25,cur.ACS_TTEE)
+        scr.addch(24,25,cur.ACS_VLINE)
         return stwin
 
     def xlateError(self, errCode: str) -> None:
@@ -525,10 +565,10 @@ class rylr998:
         await queue.put('BAND?')
         await queue.put('CRFOP?')
         await queue.put('MODE='+self.mode)
-        await queue.put('NETWORKID?')
         await queue.put('PARAMETER?') 
         await queue.put('UID?')
         await queue.put('VER?')
+        await queue.put('NETWORKID?')
 
 
         # You are about to participate in a great adventure.
@@ -621,11 +661,17 @@ class rylr998:
                             case self.BAND_table:
                                 dsply.rxaddnstr("frequency: " + self.rxbuf +" Hz", self.rxlen+14) 
                                 self.band = self.rxbuf
+                                stwin.addnstr(dsply.VFO_ROW, dsply.VFO_COL+4,self.band, 
+                                              self.rxlen, cur.color_pair(dsply.WHITE_BLACK))
+                                stwin.noutrefresh()
                                 waitForReply = False
 
                             case self.CRFOP_table:
                                 dsply.rxaddnstr("power output: {} dBm".format(self.rxbuf), self.rxlen+14)       
                                 self.crfop = self.rxbuf
+                                stwin.addnstr(dsply.PWR_ROW, dsply.PWR_COL+4,self.crfop, 
+                                              self.rxlen, cur.color_pair(dsply.WHITE_BLACK))
+                                stwin.noutrefresh()
                                 waitForReply = False
 
                             case self.ERR_table:
@@ -660,6 +706,9 @@ class rylr998:
                             case self.NETID_table:
                                 dsply.rxaddnstr("NETWORK ID: " + self.rxbuf, self.rxlen+12) 
                                 self.netid = self.rxbuf
+                                stwin.addnstr(dsply.NETID_ROW, 37,self.netid, 
+                                              self.rxlen, cur.color_pair(dsply.WHITE_BLACK))
+                                stwin.noutrefresh()
                                 waitForReply = False
                                 
                             case self.PARAM_table:
