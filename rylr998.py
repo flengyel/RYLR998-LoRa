@@ -122,6 +122,7 @@ class Display:
     rxrow = 0   # rxwin_y relative window coordinates
     rxcol = 0   # rxwin_x
     rxwin = None 
+    bdrwin = None # the outer window.
 
     def __init__(self, scr) -> None:
         cur.savetty() # this has become necessary here  
@@ -158,15 +159,75 @@ class Display:
 
     # Relative coordinates are congenial - might remove magic numbers
 
-    def derive_rxwin(self, scr : _curses) -> None:
-        rxbdr = scr.derwin(22,42,0,0)
+    def borderland(self, scr : _curses) -> None:
+        # define the border in one place. Program from outer to inner.
+        bdrwin = scr.derwin(28,42,0,0)
+        bdrwin.border()
+        # Fill in the details
+
+        # receive window border
+        bdrwin.addch(21,0, cur.ACS_LTEE)
+        bdrwin.hline(21,1,cur.ACS_HLINE,40)
+        bdrwin.addch(21,41, cur.ACS_RTEE)
+        bdrwin.addch(21,7, cur.ACS_TTEE)
+        bdrwin.addch(21,20, cur.ACS_TTEE)
+        bdrwin.addch(21,31, cur.ACS_TTEE)
+
+        # status window border and labels
+        fg_bg = cur.color_pair(self.WHITE_BLACK)
+        bdrwin.addnstr(22, self.TXRX_COL+1, self.TXRX_LBL, 
+                         self.TXRX_LEN, fg_bg) 
+        bdrwin.vline(22, 6+1, cur.ACS_VLINE, 1,  fg_bg)
+        bdrwin.addnstr(22, self.ADDR_COL+1, self.ADDR_LBL, self.ADDR_COL, fg_bg) 
+        bdrwin.vline(22, 19+1, cur.ACS_VLINE, 1, fg_bg)
+
+        bdrwin.addnstr(22, self.RSSI_COL+1, self.RSSI_LBL, self.RSSI_LEN, fg_bg)
+        bdrwin.vline(22, 30+1, cur.ACS_VLINE, 1, fg_bg)
+
+
+        bdrwin.addnstr(22, self.SNR_COL+1, self.SNR_LBL, self.SNR_LEN, fg_bg)
+        # second line
+        bdrwin.addch(23,0, cur.ACS_LTEE)
+        bdrwin.hline(23,1,cur.ACS_HLINE,40)
+        bdrwin.addch(23,41, cur.ACS_RTEE)
+
+        bdrwin.addch(23,6+1, cur.ACS_BTEE)
+        bdrwin.addch(23,19+1, cur.ACS_BTEE)
+        bdrwin.addch(23,30+1, cur.ACS_BTEE)
+
+        bdrwin.addnstr(24, self.VFO_COL+1,
+                      self.VFO_LBL, self.VFO_LEN, fg_bg)
+
+        bdrwin.addnstr(24, self.PWR_COL+1,
+                      self.PWR_LBL, self.PWR_LEN, fg_bg)
+
+        bdrwin.addnstr(24, self.NETID_COL+1,
+                      self.NETID_LBL, self.NETID_LEN, fg_bg)
+
+
+        bdrwin.addch(23,16,cur.ACS_TTEE)
+        bdrwin.addch(24,16,cur.ACS_VLINE)
+        bdrwin.addch(23,25,cur.ACS_TTEE)
+        bdrwin.addch(24,25,cur.ACS_VLINE)
+
+
+        # transmit window border
+        # third line
+        bdrwin.addch(25,0, cur.ACS_LTEE)
+        bdrwin.hline(25,1,cur.ACS_HLINE,40)
+        bdrwin.addch(25,41, cur.ACS_RTEE)
+
+        bdrwin.addch(25,16, cur.ACS_BTEE)
+        bdrwin.addch(25,25, cur.ACS_BTEE)
+
+        bdrwin.noutrefresh()
+        self.bdrwin = bdrwin
+
+
+    def derive_rxwin(self) -> None:
+        #rxbdr = scr.derwin(22,42,0,0)
         # window.border([ls[, rs[, ts[, bs[, tl[, tr[, bl[, br]]]]]]]])
-        rxbdr.border(0,0,0,0,0,0,cur.ACS_LTEE, cur.ACS_RTEE)
-        rxbdr.addch(21,7, cur.ACS_TTEE)
-        rxbdr.addch(21,20, cur.ACS_TTEE)
-        rxbdr.addch(21,31, cur.ACS_TTEE)
-        rxbdr.noutrefresh()
-        self.rxwin = rxbdr.derwin(20,40,1,1)
+        self.rxwin = self.bdrwin.derwin(20,40,1,1)
         self.rxwin.scrollok(True)
         self.rxwin.bkgd(' ', cur.color_pair(self.YELLOW_BLACK)) # set bg color
         self.rxwin.noutrefresh() # updates occur in one place in the xcvr() loop
@@ -196,62 +257,14 @@ class Display:
         self.rxNextRow()
         self.rxwin.noutrefresh()
 
-    def derive_txwin(self, scr : _curses) -> _curses.window:
-        txbdr = scr.derwin(3,42,25,0)
-        # window.border([ls[, rs[, ts[, bs[, tl[, tr[, bl[, br]]]]]]]])
-        txbdr.border(0,0,0,0,cur.ACS_LTEE, cur.ACS_RTEE,0,0)
-        txbdr.addch(0,16, cur.ACS_BTEE)
-        txbdr.addch(0,25, cur.ACS_BTEE)
-        #txbdr.addch(0,31, cur.ACS_BTEE)
-        txbdr.noutrefresh()
-        return txbdr.derwin(1,40,1,1)
+    def derive_txwin(self) -> _curses.window:
+        return self.bdrwin.derwin(1,40,26,1)
 
     # status "window" setup
     def derive_stwin(self, scr: _curses) -> _curses.window:
-        stwin = scr.derwin(3,40,22,1)
+        stwin = self.bdrwin.derwin(3,40,22,1)
         fg_bg = cur.color_pair(self.WHITE_BLACK)
         stwin.bkgd(' ', fg_bg)
-
-        # the first ACS_VLINE lies outside stwin
-        scr.vline(22, 0,  cur.ACS_VLINE, 1, fg_bg )
-        scr.vline(23, 0,  cur.ACS_LTEE, 1, fg_bg )
-        scr.vline(24, 0,  cur.ACS_VLINE, 1, fg_bg )
-        stwin.addnstr(0, self.TXRX_COL, self.TXRX_LBL, 
-                         self.TXRX_LEN, fg_bg) 
-        stwin.vline(0, 6, cur.ACS_VLINE, 1,  fg_bg)
-        stwin.addnstr(0, self.ADDR_COL, self.ADDR_LBL, self.ADDR_COL, fg_bg) 
-        stwin.vline(0, 19, cur.ACS_VLINE, 1, fg_bg)
-
-        stwin.addnstr(0, self.RSSI_COL, self.RSSI_LBL, self.RSSI_LEN, fg_bg)
-        stwin.vline(0, 30, cur.ACS_VLINE, 1, fg_bg)
-
-
-        stwin.addnstr(0, self.SNR_COL, self.SNR_LBL, self.SNR_LEN, fg_bg)
-        # second line
-        stwin.hline(1,0,cur.ACS_HLINE,42)
-        stwin.addch(1,6, cur.ACS_BTEE)
-        stwin.addch(1,19, cur.ACS_BTEE)
-        stwin.addch(1,30, cur.ACS_BTEE)
-
-        stwin.addnstr(self.VFO_ROW, self.VFO_COL,
-                      self.VFO_LBL, self.VFO_LEN, fg_bg)
-
-        stwin.addnstr(self.PWR_ROW, self.PWR_COL,
-                      self.PWR_LBL, self.PWR_LEN, fg_bg)
-
-        stwin.addnstr(self.NETID_ROW, self.NETID_COL,
-                      self.NETID_LBL, self.NETID_LEN, fg_bg)
-
-        # the last ACS_VLINE lies outside stwin
-        scr.vline(22, 41,  cur.ACS_VLINE, 1,  fg_bg)
-        scr.vline(23, 41,  cur.ACS_RTEE, 1,  fg_bg)
-        scr.vline(24, 41,  cur.ACS_VLINE, 1,  fg_bg)
-
-
-        scr.addch(23,16,cur.ACS_TTEE)
-        scr.addch(24,16,cur.ACS_VLINE)
-        scr.addch(23,25,cur.ACS_TTEE)
-        scr.addch(24,25,cur.ACS_VLINE)
         return stwin
 
     def xlateError(self, errCode: str) -> None:
@@ -499,9 +512,11 @@ class rylr998:
 
         dsply  = Display(scr) 
 
+
+        dsply.borderland(scr)
         # derived window initializations
 
-        dsply.derive_rxwin(scr)
+        dsply.derive_rxwin()
         
         # receive buffer and state reset
         self.rxbufReset()
@@ -512,7 +527,7 @@ class rylr998:
         stwin.noutrefresh()
 
         # transmit window initialization
-        txwin = dsply.derive_txwin(scr)
+        txwin = dsply.derive_txwin()
         txwin.nodelay(True)
         txwin.keypad(True)
 
