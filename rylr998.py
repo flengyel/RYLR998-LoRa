@@ -169,56 +169,49 @@ class Display:
         bdrwin.addch(21,0, cur.ACS_LTEE)
         bdrwin.hline(21,1,cur.ACS_HLINE,40)
         bdrwin.addch(21,41, cur.ACS_RTEE)
-        bdrwin.addch(21,7, cur.ACS_TTEE)
-        bdrwin.addch(21,20, cur.ACS_TTEE)
-        bdrwin.addch(21,31, cur.ACS_TTEE)
 
-        # status window border and labels
-        fg_bg = cur.color_pair(self.WHITE_BLACK)
-        bdrwin.addnstr(22, self.TXRX_COL+1, self.TXRX_LBL, 
-                         self.TXRX_LEN, fg_bg) 
-        bdrwin.vline(22, 6+1, cur.ACS_VLINE, 1,  fg_bg)
-        bdrwin.addnstr(22, self.ADDR_COL+1, self.ADDR_LBL, self.ADDR_COL, fg_bg) 
-        bdrwin.vline(22, 19+1, cur.ACS_VLINE, 1, fg_bg)
-
-        bdrwin.addnstr(22, self.RSSI_COL+1, self.RSSI_LBL, self.RSSI_LEN, fg_bg)
-        bdrwin.vline(22, 30+1, cur.ACS_VLINE, 1, fg_bg)
-
-
-        bdrwin.addnstr(22, self.SNR_COL+1, self.SNR_LBL, self.SNR_LEN, fg_bg)
+        # status window border 
         # second line
         bdrwin.addch(23,0, cur.ACS_LTEE)
         bdrwin.hline(23,1,cur.ACS_HLINE,40)
         bdrwin.addch(23,41, cur.ACS_RTEE)
 
-        bdrwin.addch(23,6+1, cur.ACS_BTEE)
-        bdrwin.addch(23,19+1, cur.ACS_BTEE)
-        bdrwin.addch(23,30+1, cur.ACS_BTEE)
-
-        bdrwin.addnstr(24, self.VFO_COL+1,
-                      self.VFO_LBL, self.VFO_LEN, fg_bg)
-
-        bdrwin.addnstr(24, self.PWR_COL+1,
-                      self.PWR_LBL, self.PWR_LEN, fg_bg)
-
-        bdrwin.addnstr(24, self.NETID_COL+1,
-                      self.NETID_LBL, self.NETID_LEN, fg_bg)
-
-
-        bdrwin.addch(23,16,cur.ACS_TTEE)
-        bdrwin.addch(24,16,cur.ACS_VLINE)
-        bdrwin.addch(23,25,cur.ACS_TTEE)
-        bdrwin.addch(24,25,cur.ACS_VLINE)
-
-
         # transmit window border
         # third line
-        bdrwin.addch(25,0, cur.ACS_LTEE)
-        bdrwin.hline(25,1,cur.ACS_HLINE,40)
-        bdrwin.addch(25,41, cur.ACS_RTEE)
+        bdrwin.addch(25, 0, cur.ACS_LTEE)
+        bdrwin.hline(25, 1, cur.ACS_HLINE,40)
+        bdrwin.addch(25, 41, cur.ACS_RTEE)
 
-        bdrwin.addch(25,16, cur.ACS_BTEE)
-        bdrwin.addch(25,25, cur.ACS_BTEE)
+        # status labels
+        fg_bg = cur.color_pair(self.WHITE_BLACK)
+        bdrwin.addnstr(22, self.TXRX_COL+1, self.TXRX_LBL, self.TXRX_LEN, fg_bg) 
+        bdrwin.addch(21, 7, cur.ACS_TTEE)
+        bdrwin.vline(22, 7, cur.ACS_VLINE, 1,  fg_bg)
+        bdrwin.addch(23, 7, cur.ACS_BTEE)
+
+        bdrwin.addnstr(22, self.ADDR_COL+1, self.ADDR_LBL, self.ADDR_COL, fg_bg) 
+        bdrwin.addch(21, 20, cur.ACS_TTEE)
+        bdrwin.vline(22, 20, cur.ACS_VLINE, 1, fg_bg)
+        bdrwin.addch(23, 20, cur.ACS_BTEE)
+
+        bdrwin.addnstr(22, self.RSSI_COL+1, self.RSSI_LBL, self.RSSI_LEN, fg_bg)
+        bdrwin.addch(21, 31, cur.ACS_TTEE)
+        bdrwin.vline(22, 31, cur.ACS_VLINE, 1, fg_bg)
+        bdrwin.addch(23, 31, cur.ACS_BTEE)
+
+        bdrwin.addnstr(22, self.SNR_COL+1, self.SNR_LBL, self.SNR_LEN, fg_bg)
+
+        bdrwin.addnstr(24, self.VFO_COL+1, self.VFO_LBL, self.VFO_LEN, fg_bg)
+        bdrwin.addch(23, 16, cur.ACS_TTEE)
+        bdrwin.addch(24, 16, cur.ACS_VLINE)
+        bdrwin.addch(25, 16, cur.ACS_BTEE)
+
+        bdrwin.addnstr(24, self.PWR_COL+1, self.PWR_LBL, self.PWR_LEN, fg_bg)
+        bdrwin.addch(23, 25, cur.ACS_TTEE)
+        bdrwin.addch(24, 25, cur.ACS_VLINE)
+        bdrwin.addch(25, 25, cur.ACS_BTEE)
+
+        bdrwin.addnstr(24, self.NETID_COL+1, self.NETID_LBL, self.NETID_LEN, fg_bg)
 
         bdrwin.noutrefresh()
         self.bdrwin = bdrwin
