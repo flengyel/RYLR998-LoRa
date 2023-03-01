@@ -159,62 +159,65 @@ class Display:
 
     # Relative coordinates are congenial - might remove magic numbers
 
-    def borderland(self, scr : _curses) -> None:
-        # define the border in one place. Program from outer to inner.
+    def derive_bdrwin(self, scr:_curses) -> None:
         bdrwin = scr.derwin(28,42,0,0)
-        bdrwin.border()
+        self.bdrwin = bdrwin
+
+
+    def draw_border(self) -> None:
+        # define the border in one place. Program from outer to inner.
+        self.bdrwin.border()
         # Fill in the details
 
         # receive window border
-        bdrwin.addch(21,0, cur.ACS_LTEE)
-        bdrwin.hline(21,1,cur.ACS_HLINE,40)
-        bdrwin.addch(21,41, cur.ACS_RTEE)
+        self.bdrwin.addch(21,0, cur.ACS_LTEE)
+        self.bdrwin.hline(21,1,cur.ACS_HLINE,40)
+        self.bdrwin.addch(21,41, cur.ACS_RTEE)
 
         # status window border 
         # second line
-        bdrwin.addch(23,0, cur.ACS_LTEE)
-        bdrwin.hline(23,1,cur.ACS_HLINE,40)
-        bdrwin.addch(23,41, cur.ACS_RTEE)
+        self.bdrwin.addch(23,0, cur.ACS_LTEE)
+        self.bdrwin.hline(23,1,cur.ACS_HLINE,40)
+        self.bdrwin.addch(23,41, cur.ACS_RTEE)
 
         # transmit window border
         # third line
-        bdrwin.addch(25, 0, cur.ACS_LTEE)
-        bdrwin.hline(25, 1, cur.ACS_HLINE,40)
-        bdrwin.addch(25, 41, cur.ACS_RTEE)
+        self.bdrwin.addch(25, 0, cur.ACS_LTEE)
+        self.bdrwin.hline(25, 1, cur.ACS_HLINE,40)
+        self.bdrwin.addch(25, 41, cur.ACS_RTEE)
 
         # status labels
         fg_bg = cur.color_pair(self.WHITE_BLACK)
-        bdrwin.addnstr(22, self.TXRX_COL+1, self.TXRX_LBL, self.TXRX_LEN, fg_bg) 
-        bdrwin.addch(21, 7, cur.ACS_TTEE)
-        bdrwin.vline(22, 7, cur.ACS_VLINE, 1,  fg_bg)
-        bdrwin.addch(23, 7, cur.ACS_BTEE)
+        self.bdrwin.addnstr(22, self.TXRX_COL+1, self.TXRX_LBL, self.TXRX_LEN, fg_bg) 
+        self.bdrwin.addch(21, 7, cur.ACS_TTEE)
+        self.bdrwin.vline(22, 7, cur.ACS_VLINE, 1,  fg_bg)
+        self.bdrwin.addch(23, 7, cur.ACS_BTEE)
 
-        bdrwin.addnstr(22, self.ADDR_COL+1, self.ADDR_LBL, self.ADDR_COL, fg_bg) 
-        bdrwin.addch(21, 20, cur.ACS_TTEE)
-        bdrwin.vline(22, 20, cur.ACS_VLINE, 1, fg_bg)
-        bdrwin.addch(23, 20, cur.ACS_BTEE)
+        self.bdrwin.addnstr(22, self.ADDR_COL+1, self.ADDR_LBL, self.ADDR_COL, fg_bg) 
+        self.bdrwin.addch(21, 20, cur.ACS_TTEE)
+        self.bdrwin.vline(22, 20, cur.ACS_VLINE, 1, fg_bg)
+        self.bdrwin.addch(23, 20, cur.ACS_BTEE)
 
-        bdrwin.addnstr(22, self.RSSI_COL+1, self.RSSI_LBL, self.RSSI_LEN, fg_bg)
-        bdrwin.addch(21, 31, cur.ACS_TTEE)
-        bdrwin.vline(22, 31, cur.ACS_VLINE, 1, fg_bg)
-        bdrwin.addch(23, 31, cur.ACS_BTEE)
+        self.bdrwin.addnstr(22, self.RSSI_COL+1, self.RSSI_LBL, self.RSSI_LEN, fg_bg)
+        self.bdrwin.addch(21, 31, cur.ACS_TTEE)
+        self.bdrwin.vline(22, 31, cur.ACS_VLINE, 1, fg_bg)
+        self.bdrwin.addch(23, 31, cur.ACS_BTEE)
 
-        bdrwin.addnstr(22, self.SNR_COL+1, self.SNR_LBL, self.SNR_LEN, fg_bg)
+        self.bdrwin.addnstr(22, self.SNR_COL+1, self.SNR_LBL, self.SNR_LEN, fg_bg)
 
-        bdrwin.addnstr(24, self.VFO_COL+1, self.VFO_LBL, self.VFO_LEN, fg_bg)
-        bdrwin.addch(23, 16, cur.ACS_TTEE)
-        bdrwin.addch(24, 16, cur.ACS_VLINE)
-        bdrwin.addch(25, 16, cur.ACS_BTEE)
+        self.bdrwin.addnstr(24, self.VFO_COL+1, self.VFO_LBL, self.VFO_LEN, fg_bg)
+        self.bdrwin.addch(23, 16, cur.ACS_TTEE)
+        self.bdrwin.addch(24, 16, cur.ACS_VLINE)
+        self.bdrwin.addch(25, 16, cur.ACS_BTEE)
 
-        bdrwin.addnstr(24, self.PWR_COL+1, self.PWR_LBL, self.PWR_LEN, fg_bg)
-        bdrwin.addch(23, 25, cur.ACS_TTEE)
-        bdrwin.addch(24, 25, cur.ACS_VLINE)
-        bdrwin.addch(25, 25, cur.ACS_BTEE)
+        self.bdrwin.addnstr(24, self.PWR_COL+1, self.PWR_LBL, self.PWR_LEN, fg_bg)
+        self.bdrwin.addch(23, 25, cur.ACS_TTEE)
+        self.bdrwin.addch(24, 25, cur.ACS_VLINE)
+        self.bdrwin.addch(25, 25, cur.ACS_BTEE)
 
-        bdrwin.addnstr(24, self.NETID_COL+1, self.NETID_LBL, self.NETID_LEN, fg_bg)
+        self.bdrwin.addnstr(24, self.NETID_COL+1, self.NETID_LBL, self.NETID_LEN, fg_bg)
 
-        bdrwin.noutrefresh()
-        self.bdrwin = bdrwin
+        self.bdrwin.noutrefresh()
 
 
     def derive_rxwin(self) -> None:
@@ -505,9 +508,9 @@ class rylr998:
 
         dsply  = Display(scr) 
 
-
-        dsply.borderland(scr)
         # derived window initializations
+        dsply.derive_bdrwin(scr)
+        dsply.draw_border()
 
         dsply.derive_rxwin()
         
@@ -834,11 +837,16 @@ class rylr998:
                 return
 
             elif ch == cur.ascii.ESC: 
-                # clear the transmit buffer
+                # refresh the border
+                dsply.draw_border()
+                # refresh the border
+
                 txcol = 0
+                txwin.move(txrow, txcol)
                 self.txbufReset()
                 txwin.erase()
                 txwin.noutrefresh() # may not be needed
+
                 dirty = True
 
             elif ch == cur.ascii.LF:
