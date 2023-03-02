@@ -309,7 +309,7 @@ class rylr998:
     # RYLR998 configuration parameters 
     addr      = str(DEFAULT_ADDR_INT) # the default
     netid     = str(DEFAULT_NETID)
-    crfop     = str(DEFAULT_CRFOP) # will be set to None if --crfop is absent because of unexpected module behavior
+    pwr       = str(DEFAULT_CRFOP) # will be set to None if --pwr is absent because of unexpected module behavior
     mode      = str(DEFAULT_MODE) 
     parameter = str(DEFAULT_PARAMETER) 
     spreading_factor = str(DEFAULT_SPREADING_FACTOR)
@@ -448,10 +448,10 @@ class rylr998:
         # note: self.addr is a str, args.addr is an int
         self.addr = str(args.addr) # set the default
         # the odd behavior of crfop seems to require this
-        if  any([arg.startswith('--crfop') for arg in sys.argv[1:]]):                    
-            self.crfop = args.crfop
+        if  any([arg.startswith('--pwr') for arg in sys.argv[1:]]):                    
+            self.pwr = args.pwr
         else:
-            self.crfop = None
+            self.pwr = None
 
         self.mode = str(args.mode)
         self.netid = str(args.netid)
@@ -568,8 +568,8 @@ class rylr998:
         await queue.put('NETWORKID='+self.netid) # this is a str
         await queue.put('BAND='+args.band)
 
-        if self.crfop:   
-            await queue.put('CRFOP='+self.crfop) # the next is needed to receive again!
+        if self.pwr:   
+            await queue.put('CRFOP='+self.pwr) # the next is needed to receive again!
         await queue.put('PARAMETER='+self.spreading_factor+','+self.bandwidth+','+self.coding_rate+','+self.preamble)
 
         await queue.put('ADDRESS?')
@@ -679,8 +679,8 @@ class rylr998:
 
                             case self.CRFOP_table:
                                 dsply.rxaddnstr("power output: {} dBm".format(self.rxbuf), self.rxlen+14)       
-                                self.crfop = self.rxbuf
-                                stwin.addnstr(dsply.PWR_ROW, dsply.PWR_COL+4,self.crfop, 
+                                self.pwr = self.rxbuf
+                                stwin.addnstr(dsply.PWR_ROW, dsply.PWR_COL+4,self.pwr, 
                                               self.rxlen, cur.color_pair(dsply.WHITE_BLACK))
                                 stwin.noutrefresh()
                                 waitForReply = False
@@ -960,8 +960,8 @@ if __name__ == "__main__":
             raise argparse.ArgumentTypeError("Power output must be in range (0-22)")
         return n
 
-    rylr998_config.add_argument('--crfop', required=False, type=pwrcheck, 
-        metavar='[0..22]', dest='crfop', default = DEFAULT_CRFOP, 
+    rylr998_config.add_argument('--pwr', required=False, type=pwrcheck, 
+        metavar='[0..22]', dest='pwr', default = DEFAULT_CRFOP, 
         help='RF pwr out (0..22) in dBm. Default: FACTORY setting of ' + DEFAULT_CRFOP + ' or the last configured value.')
 
 
