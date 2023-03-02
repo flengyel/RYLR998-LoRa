@@ -169,7 +169,7 @@ The LoRa® Mark and Logo are trademarks of Semtech Corporation or its affiliates
 
 ---
 
-![REYAX RYLR988](media/rylr998display.png)
+![RYLR988 display](rylr998display.png)
 
 
 This screenshot shows a MobaXTerm session running the `rlyr998.py` program. The yellow text is that of the sender. The received text is magenta. When rylr998.py detects received text, the "LoRa" indicator flashes green if the message is long enough; transmission of text flashes the "LoRa" indicator red. The ADDR (address), RSSI and SNR values of the last received message are shown. Text messages are limited to 40 characters (in this version). 
