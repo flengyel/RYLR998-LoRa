@@ -39,6 +39,10 @@ import curses as cur
 import _curses
 import curses.ascii
 
+from display import Display
+from display import DEFAULT_ADDR_INT, DEFAULT_BAND, DEFAULT_PORT, DEFAULT_BAUD, DEFAULT_CRFOP, DEFAULT_MODE, DEFAULT_NETID, DEFAULT_SPREADING_FACTOR, DEFAULT_BANDWIDTH, DEFAULT_CODING_RATE, DEFAULT_PREAMBLE, DEFAULT_PARAMETER
+
+
 #import datetime
 import locale
 locale.setlocale(locale.LC_ALL, '')
@@ -54,247 +58,6 @@ except RuntimeError:
 import argparse 
 import sys # needed to compensate for argparses argh-parsing
 
-DEFAULT_ADDR_INT = 0 # type int
-DEFAULT_BAND = '915000000'
-DEFAULT_PORT = '/dev/ttyS0'
-DEFAULT_BAUD = '115200'
-DEFAULT_CRFOP = '22'
-DEFAULT_MODE  = '0'
-DEFAULT_NETID = '18'
-DEFAULT_SPREADING_FACTOR = '9'
-DEFAULT_BANDWIDTH = '7'
-DEFAULT_CODING_RATE = '1'
-DEFAULT_PREAMBLE = '12'
-DEFAULT_PARAMETER = DEFAULT_SPREADING_FACTOR + ',' + DEFAULT_BANDWIDTH + ',' + DEFAULT_CODING_RATE + ',' + DEFAULT_PREAMBLE 
-
-class Display:
-    # color pair initialization constants
-    WHITE_BLACK  = 0  # built in cannot change 
-    YELLOW_BLACK = 1
-    GREEN_BLACK  = 2  # our pallete is off bear with me
-    BLUE_BLACK   = 3
-    RED_BLACK    = 4  # Pardon the kpop reference below
-    BLACK_PINK   = 5  # received text is really magenta on black
-    WHITE_RED    = 6
-    WHITE_GREEN  = 7          
-
-    ONESEC       = 1
-    HALFSEC      = 0.5
-    FOURTHSEC    = 0.25
-    TENTHSEC     = 0.1
-    CENTISEC     = 0.01 
-
-    # status window (stwin) labels
-    # coordinates are relative to the stwin
-    TXRX_LBL      = " LoRa "
-    TXRX_LEN  = 6
-    TXRX_ROW = 0 
-    TXRX_COL  = 0
-
-    ADDR_LBL = "ADDR"
-    ADDR_LEN = 4
-    ADDR_COL = 8
-
-    RSSI_COL = 21
-    RSSI_LBL = "RSSI"
-    RSSI_LEN = 4
-
-    SNR_COL = 32
-    SNR_LBL = "SNR"
-    SNR_LEN = 3
-
-    VFO_LBL = "VFO"
-    VFO_LEN = 3
-    VFO_ROW = 2
-    VFO_COL = 1
-
-    PWR_LBL = "PWR"
-    PWR_LEN = 3
-    PWR_ROW = 2
-    PWR_COL = 17
-
-    NETID_LBL = "NETWORK ID"
-    NETID_LEN = 10
-    NETID_ROW = 2
-    NETID_COL = 26 
-
-    # this needs to be part of the Display class
-    rxrow = 0   # rxwin_y relative window coordinates
-    rxcol = 0   # rxwin_x
-    rxwin = None 
-    bdrwin = None # the outer window.
-
-    def __init__(self, scr) -> None:
-        cur.savetty() # this has become necessary here  
-        cur.raw()  # raw, almost vegan character handling needed
-        scr.nodelay(True) # non-blocking getch()
-        scr.bkgd(' ', cur.color_pair(self.WHITE_BLACK))
-
-        # we compromise by setting the ESC delay to 1 msec
-        # we do not want to miss any received characters
-        cur.set_escdelay(1) # An eternity for a CPU.
-
-        cur.start_color()
-        cur.use_default_colors()
-
-        cur.init_color(cur.COLOR_RED,1000,0,0)
-        cur.init_color(cur.COLOR_GREEN,0,1000,0)
-        cur.init_color(cur.COLOR_BLUE,0,0,1000)
-
-        # define fg,bg pairs
-        cur.init_pair(self.YELLOW_BLACK, cur.COLOR_YELLOW,  cur.COLOR_BLACK) # user text
-        cur.init_pair(self.GREEN_BLACK, cur.COLOR_BLUE, cur.COLOR_BLACK)
-        cur.init_pair(self.BLUE_BLACK, cur.COLOR_GREEN, cur.COLOR_BLACK) # status indicator
-        cur.init_pair(self.RED_BLACK, cur.COLOR_RED, cur.COLOR_BLACK) # errors
-        cur.init_pair(self.BLACK_PINK, cur.COLOR_MAGENTA, cur.COLOR_BLACK) # received text
-        cur.init_pair(self.WHITE_RED, cur.COLOR_WHITE, cur.COLOR_RED)
-        cur.init_pair(self.WHITE_GREEN, cur.COLOR_WHITE, cur.COLOR_GREEN)  
-
-    # receive and transmit window border initialization
-
-    # The next two inner functions restrict access to the receive 
-    # and transmit window border variables rxbdr and txbdr, resp., 
-    # and return the derived receive and transmit windows 
-    # rxwin and txwin, respectively.
-
-    # Relative coordinates are congenial - might remove magic numbers
-
-    def derive_bdrwin(self, scr:_curses) -> None:
-        bdrwin = scr.derwin(28,42,0,0)
-        self.bdrwin = bdrwin
-
-
-    def draw_border(self) -> None:
-        # define the border in one place. Program from outer to inner.
-        self.bdrwin.border()
-        # Fill in the details
-
-        # receive window border
-        self.bdrwin.addch(21,0, cur.ACS_LTEE)
-        self.bdrwin.hline(21,1,cur.ACS_HLINE,40)
-        self.bdrwin.addch(21,41, cur.ACS_RTEE)
-
-        # status window border 
-        # second line
-        self.bdrwin.addch(23,0, cur.ACS_LTEE)
-        self.bdrwin.hline(23,1,cur.ACS_HLINE,40)
-        self.bdrwin.addch(23,41, cur.ACS_RTEE)
-
-        # transmit window border
-        # third line
-        self.bdrwin.addch(25, 0, cur.ACS_LTEE)
-        self.bdrwin.hline(25, 1, cur.ACS_HLINE,40)
-        self.bdrwin.addch(25, 41, cur.ACS_RTEE)
-
-        # status labels
-        fg_bg = cur.color_pair(self.WHITE_BLACK)
-        self.bdrwin.addnstr(22, self.TXRX_COL+1, self.TXRX_LBL, self.TXRX_LEN, fg_bg) 
-        self.bdrwin.addch(21, 7, cur.ACS_TTEE)
-        self.bdrwin.vline(22, 7, cur.ACS_VLINE, 1,  fg_bg)
-        self.bdrwin.addch(23, 7, cur.ACS_BTEE)
-
-        self.bdrwin.addnstr(22, self.ADDR_COL+1, self.ADDR_LBL, self.ADDR_COL, fg_bg) 
-        self.bdrwin.addch(21, 20, cur.ACS_TTEE)
-        self.bdrwin.vline(22, 20, cur.ACS_VLINE, 1, fg_bg)
-        self.bdrwin.addch(23, 20, cur.ACS_BTEE)
-
-        self.bdrwin.addnstr(22, self.RSSI_COL+1, self.RSSI_LBL, self.RSSI_LEN, fg_bg)
-        self.bdrwin.addch(21, 31, cur.ACS_TTEE)
-        self.bdrwin.vline(22, 31, cur.ACS_VLINE, 1, fg_bg)
-        self.bdrwin.addch(23, 31, cur.ACS_BTEE)
-
-        self.bdrwin.addnstr(22, self.SNR_COL+1, self.SNR_LBL, self.SNR_LEN, fg_bg)
-
-        self.bdrwin.addnstr(24, self.VFO_COL+1, self.VFO_LBL, self.VFO_LEN, fg_bg)
-        self.bdrwin.addch(23, 16, cur.ACS_TTEE)
-        self.bdrwin.addch(24, 16, cur.ACS_VLINE)
-        self.bdrwin.addch(25, 16, cur.ACS_BTEE)
-
-        self.bdrwin.addnstr(24, self.PWR_COL+1, self.PWR_LBL, self.PWR_LEN, fg_bg)
-        self.bdrwin.addch(23, 25, cur.ACS_TTEE)
-        self.bdrwin.addch(24, 25, cur.ACS_VLINE)
-        self.bdrwin.addch(25, 25, cur.ACS_BTEE)
-
-        self.bdrwin.addnstr(24, self.NETID_COL+1, self.NETID_LBL, self.NETID_LEN, fg_bg)
-
-        self.bdrwin.noutrefresh()
-
-
-    def derive_rxwin(self) -> None:
-        #rxbdr = scr.derwin(22,42,0,0)
-        # window.border([ls[, rs[, ts[, bs[, tl[, tr[, bl[, br]]]]]]]])
-        self.rxwin = self.bdrwin.derwin(20,40,1,1)
-        self.rxwin.scrollok(True)
-        self.rxwin.bkgd(' ', cur.color_pair(self.YELLOW_BLACK)) # set bg color
-        self.rxwin.noutrefresh() # updates occur in one place in the xcvr() loop
-
-
-    # move up to avoid overwriting
-    def rxScrollUp(self) -> None:
-        row, col = self.rxwin.getyx()
-        if row == 19:
-            self.rxwin.scroll()
-
-    def rxNextRow(self) -> None:
-        # set rxrow, rxcol
-        row, col = self.rxwin.getyx()
-        self.rxrow = min(19, row+1)
-        self.rxcol = 0 # never moves
-
-    def rxaddnstr(self, msg, msglen, fg_bg = BLUE_BLACK) -> None:
-        self.rxScrollUp()
-        self.rxwin.addnstr(self.rxrow, self.rxcol, msg, msglen, cur.color_pair(fg_bg))
-        self.rxNextRow()
-        self.rxwin.noutrefresh()
-
-    def rxinsnstr(self, msg, msglen, fg_bg = BLUE_BLACK) -> None:
-        self.rxScrollUp()
-        self.rxwin.insnstr(self.rxrow, self.rxcol, msg, msglen, cur.color_pair(fg_bg))
-        self.rxNextRow()
-        self.rxwin.noutrefresh()
-
-    def derive_txwin(self) -> _curses.window:
-        return self.bdrwin.derwin(1,40,26,1)
-
-    # status "window" setup
-    def derive_stwin(self, scr: _curses) -> _curses.window:
-        stwin = self.bdrwin.derwin(3,40,22,1)
-        fg_bg = cur.color_pair(self.WHITE_BLACK)
-        stwin.bkgd(' ', fg_bg)
-        return stwin
-
-    def xlateError(self, errCode: str) -> None:
-        match errCode:
-            case '1':
-                errStr = "AT command missing 0x0D 0x0A."
-            case '2':
-                errStr = "AT command missing 'AT'."
-            case '4':
-                errStr = "Unknown AT command."
-            case '5':
-                errStr = "Data length specified does not match the data length."
-            case '10':
-                errStr = "Transmit time exceeds limit."
-            case '12':
-                errStr = "CRC error on receive."
-            case '13':
-                errStr = "TX data exceeds 240 bytes."
-            case '14':
-                errStr = "Failed to write flash memory."
-            case '15':
-                errStr = "Unknown failure."
-            case '17':
-                errStr = "Last TX was not completed."
-            case '18':
-                errStr = "Preamble value is not allowed."
-            case '19':
-                errStr = "RX failure. Header error."
-            case '20':
-                errStr = "Invalid time in MODE 2 setting."
-            case _:
-                errStr = "Unknown error code."
-        errString = "ERR={}: {}".format(errCode, errStr)
-        self.rxaddnstr(errString, len(errString), fg_bg=self.RED_BLACK)
         
 class rylr998:
     TXD1   = 14    # GPIO.BCM  pin 8
@@ -508,35 +271,18 @@ class rylr998:
 
         dsply  = Display(scr) 
 
-        # derived window initializations
-        dsply.derive_bdrwin(scr)
-        dsply.draw_border()
-
-        dsply.derive_rxwin()
         
         # receive buffer and state reset
         self.rxbufReset()
  
         # The LoRa® status indicator turns beet RED if the following is True
         txflag = False # True if and only if transmitting
-        stwin = dsply.derive_stwin(scr)
-        stwin.noutrefresh()
-
-        # transmit window initialization
-        txwin = dsply.derive_txwin()
-        txwin.nodelay(True)
-        txwin.keypad(True)
-
-        # I'd prefer not timing out ESC, but there is no choice. 
-        txwin.notimeout(False) 
-
         # txwin cursor coordinates
         txrow = 0   # txwin_y
         txcol = 0   # txwin_x
-        txwin.move(txrow, txcol)
-        txwin.bkgd(' ', cur.color_pair(dsply.YELLOW_BLACK))
-        txwin.noutrefresh()
- 
+        dsply.txwin.move(txrow, txcol)
+        dsply.txwin.noutrefresh()
+
         self.txbufReset()
  
         # show the rectangles etc
@@ -622,12 +368,12 @@ class rylr998:
                 if self.state < len(self.state_table):
                     if self.state_table[self.state] == data:
                         if self.state == 2 and self.state_table == self.RCV_table:
-                            stwin.addnstr(0,dsply.TXRX_COL, dsply.TXRX_LBL, dsply.TXRX_LEN, 
+                            dsply.stwin.addnstr(0,dsply.TXRX_COL, dsply.TXRX_LBL, dsply.TXRX_LEN, 
                                           cur.color_pair(dsply.WHITE_GREEN))
-                            stwin.noutrefresh()
+                            dsply.stwin.noutrefresh()
                             # cursor back to tx window to avoid flicker
-                            txwin.move(txrow, txcol)  
-                            txwin.noutrefresh()
+                            dsply.txwin.move(txrow, txcol)  
+                            dsply.txwin.noutrefresh()
                             dirty = True
 
                         self.state += 1 # advance the state index
@@ -672,17 +418,17 @@ class rylr998:
                             case self.BAND_table:
                                 dsply.rxaddnstr("frequency: " + self.rxbuf +" Hz", self.rxlen+14) 
                                 self.band = self.rxbuf
-                                stwin.addnstr(dsply.VFO_ROW, dsply.VFO_COL+4,self.band, 
+                                dsply.stwin.addnstr(dsply.VFO_ROW, dsply.VFO_COL+4,self.band, 
                                               self.rxlen, cur.color_pair(dsply.WHITE_BLACK))
-                                stwin.noutrefresh()
+                                dsply.stwin.noutrefresh()
                                 waitForReply = False
 
                             case self.CRFOP_table:
                                 dsply.rxaddnstr("power output: {} dBm".format(self.rxbuf), self.rxlen+14)       
                                 self.pwr = self.rxbuf
-                                stwin.addnstr(dsply.PWR_ROW, dsply.PWR_COL+4,self.pwr, 
+                                dsply.stwin.addnstr(dsply.PWR_ROW, dsply.PWR_COL+4,self.pwr, 
                                               self.rxlen, cur.color_pair(dsply.WHITE_BLACK))
-                                stwin.noutrefresh()
+                                dsply.stwin.noutrefresh()
                                 waitForReply = False
 
                             case self.ERR_table:
@@ -706,9 +452,9 @@ class rylr998:
                             case self.OK_table:
                                 if txflag:
                                     # turn the transmit indicator off
-                                    stwin.addnstr(0,dsply.TXRX_COL, dsply.TXRX_LBL, dsply.TXRX_LEN, 
+                                    dsply.stwin.addnstr(0,dsply.TXRX_COL, dsply.TXRX_LBL, dsply.TXRX_LEN, 
                                                   cur.color_pair(dsply.WHITE_BLACK))
-                                    stwin.noutrefresh() # yes, that was it
+                                    dsply.stwin.noutrefresh() # yes, that was it
                                     txflag = False # will be reset below
                                 else:
                                     dsply.rxaddnstr("+OK", 3)
@@ -717,9 +463,9 @@ class rylr998:
                             case self.NETID_table:
                                 dsply.rxaddnstr("NETWORK ID: " + self.rxbuf, self.rxlen+12) 
                                 self.netid = self.rxbuf
-                                stwin.addnstr(dsply.NETID_ROW, 37,self.netid, 
+                                dsply.stwin.addnstr(dsply.NETID_ROW, 37,self.netid, 
                                               self.rxlen, cur.color_pair(dsply.WHITE_BLACK))
-                                stwin.noutrefresh()
+                                dsply.stwin.noutrefresh()
                                 waitForReply = False
                                 
                             case self.PARAM_table:
@@ -748,14 +494,14 @@ class rylr998:
                                     # take advantage of auto scroll if n > 40.
                                     dsply.rxaddnstr(msg, n, fg_bg = dsply.BLACK_PINK) 
 
-                                stwin.addnstr(0,dsply.TXRX_COL, dsply.TXRX_LBL, dsply.TXRX_LEN, 
+                                dsply.stwin.addnstr(0,dsply.TXRX_COL, dsply.TXRX_LBL, dsply.TXRX_LEN, 
                                               cur.color_pair(dsply.WHITE_BLACK))
 
                                 # add the ADDRESS, RSSI and SNR to the status window
-                                stwin.addstr(0, 13, addr, cur.color_pair(dsply.BLUE_BLACK))
-                                stwin.addstr(0, 26, rssi, cur.color_pair(dsply.BLUE_BLACK))
-                                stwin.addstr(0, 36, snr, cur.color_pair(dsply.BLUE_BLACK))
-                                stwin.noutrefresh()
+                                dsply.stwin.addstr(0, 13, addr, cur.color_pair(dsply.BLUE_BLACK))
+                                dsply.stwin.addstr(0, 26, rssi, cur.color_pair(dsply.BLUE_BLACK))
+                                dsply.stwin.addstr(0, 36, snr, cur.color_pair(dsply.BLUE_BLACK))
+                                dsply.stwin.noutrefresh()
                                 # not waiting for a reply from the module
                                 # so we do not reset the waitForReply flag
 
@@ -774,8 +520,8 @@ class rylr998:
                                 waitForReply = False
                          
                         # also return to the txwin
-                        txwin.move(txrow, txcol)
-                        txwin.noutrefresh()
+                        dsply.txwin.move(txrow, txcol)
+                        dsply.txwin.noutrefresh()
 
                         self.rxbufReset() # reset the receive buffer state and assume RCV -- this is necessary
 
@@ -791,7 +537,7 @@ class rylr998:
                    #     continue # still accumulating chars from serial port, keep listening
 
             # at long last, you can speak
-            ch = txwin.getch()
+            ch = dsply.txwin.getch()
             if ch == -1: # cat got your tongue? 
                 # dequeue AT commands only if not waiting for AT response to finish
                 # receive will take priority if you are receiving
@@ -811,15 +557,15 @@ class rylr998:
                             dsply.rxaddnstr(msg, msglen, fg_bg = dsply.YELLOW_BLACK)
 
                         txcol=0
-                        txwin.move(txrow, txcol) # cursor to tx initial input position
-                        txwin.clear()
-                        txwin.noutrefresh()
+                        dsply.txwin.move(txrow, txcol) # cursor to tx initial input position
+                        dsply.txwin.clear()
+                        dsply.txwin.noutrefresh()
                         self.txbufReset()
 
                         # flash the LoRa® indicator on transmit
-                        stwin.addnstr(0,dsply.TXRX_COL, dsply.TXRX_LBL, dsply.TXRX_LEN, 
+                        dsply.stwin.addnstr(0,dsply.TXRX_COL, dsply.TXRX_LBL, dsply.TXRX_LEN, 
                                   cur.color_pair(dsply.WHITE_RED))
-                        stwin.noutrefresh()
+                        dsply.stwin.noutrefresh()
                         txflag = True # transmitting 
                         dirty = True # really True this time 
                     elif cmd.startswith('DELAY,'):
@@ -842,10 +588,10 @@ class rylr998:
                 # refresh the border
 
                 txcol = 0
-                txwin.move(txrow, txcol)
+                dsply.txwin.move(txrow, txcol)
                 self.txbufReset()
-                txwin.erase()
-                txwin.noutrefresh() # may not be needed
+                dsply.txwin.erase()
+                dsply.txwin.noutrefresh() # may not be needed
 
                 dirty = True
 
@@ -858,14 +604,14 @@ class rylr998:
 
             elif ch == cur.KEY_LEFT:
                 txcol = max(0, txcol - 1)
-                txwin.move(txrow, txcol)
-                txwin.noutrefresh()
+                dsply.txwin.move(txrow, txcol)
+                dsply.txwin.noutrefresh()
                 dirty = True
 
             elif ch == cur.KEY_RIGHT:
                 txcol = min(txcol+1, self.txlen, 39)
-                txwin.move(txrow, txcol)
-                txwin.noutrefresh()
+                dsply.txwin.move(txrow, txcol)
+                dsply.txwin.noutrefresh()
                 dirty = True
 
             elif ch == cur.KEY_DC: # Delete
@@ -876,24 +622,24 @@ class rylr998:
                 self.txlen = max(0,min(40, self.txlen)-1)
                 txwin.delch(txrow,txcol)
                 if self.txlen < 40:
-                    txwin.addnstr(txrow, 0, self.txbuf ,self.txlen)
+                    dsply.txwin.addnstr(txrow, 0, self.txbuf ,self.txlen)
                 else:
-                    txwin.insnstr(txrow, 0, self.txbuf, self.txlen)
-                txwin.move(txrow,txcol)
-                txwin.noutrefresh()
+                    dsply.txwin.insnstr(txrow, 0, self.txbuf, self.txlen)
+                dsply.txwin.move(txrow,txcol)
+                dsply.txwin.noutrefresh()
                 dirty = True
 
             elif ch == cur.ascii.BS: # Backspace
                 self.txbuf = self.txbuf[0:max(0,txcol-1)]+self.txbuf[txcol:self.txlen]
                 self.txlen = max(0,txcol-1) + max(0, self.txlen-txcol) 
                 txcol= max(0, txcol-1)
-                txwin.delch(txrow, txcol)
+                dsply.txwin.delch(txrow, txcol)
                 if self.txlen < 40:
-                    txwin.addstr(txrow, 0, self.txbuf)
+                    dsply.txwin.addstr(txrow, 0, self.txbuf)
                 else:
-                    txwin.insstr(txrow, 0, self.txbuf)
-                txwin.move(txrow, txcol)
-                txwin.noutrefresh()
+                    dsply.txwin.insstr(txrow, 0, self.txbuf)
+                dsply.txwin.move(txrow, txcol)
+                dsply.txwin.noutrefresh()
                 dirty = True
 
             elif cur.ascii.isascii(ch):
@@ -903,12 +649,12 @@ class rylr998:
                 self.txlen = min(40, self.txlen+1) #  
                 #txwin.insnstr(txrow, txcol, str(chr(ch)),1)
                 if self.txlen < 40:
-                    txwin.addnstr(txrow, 0, self.txbuf ,self.txlen)
+                    dsply.txwin.addnstr(txrow, 0, self.txbuf ,self.txlen)
                 else:
-                    txwin.insnstr(txrow, 0, self.txbuf, self.txlen)
+                    dsply.txwin.insnstr(txrow, 0, self.txbuf, self.txlen)
                 txcol = min(39, txcol+1)
-                txwin.move(txrow, txcol)
-                txwin.noutrefresh()
+                dsply.txwin.move(txrow, txcol)
+                dsply.txwin.noutrefresh()
                 dirty = True
 
  
