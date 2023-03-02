@@ -22,19 +22,6 @@ locale.setlocale(locale.LC_ALL, '')
 #stdscr.addstr(0, 0, mystring.encode('UTF-8'))
 
 
-DEFAULT_ADDR_INT = 0 # type int
-DEFAULT_BAND = '915000000'
-DEFAULT_PORT = '/dev/ttyS0'
-DEFAULT_BAUD = '115200'
-DEFAULT_CRFOP = '22'
-DEFAULT_MODE  = '0'
-DEFAULT_NETID = '18'
-DEFAULT_SPREADING_FACTOR = '9'
-DEFAULT_BANDWIDTH = '7'
-DEFAULT_CODING_RATE = '1'
-DEFAULT_PREAMBLE = '12'
-DEFAULT_PARAMETER = DEFAULT_SPREADING_FACTOR + ',' + DEFAULT_BANDWIDTH + ',' + DEFAULT_CODING_RATE + ',' + DEFAULT_PREAMBLE 
-
 class Display:
     # color pair initialization constants
     WHITE_BLACK  = 0  # built in cannot change 
