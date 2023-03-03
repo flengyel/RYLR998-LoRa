@@ -108,19 +108,19 @@ sudo dtoverlay uart1
 
 Similar to the GPIO, only VDD goes to the 3.3V output of the converter; RX and TX are swapped, as usual; and GND goes to GND.
 See the pictures below.
-![rylr998module](https://user-images.githubusercontent.com/431946/216791228-058dd28e-4c32-43dd-a351-1a0bd575dc06.jpg)
 
-
-![CP2102_USB2_to_TTL_module_serial_converter](https://user-images.githubusercontent.com/431946/216791243-bd2dd829-fa44-45e2-9f36-a1b2585429bb.jpg)
+<img src="https://user-images.githubusercontent.com/431946/216791228-058dd28e-4c32-43dd-a351-1a0bd575dc06.jpg" width="300">
+<img src="https://user-images.githubusercontent.com/431946/216791243-bd2dd829-fa44-45e2-9f36-a1b2585429bb.jpg" width="300">
 
 ## TO DO
 
 * ~Add parsing of the AT+RESET function.~ DONE. 
 * ~Replace  `asyncio.BoundedSemaphore()` with a boolean flag.~ DONE. A boolean `waitForReply`  is sufficent.
 * ~Translate ERR=## codes to text.~ DONE
-* Display the configuration parameters. Mostly done, at startup. A VFO indicator would be nice (this is almost a joke). 
+* ~Display the configuration parameters.~ Done, at startup. 
+* ~A VFO indicator would be nice (this is almost a joke).~ DONE 
 * Add function key handling for changing configuration parameters, such as frequency, netid, etc.
-* Store the AT command response variables in the rylr998 object instance!
+* ~Store the AT command response variables in the rylr998 object instance!~ DONE
 * But be careful about changing the serial port parameters--you'll be sorry! 
 * The python urwid library could be used with the following initialization at  beginning of `xcvr(...)`:
 
@@ -169,7 +169,7 @@ The LoRa® Mark and Logo are trademarks of Semtech Corporation or its affiliates
 
 ---
 
-![RYLR988 display](rylr998display.png)
+<img src="https://github.com/flengyel/RYLR998-LoRa/blob/main/rylr998display.png" width="300">
 
 
 This screenshot shows a MobaXTerm session running the `rlyr998.py` program. The yellow text is that of the sender. The received text is magenta. When rylr998.py detects received text, the "LoRa" indicator flashes green if the message is long enough; transmission of text flashes the "LoRa" indicator red. The ADDR (address), RSSI and SNR values of the last received message are shown. Text messages are limited to 40 characters (in this version). 
