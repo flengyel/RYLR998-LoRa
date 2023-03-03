@@ -109,8 +109,10 @@ sudo dtoverlay uart1
 Similar to the GPIO, only VDD goes to the 3.3V output of the converter; RX and TX are swapped, as usual; and GND goes to GND.
 See the pictures below.
 
+<p float="left">
 <img src="https://user-images.githubusercontent.com/431946/216791228-058dd28e-4c32-43dd-a351-1a0bd575dc06.jpg" width="300">
 <img src="https://user-images.githubusercontent.com/431946/216791243-bd2dd829-fa44-45e2-9f36-a1b2585429bb.jpg" width="300">
+</p>
 
 ## TO DO
 
