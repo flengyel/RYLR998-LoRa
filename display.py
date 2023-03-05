@@ -73,9 +73,14 @@ class Display:
     NETID_ROW = 2
     NETID_COL = 26 
 
+    MAX_ROW   = 28
+    MAX_COL   = 42
+
     # this needs to be part of the Display class
     rxrow = 0   # rxwin_y relative window coordinates
     rxcol = 0   # rxwin_x
+    maxrow =  MAX_ROW
+    maxcol =  MAX_COL
     bdrwin = None # the outer window.
     rxwin = None  # receive window
     txwin = None # transmit window
@@ -91,7 +96,7 @@ class Display:
     # Relative coordinates are congenial - might remove magic numbers
 
     def derive_bdrwin(self, scr:_curses) -> None:
-        bdrwin = scr.derwin(28,42,0,0)
+        bdrwin = scr.derwin(self.maxrow,self.maxcol,0,0)
         self.bdrwin = bdrwin
 
 
@@ -102,20 +107,20 @@ class Display:
 
         # receive window border
         self.bdrwin.addch(21,0, cur.ACS_LTEE)
-        self.bdrwin.hline(21,1,cur.ACS_HLINE,40)
-        self.bdrwin.addch(21,41, cur.ACS_RTEE)
+        self.bdrwin.hline(21,1,cur.ACS_HLINE,self.maxcol-2)
+        self.bdrwin.addch(21,self.maxcol-1, cur.ACS_RTEE)
 
         # status window border 
         # second line
         self.bdrwin.addch(23,0, cur.ACS_LTEE)
-        self.bdrwin.hline(23,1,cur.ACS_HLINE,40)
-        self.bdrwin.addch(23,41, cur.ACS_RTEE)
+        self.bdrwin.hline(23,1,cur.ACS_HLINE,self.maxcol-2)
+        self.bdrwin.addch(23,self.maxcol-1, cur.ACS_RTEE)
 
         # transmit window border
         # third line
         self.bdrwin.addch(25, 0, cur.ACS_LTEE)
-        self.bdrwin.hline(25, 1, cur.ACS_HLINE,40)
-        self.bdrwin.addch(25, 41, cur.ACS_RTEE)
+        self.bdrwin.hline(25, 1, cur.ACS_HLINE,self.maxcol-2)
+        self.bdrwin.addch(25, self.maxcol-1, cur.ACS_RTEE)
 
         # status labels
         fg_bg = cur.color_pair(self.WHITE_BLACK)
@@ -185,7 +190,7 @@ class Display:
         self.rxwin.noutrefresh()
 
     def derive_txwin(self) -> _curses.window:
-        txwin = self.bdrwin.derwin(1,40,26,1)
+        txwin = self.bdrwin.derwin(1,self.maxcol-2,26,1)
         self.txwin = txwin 
         # transmit window initialization
         txwin.nodelay(True)
@@ -200,7 +205,7 @@ class Display:
 
     # status "window" setup
     def derive_stwin(self) -> None:
-        stwin = self.bdrwin.derwin(3,40,22,1)
+        stwin = self.bdrwin.derwin(3,self.maxcol-2,22,1)
         self.stwin = stwin
         fg_bg = cur.color_pair(self.WHITE_BLACK)
         self.stwin.bkgd(' ', fg_bg)
