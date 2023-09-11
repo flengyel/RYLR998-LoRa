@@ -3,9 +3,13 @@
 A python program for 2-way texting with the 33cm band
 [REYAX RYLR998](https://reyax.com/products/rylr998/) LoRa® module, 
 either with a Raspberry Pi 4, five wires and ten female-female 
-GPIO connectors; or with a PC and a CP2102 USB 2.0 to TTL serial 
+GPIO connectors; or with a PC running WSL2 with Ubuntu
+and a CP2102 USB 2.0 to TTL serial 
 converter, four wires and eight female-female GPIO connectors. 
 There are no threads here, only asynchronous non-blocking I/O calls.
+
+WARNING: Windows requires windows-curses, but this is missing 
+curses.set_escdelay() as of python 3.11
 
 ## Usage
 ```bash
@@ -13,7 +17,9 @@ usage: rylr998.py [-h] [--debug] [--factory] [--noGPIO] [--addr [0..65535]]
                   [--band [902250000..927750000]] [--pwr [0..22]]
                   [--mode [0|1|2,30..60000,30..60000]] [--netid [3..15|18]]
                   [--parameter [7..11,7..9,1..4,4..24]]
-                  [--port [/dev/ttyS0../dev/ttyS999|/dev/ttyUSB0../dev/ttyUSB999]]
+                  [--port [/dev/ttyS0../dev/ttyS999|
+                           /dev/ttyUSB0../dev/ttyUSB999|
+                           COM0..COM999]]
                   [--baud (300|1200|4800|9600|19200|28800|38400|57600|115200)]
 
 options:
@@ -53,7 +59,8 @@ rylr998 config:
                         12. Default: 9,7,1,12
 
 serial port config:
-  --port [/dev/ttyS0../dev/ttyS999|/dev/ttyUSB0../dev/ttyUSB999]
+  --port [/dev/ttyS0../dev/ttyS999|/dev/ttyUSB0../dev/ttyUSB999
+          COM0..COM999]
                         Serial port device name. Default: /dev/ttyS0
   --baud (300|1200|4800|9600|19200|28800|38400|57600|115200)
                         Serial port baudrate. Default: 115200
@@ -62,7 +69,7 @@ serial port config:
 ## Python Module Dependencies
 
 * python 3.10+
-* rPI.GPIO
+* rPI.GPIO (except windows)
 * [asyncio](https://pypi.org/project/asyncio/)
 * [aioserial](https://pypi.org/project/aioserial/) 1.3.1+
 * [curses](https://docs.python.org/3/library/curses.html) 
