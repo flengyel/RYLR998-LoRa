@@ -1,12 +1,12 @@
 # RYLR998-LoRa® 
 
-A python program for 2-way texting with the 33cm band
+A Python program for 2-way texting with the 33cm band
 [REYAX RYLR998](https://reyax.com/products/rylr998/) LoRa® module, 
-either with a Raspberry Pi 4, five wires and ten female-female 
-GPIO connectors; or with a PC running WSL2 with Ubuntu
-and a CP2102 USB 2.0 to TTL serial 
-converter, four wires and eight female-female GPIO connectors. 
-There are no threads here, only asynchronous non-blocking I/O calls.
+either with a Raspberry Pi 4, five wires, and ten female-female 
+GPIO connectors, or with a Linux PC running Ubuntu (or Debian), a
+Windows PC running Ubuntu under WSL2 and a CP2102 USB 2.0 to TTL serial 
+converter, four wires, and eight female-female GPIO connectors. 
+There are no threads here, only asynchronous, non-blocking I/O calls.
 
 WARNING: Windows requires windows-curses, but this is missing 
 curses.set_escdelay() as of python 3.11
@@ -44,21 +44,21 @@ rylr998 config:
                         or the last configured value.
   --mode [0|1|2,30..60000,30..60000]
                         Mode 0: transceiver mode. Mode 1: sleep mode. Mode 2,x,y: 
-                        receive for x msec sleep for y msec and so on, indefinitely. 
+                        receive for x msec, sleep for y msec, and indefinitely. 
                         Default: 0
   --netid [3..15|18]    NETWORK ID. Note: PARAMETER values depend on NETWORK ID. 
                         Default: 18
-                        NOTE: this is also known as the sync word. The available sync 
-                        words on the RYLR998 are NOT compatible with Meshtastic (tm).
+                        NOTE: This is also known as the sync word. The available sync 
+                        words on the RYLR998 are incompatible with Meshtastic (tm).
   --parameter [7..11,7..9,1..4,4..24]
                         PARAMETER. Set the RF parameters Spreading Factor, Bandwidth, 
                         Coding Rate, Preamble. Spreading factor 7..11, default 9. 
                         Bandwidth 7..9, where 7 is 125 KHz (only if spreading factor 
                         is in 7..9); 8 is 250 KHz (only if spreading factor is in 7..10); 
-                        9 is 500 KHz (only if spreading factor is in 7..11). 
-                        Default bandwidth is 7. 
-                        Coding rate is 1..4, default 4. 
-                        Preamble is 4..25 if the NETWORK ID is 18; otherwise the 
+                        9 is 500 KHz (only if the spreading factor is in 7..11). 
+                        The default bandwidth is 7. 
+                        The coding rate is 1..4, default 4. 
+                        The preamble is 4..25 if the NETWORK ID is 18; otherwise, the 
                         preamble must be 12. Default: 9,7,1,12
 
 serial port config:
