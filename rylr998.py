@@ -30,7 +30,6 @@
 # Further instructions are available in the accompanying README.md document
 #
 
-#import RPi.GPIO as GPIO
 import asyncio
 import aioserial
 from serial import EIGHTBITS, PARITY_NONE,  STOPBITS_ONE
@@ -63,7 +62,7 @@ existGPIO = True
 try:
     import subprocess # for call to raspi-gpio
     import RPi.GPIO as GPIO
-except RuntimeError:
+except ModuleNotFoundError:
     existGPIO = False
 
 import argparse 
@@ -315,6 +314,7 @@ class rylr998:
         # one at a time within the transceiver loop
 
         queue = asyncio.Queue()  # no limit
+
 
         if self.factory:
             await queue.put('FACTORY')
@@ -774,14 +774,14 @@ if __name__ == "__main__":
     # serial port configuration argument group
     serial_config = parser.add_argument_group('serial port config')
 
-    uartPattern = re.compile('^/dev/tty(S|USB)\d{1,3}$')
+    uartPattern = re.compile('^(/dev/tty(S|USB)|COM)\d{1,3}$')
     def uartcheck(s : str) -> str:
         if uartPattern.match(s):
             return s
-        raise argparse.ArgumentTypeError("Serial Port device name not of the form ^/dev/tty(S|USB)\d{1,3}$")
+        raise argparse.ArgumentTypeError("Serial Port device name not of the form ^(/dev/tty(S|USB)|COM)\d{1,3}$")
 
     serial_config.add_argument('--port', required=False, type=uartcheck, 
-        metavar='[/dev/ttyS0../dev/ttyS999|/dev/ttyUSB0../dev/ttyUSB999]', default = DEFAULT_PORT, dest='port',
+        metavar='[/dev/ttyS0../dev/ttyS999|/dev/ttyUSB0../dev/ttyUSB999|COM0..COM999]', default = DEFAULT_PORT, dest='port',
         help='Serial port device name. Default: '+ DEFAULT_PORT)
 
     baudrates = ['300', '1200', '4800', '9600', '19200', '28800', '38400', '57600',  '115200']
