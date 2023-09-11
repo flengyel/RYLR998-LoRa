@@ -8,8 +8,11 @@ Windows PC running Ubuntu under WSL2 and a CP2102 USB 2.0 to TTL serial
 converter, four wires, and eight female-female GPIO connectors. 
 There are no threads here, only asynchronous, non-blocking I/O calls.
 
-WARNING: Windows requires windows-curses, but this is missing 
-curses.set_escdelay() as of python 3.11
+WARNING: Windows requires `windows-curses`, which does not implement 
+`curses.set_escdelay()` as of Python 3.11. Comment out `cur.set_escdelay(1)`
+in `display.py` and run at your own risk. The text handling is erratic
+in Windows, with the `set_escdelay()` function missing. If you run under 
+Ubuntu or Debian under WSL2 in Windows, you will not have this problem.
 
 ## Usage
 ```bash
