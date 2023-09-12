@@ -71,6 +71,12 @@ serial port config:
                         Serial port baudrate. Default: 115200
 ```
 
+### Example command line
+
+```bash
+pi@raspberrypi:~/RYLR998-LoRa$ python3 rylr998.py --pwr 22 --port /dev/ttyS0  --band 902687500  --netid 6
+```
+
 ## Python Module Dependencies
 
 * python 3.10+
