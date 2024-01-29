@@ -1,6 +1,5 @@
 # RYLR998-LoRa® 
 
-<<<<<<< HEAD
 A python program for 2-way texting with the 33cm band
 [REYAX RYLR998](https://reyax.com/products/rylr998/) LoRa® module, either with:
 
@@ -8,21 +7,8 @@ A python program for 2-way texting with the 33cm band
 2. or, with a PC and a CP2102 USB 2.0 to TTL serial converter, four wires and eight female-female GPIO connectors.There are no threads here, only asynchronous non-blocking I/O calls.
 
 NOTE: I recommend connecting the RYLR998 to the REYAX RYLS135 USB to 1.8V/3.3V/5V TTL UART Bridge, available from Amazon. With this hardware and a Raspberry Pi 4 (or 5--not yet tested), the software is compatible with the [DigiPi appliance software](https://digipi.org) without modification of `/boot/config.txt`.
-=======
-A Python program for 2-way texting with the 33cm band
-[REYAX RYLR998](https://reyax.com/products/rylr998/) LoRa® module, 
-either with a Raspberry Pi 4, five wires, and ten female-female 
-GPIO connectors, or with a Linux PC running Ubuntu (or Debian), a
-Windows PC running Ubuntu under WSL2 and a CP2102 USB 2.0 to TTL serial 
-converter, four wires, and eight female-female GPIO connectors. 
-There are no threads here, only asynchronous, non-blocking I/O calls.
 
-WARNING: Windows requires `windows-curses`, which does not implement 
-`curses.set_escdelay()` as of Python 3.11. Comment out `cur.set_escdelay(1)`
-in `display.py` and run at your own risk. The text handling is erratic
-in Windows, with the `set_escdelay()` function missing. If you run under 
-Ubuntu or Debian under WSL2 in Windows, you will not have this problem.
->>>>>>> 373d18d77b797079c6e3a7fda13e774654142eab
+WARNING: Windows requires `windows-curses`, which does not implement `curses.set_escdelay()` as of Python 3.11. Comment out `cur.set_escdelay(1)`in `display.py` and run at your own risk. The text handling is erratic in Windows, with the `set_escdelay()` function missing. If you run under Ubuntu or Debian under WSL2 in Windows, you will not have this problem.
 
 ## Usage
 
@@ -87,7 +73,6 @@ serial port config:
 ```bash
 pi@raspberrypi:~/RYLR998-LoRa$ python3 rylr998.py --pwr 22 --port /dev/ttyS0  --band 902687500  --netid 6
 ```
-
 ## Python Module Dependencies
 
 * python 3.10+
@@ -118,17 +103,20 @@ comes with no warranty. Check your connections! Under no circumstances apply 5V 
 1. Ensure that the login shell over the serial port is disabled, but the serial port is enabled. 
 In `sudo raspi-config`, select Interfacing Options, then select Serial. Answer "no" to "Would you like a login shell to be accessible over serial?" and answer "yes"  to "woud you like the serial port hardware to be enabled?".
 
-2. Disable Bluetooth in ```/boot/config.txt``` by appending 
+2. Disable Bluetooth in ```/boot/config.txt``` by appending
+
 ```bash
 disable-bt=1
 enable-uart=1 
 ```
+
 Disable the bluetooth service with 
+
 ```bash
 sudo systemctl disable hciuart.service
 ```
 
-3. Enable `uart1` with the device tree overlay facility before running the code. I do this in `/etc/rc.local` with 
+3. Enable `uart1` with the device tree overlay facility before running the code. I do this in `/etc/rc.local` with
 
 ```bash
 sudo dtoverlay uart1
@@ -164,7 +152,7 @@ uloop = urwid.MainLoop(widget, event_loop=eloop)
 uloop.start() # main_loop.py suggests using this instead of run().
 ```
 
-and immediately before `raise KeyboardInterrupt` within `xcvr(...)` call 
+and immediately before `raise KeyboardInterrupt` within `xcvr(...)` call
 
 ```python
 uloop.stop()
@@ -186,16 +174,16 @@ uloop.stop()
 * Output means screen (curses) output and serial port output of AT commands to the REYAX RYLR998 module.
 * Screen output is not one character at a time. Instead of calling `refresh()` when a window changes, we call `win.noutrefresh()` and set a dirty bit. 
 * If the dirty bit is set, `curses.doupdate()` is called and the dirty bit is reset. This is an optimization.
-*  Serial port output cannot be one character at a time, since complete AT commands have to be sent to the RYLR998 through the serial port.
-*  Receiving and parsing responses from AT commands takes precedence over sending AT commands, which includes sending text.
+* Serial port output cannot be one character at a time, since complete AT commands have to be sent to the RYLR998 through the serial port.
+* Receiving and parsing responses from AT commands takes precedence over sending AT commands, which includes sending text.
 
 ## References
 
-Brownlee, J., Ph.D. (2022). [Python Asyncio Jump-Start: Asynchronous Programming And Non-Blocking I/O With Coroutines](https://superfastpython.com/python-asyncio-jump-start/) (Vol. 7, 7 vols., Python Concurrency Jump-Start Series). Retrieved January 22, 2023, from https://superfastpython.com/python-asyncio-jump-start/ ISBN-13 979-8361197620
+Brownlee, J., Ph.D. (2022). [Python Asyncio Jump-Start: Asynchronous Programming And Non-Blocking I/O With Coroutines](https://superfastpython.com/python-asyncio-jump-start/) (Vol. 7, 7 vols., Python Concurrency Jump-Start Series). Retrieved January 22, 2023, from [https://superfastpython.com/python-asyncio-jump-start/](https://superfastpython.com/python-asyncio-jump-start/) ISBN-13 979-8361197620
 
 [curses — Terminal handling for character-cell displays](https://docs.python.org/3/library/curses.html)
 
- "REYAX RYLR998 RYLR498 LoRa® AT COMMAND GUIDE" (c) 2021 REYAX TECHNOLOGY CO., LTD. Retrieved January 22, 2023, from https://reyax.com//upload/products_download/download_file/LoRa_AT_Command_RYLR998_RYLR498_EN.pdf
+ "REYAX RYLR998 RYLR498 LoRa® AT COMMAND GUIDE" (c) 2021 REYAX TECHNOLOGY CO., LTD. Retrieved January 22, 2023, from [https://reyax.com//upload/products_download/download_file/](https://reyax.com//upload/products_download/download_file/)LoRa_AT_Command_RYLR998_RYLR498_EN.pdf
 
 ## Trademarks
 
@@ -205,11 +193,8 @@ The LoRa® Mark and Logo are trademarks of Semtech Corporation or its affiliates
 
 <img src="https://github.com/flengyel/RYLR998-LoRa/blob/main/rylr998display.png" width="300">
 
-
-This screenshot shows a MobaXTerm session running the `rlyr998.py` program. The yellow text is that of the sender. The received text is magenta. When rylr998.py detects received text, the "LoRa" indicator flashes green if the message is long enough; transmission of text flashes the "LoRa" indicator red. The ADDR (address), RSSI and SNR values of the last received message are shown. Text messages are limited to 40 characters (in this version). 
-
+This screenshot shows a MobaXTerm session running the `rlyr998.py` program. The yellow text is that of the sender. The received text is magenta. When rylr998.py detects received text, the "LoRa" indicator flashes green if the message is long enough; transmission of text flashes the "LoRa" indicator red. The ADDR (address), RSSI and SNR values of the last received message are shown. Text messages are limited to 40 characters (in this version).
 
 ## Disclaimer
 
 This is a work in progress.  I'm taking my time adding IRC-like display functions with the Python curses library slowly and deliberately with all due sloth, so slowly that I would be fired and blacklisted if I were doing this professionally; flunked and expelled without a degree and a boatload of predatory private student loans at usurious interest rates if I were in college; and defunded and defrocked if I were an academician. I am not affiliated with Semtech Corporation.
-
