@@ -4,7 +4,9 @@ A python program for 2-way texting with the 33cm band
 [REYAX RYLR998](https://reyax.com/products/rylr998/) LoRa® module, either with:
 
 1. a Raspberry Pi 4, five wires and ten female-female GPIO connectors;
-2. or, with a PC and a CP2102 USB 2.0 to TTL serial converter, four wires and eight female-female GPIO connectors.There are no threads here, only asynchronous non-blocking I/O calls.
+2. or, with a PC and a CP2102 USB 2.0 to TTL serial converter, four wires and eight female-female GPIO connectors.
+  
+There are no threads here, only asynchronous non-blocking I/O calls.
 
 NOTE: I recommend connecting the RYLR998 to the REYAX RYLS135 USB to 1.8V/3.3V/5V TTL UART Bridge, available from Amazon. With this hardware and a Raspberry Pi 4 (or 5--not yet tested), the software is compatible with the [DigiPi appliance software](https://digipi.org) without modification of `/boot/config.txt`.
 
