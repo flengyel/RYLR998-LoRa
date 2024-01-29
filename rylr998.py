@@ -30,7 +30,6 @@
 # Further instructions are available in the accompanying README.md document
 #
 
-#import RPi.GPIO as GPIO
 import asyncio
 import aioserial
 from serial import EIGHTBITS, PARITY_NONE,  STOPBITS_ONE
@@ -315,6 +314,7 @@ class rylr998:
         # one at a time within the transceiver loop
 
         queue = asyncio.Queue()  # no limit
+
 
         if self.factory:
             await queue.put('FACTORY')
@@ -778,7 +778,7 @@ if __name__ == "__main__":
     def uartcheck(s : str) -> str:
         if uartPattern.match(s):
             return s
-        raise argparse.ArgumentTypeError("Serial Port device name not of the form ^/dev/tty(S|USB)\d{1,3}$")
+        raise argparse.ArgumentTypeError("Serial Port device name not of the form ^(/dev/tty(S|USB)|COM)\d{1,3}$")
 
     serial_config.add_argument('--port', required=False, type=uartcheck, 
         metavar='[/dev/ttyS0../dev/ttyS999|/dev/ttyUSB0../dev/ttyUSB999|COM0..COM999]', default = DEFAULT_PORT, dest='port',
