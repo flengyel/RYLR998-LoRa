@@ -219,7 +219,8 @@ class Display:
 
         # we compromise by setting the ESC delay to 1 msec
         # we do not want to miss any received characters
-        cur.set_escdelay(1) # An eternity for a CPU.
+        # windows-curses does not implement set_escdelay()
+        ##cur.set_escdelay(1) # An eternity for a CPU.
 
         cur.start_color()
         cur.use_default_colors()

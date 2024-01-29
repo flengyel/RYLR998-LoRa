@@ -1,13 +1,15 @@
 # RYLR998-LoRa® 
 
 A python program for 2-way texting with the 33cm band
-[REYAX RYLR998](https://reyax.com/products/rylr998/) LoRa® module, 
-either with a Raspberry Pi 4, five wires and ten female-female 
-GPIO connectors; or with a PC and a CP2102 USB 2.0 to TTL serial 
-converter, four wires and eight female-female GPIO connectors. 
-There are no threads here, only asynchronous non-blocking I/O calls.
+[REYAX RYLR998](https://reyax.com/products/rylr998/) LoRa® module, either with:
+
+1. a Raspberry Pi 4, five wires and ten female-female GPIO connectors;
+2. or, with a PC and a CP2102 USB 2.0 to TTL serial converter, four wires and eight female-female GPIO connectors.There are no threads here, only asynchronous non-blocking I/O calls.
+
+NOTE: I recommend connecting the RYLR998 to the REYAX RYLS135 USB to 1.8V/3.3V/5V TTL UART Bridge, available from Amazon. With this hardware and a Raspberry Pi 4 (or 5--not yet tested), the software is compatible with the [DigiPi appliance software](https://digipi.org) without modification of `/boot/config.txt`.
 
 ## Usage
+
 ```bash
 usage: rylr998.py [-h] [--debug] [--factory] [--noGPIO] [--addr [0..65535]]
                   [--band [902250000..927750000]] [--pwr [0..22]]
@@ -69,7 +71,7 @@ serial port config:
 
 `pip install asyncio` and so on should work.
 
-## GPIO connections for the Raspberry Pi
+## Direct GPIO connections for the Raspberry Pi
 
 The GPIO connections are as follows:
 
@@ -83,7 +85,7 @@ The GPIO connections are as follows:
 I haven't had problems, knock wood, but the [MIT license](https://github.com/flengyel/RYLR998-LoRa/blob/main/LICENSE) 
 comes with no warranty. Check your connections! Under no circumstances apply 5V to the RYLR998 LoRa® module. Only 3.3V. 
 
-## Disable Bluetooth and enable uart1 (/dev/ttyS0)
+### Disable Bluetooth and enable uart1 (/dev/ttyS0)
 
 1. Ensure that the login shell over the serial port is disabled, but the serial port is enabled. 
 In `sudo raspi-config`, select Interfacing Options, then select Serial. Answer "no" to "Would you like a login shell to be accessible over serial?" and answer "yes"  to "woud you like the serial port hardware to be enabled?".
@@ -104,7 +106,9 @@ sudo systemctl disable hciuart.service
 sudo dtoverlay uart1
 ```
 
-## Connection to a PC with a CP2102 USB 2.0 to TTL module serial converter
+## RECOMMENDED: connection to a PC with a USB 2.0 to TTL module serial converter
+
+I recommend the REYAX RYLS135 USB to 1.8V/3.3V/5V TTL UART Bridge, available from Amazon and other suppliers.
 
 Similar to the GPIO, only VDD goes to the 3.3V output of the converter; RX and TX are swapped, as usual; and GND goes to GND.
 See the pictures below.
