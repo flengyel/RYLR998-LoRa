@@ -516,6 +516,11 @@ class rylr998:
                                 # not waiting for a reply from the module
                                 # so we do not reset the waitForReply flag
 
+                                # if echoing the received message, delay 0.25 sec
+                                if args.echo:
+                                     await queue.put('DELAY,'+str(dsply.FOURTHSEC))
+                                     await queue.put('SEND='+addr+','+str(n)+','+msg)
+
                             case self.UID_table:
                                 dsply.rxaddnstr("UID: " + self.rxbuf, self.rxlen+5) 
                                 self.uid = self.rxbuf
@@ -537,7 +542,7 @@ class rylr998:
                         self.rxbufReset() # reset the receive buffer state and assume RCV -- this is necessary
 
                         dirty = True    # instead of doupdate() here, use the dirty bit
-                        # RCV does not reset waitForReply, since there is no AT command i
+                        # RCV does not reset waitForReply, since there is no AT command 
                         # for which a response is expected
 
                     continue # The dirty bit logic will update the screen
@@ -770,6 +775,9 @@ if __name__ == "__main__":
 
     rylr998_config.add_argument('--parameter', required=False, type=paramcheck,         metavar='[7..11,7..9,1..4,4..24]', dest='parameter', default=DEFAULT_PARAMETER,
         help='PARAMETER. Set the RF parameters Spreading Factor, Bandwidth, Coding Rate, Preamble. Spreading factor 7..11, default 9. Bandwidth 7..9, where 7 is 125 KHz (only if spreading factor is in 7..9); 8 is 250 KHz (only if spreading factor is in 7..10); 9 is 500 KHz (only if spreading factor is in 7..11). Default bandwidth is 7. Coding rate is 1..4, default 4. Preamble is 4..25 if the NETWORK ID is 18; otherwise the preamble must be 12.  Default: ' + DEFAULT_PARAMETER)
+
+    rylr998_config.add_argument('--echo',  action='store_true', help = 'Retransmit received message')
+
 
     # serial port configuration argument group
     serial_config = parser.add_argument_group('serial port config')
