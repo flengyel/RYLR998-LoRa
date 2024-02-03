@@ -8,6 +8,41 @@ A python program for 2-way texting with the 33cm band
   
 There are no threads here, only asynchronous non-blocking I/O calls.
 
+## Kivy Branch
+
+RYLR998-LoRa/
+│
+├── app/                        # Main application source files
+│   ├── __init__.py             # Makes app a Python package
+│   ├── main.py                 # Entry point of the Kivy application
+│   ├── lora_communicator.py    # Handles LoRa module communication
+│   ├── ui/                     # UI components
+│   │   ├── __init__.py
+│   │   ├── app_layout.py       # Defines the layout of the application
+│   │   └── widgets.py          # Custom widgets specific to the application
+│   └── utils/                  # Utility functions and classes
+│       ├── __init__.py
+│       └── serial_asyncio.py   # Asynchronous serial communication helpers
+│
+├── assets/                     # Assets for the UI
+│   ├── images/                 # Images, icons, etc.
+│   └── fonts/                  # Custom fonts
+│
+├── config/                     # Configuration files
+│   └── settings.json           # Application settings, parameters
+│
+├── docs/                       # Documentation
+│   ├── README.md
+│   └── development.md          # Development guidelines, project structure explanations
+│
+├── tests/                      # Unit tests and integration tests
+│   ├── __init__.py
+│   └── test_communicator.py    # Tests for LoRa communication logic
+│
+├── buildozer.spec              # Buildozer configuration for packaging the app for Android
+├── requirements.txt            # Python dependencies
+└── LICENSE                     # The license file
+
 NOTE: I recommend connecting the RYLR998 to the REYAX RYLS135 USB to 1.8V/3.3V/5V TTL UART Bridge, available from Amazon. With this hardware and a Raspberry Pi 4 (or 5--not yet tested), the software is compatible with the [DigiPi appliance software](https://digipi.org) without modification of `/boot/config.txt`.
 
 WARNING: Windows requires `windows-curses`, which does not implement `curses.set_escdelay()` as of Python 3.11. Comment out `cur.set_escdelay(1)`in `display.py` and run at your own risk. The text handling is erratic in Windows, with the `set_escdelay()` function missing. If you run under Ubuntu or Debian under WSL2 in Windows, you will not have this problem.
