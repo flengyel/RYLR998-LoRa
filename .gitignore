@@ -6,6 +6,11 @@ __pycache__/
 # C extensions
 *.so
 
+# Windows virtual environment
+Scripts/
+Lib/
+Include/
+
 # Distribution / packaging
 .Python
 build/
