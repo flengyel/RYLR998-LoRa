@@ -1,4 +1,4 @@
-# RYLR998-LoRa® 
+# RYLR998-LoRa®
 
 A python program for 2-way texting with the 33cm band
 [REYAX RYLR998](https://reyax.com/products/rylr998/) LoRa® module, either with:
@@ -57,13 +57,14 @@ serial port config:
 ```bash
 pi@raspberrypi:~/RYLR998-LoRa$ python3 rylr998.py --pwr 22 --port /dev/ttyS0  --band 902687500  --netid 6
 ```
+
 ## Python Module Dependencies
 
 * python 3.10+
 * rPI.GPIO (except windows)
 * [asyncio](https://pypi.org/project/asyncio/)
 * [aioserial](https://pypi.org/project/aioserial/) 1.3.1+
-* [curses](https://docs.python.org/3/library/curses.html) 
+* [curses](https://docs.python.org/3/library/curses.html)
 * windows-curses if running on Windows. Note: set_escdelay() is not implemented. Run at your own risk!!
 
 `pip install asyncio` and so on should work.
@@ -78,29 +79,30 @@ The GPIO connections are as follows:
 * RXD to GPIO 14 TXD1 this is physical pin 8
 * GND to GND physical pin 9.
 
-**WARNING:** get this wrong and you could fry your Raspberry Pi 4 and your REYAX RYLR998 LoRa® module. 
-I haven't had problems, knock wood, but the [MIT license](https://github.com/flengyel/RYLR998-LoRa/blob/main/LICENSE) 
-comes with no warranty. Check your connections! Under no circumstances apply 5V to the RYLR998 LoRa® module. Only 3.3V. 
+**WARNING:** get this wrong and you could fry your Raspberry Pi 4 and your REYAX RYLR998 LoRa® module.
+I haven't had problems, knock wood, but the [MIT license](https://github.com/flengyel/RYLR998-LoRa/blob/main/LICENSE)
+comes with no warranty. Check your connections! Under no circumstances apply 5V to the RYLR998 LoRa® module. Only 3.3V.
 
 ### Disable Bluetooth and enable uart1 (/dev/ttyS0)
 
-1. Ensure that the login shell over the serial port is disabled, but the serial port is enabled. 
+\1. Ensure that the login shell over the serial port is disabled, but the serial port is enabled
+
 In `sudo raspi-config`, select Interfacing Options, then select Serial. Answer "no" to "Would you like a login shell to be accessible over serial?" and answer "yes"  to "woud you like the serial port hardware to be enabled?".
 
-2. Disable Bluetooth in ```/boot/config.txt``` by appending
+\2. Disable Bluetooth in ```/boot/config.txt``` by appending
 
 ```bash
 disable-bt=1
 enable-uart=1 
 ```
 
-Disable the bluetooth service with 
+\3. Disable the bluetooth service with
 
 ```bash
 sudo systemctl disable hciuart.service
 ```
 
-3. Enable `uart1` with the device tree overlay facility before running the code. I do this in `/etc/rc.local` with
+\4. Enable `uart1` with the device tree overlay facility before running the code. I do this in `/etc/rc.local` with
 
 ```bash
 sudo dtoverlay uart1
@@ -113,21 +115,20 @@ I recommend the REYAX RYLS135 USB to 1.8V/3.3V/5V TTL UART Bridge, available fro
 Similar to the GPIO, only VDD goes to the 3.3V output of the converter; RX and TX are swapped, as usual; and GND goes to GND.
 See the pictures below.
 
-<p float="left">
-<img src="https://user-images.githubusercontent.com/431946/216791228-058dd28e-4c32-43dd-a351-1a0bd575dc06.jpg" width="300">
-<img src="https://user-images.githubusercontent.com/431946/216791243-bd2dd829-fa44-45e2-9f36-a1b2585429bb.jpg" width="300">
-</p>
+![](https://user-images.githubusercontent.com/431946/216791228-058dd28e-4c32-43dd-a351-1a0bd575dc06.jpg)
+
+![](https://user-images.githubusercontent.com/431946/216791243-bd2dd829-fa44-45e2-9f36-a1b2585429bb.jpg)
 
 ## TO DO
 
-* ~Add parsing of the AT+RESET function.~ DONE. 
+* ~Add parsing of the AT+RESET function.~ DONE.
 * ~Replace  `asyncio.BoundedSemaphore()` with a boolean flag.~ DONE. A boolean `waitForReply`  is sufficent.
 * ~Translate ERR=## codes to text.~ DONE
-* ~Display the configuration parameters.~ Done, at startup. 
-* ~A VFO indicator would be nice (this is almost a joke).~ DONE 
+* ~Display the configuration parameters.~ Done, at startup.
+* ~A VFO indicator would be nice (this is almost a joke).~ DONE
 * Add function key handling for changing configuration parameters, such as frequency, netid, etc.
 * ~Store the AT command response variables in the rylr998 object instance!~ DONE
-* But be careful about changing the serial port parameters--you'll be sorry! 
+* But be careful about changing the serial port parameters--you'll be sorry!
 * The python urwid library could be used with the following initialization at  beginning of `xcvr(...)`:
 
 ```python
@@ -143,7 +144,7 @@ uloop.stop()
 ```
 
 * You could make the windows resizable. Dunno.
-* Rewrite in MicroPython for the Adafruit M0... 
+* Rewrite in MicroPython for the Adafruit M0...
 
 ## TO NOT DO
 
@@ -153,10 +154,10 @@ uloop.stop()
 
 * All the action takes place in the main loop,`xcvr(stdscr)`, one **input** character at a time, as a function of the state and the current input character.
 * Input means keyboard and serial port input from the REYAX RYLR998 module.
-* Keyboard input is non-blocking and raw--almost vegan. 
+* Keyboard input is non-blocking and raw--almost vegan.
 * An "empty" character is allowed--in fact we like empty characters.
 * Output means screen (curses) output and serial port output of AT commands to the REYAX RYLR998 module.
-* Screen output is not one character at a time. Instead of calling `refresh()` when a window changes, we call `win.noutrefresh()` and set a dirty bit. 
+* Screen output is not one character at a time. Instead of calling `refresh()` when a window changes, we call `win.noutrefresh()` and set a dirty bit.
 * If the dirty bit is set, `curses.doupdate()` is called and the dirty bit is reset. This is an optimization.
 * Serial port output cannot be one character at a time, since complete AT commands have to be sent to the RYLR998 through the serial port.
 * Receiving and parsing responses from AT commands takes precedence over sending AT commands, which includes sending text.
@@ -175,7 +176,7 @@ The LoRa® Mark and Logo are trademarks of Semtech Corporation or its affiliates
 
 ---
 
-<img src="https://github.com/flengyel/RYLR998-LoRa/blob/main/rylr998display.png" width="300">
+![](https://github.com/flengyel/RYLR998-LoRa/blob/main/rylr998display.png)
 
 This screenshot shows a MobaXTerm session running the `rlyr998.py` program. The yellow text is that of the sender. The received text is magenta. When rylr998.py detects received text, the "LoRa" indicator flashes green if the message is long enough; transmission of text flashes the "LoRa" indicator red. The ADDR (address), RSSI and SNR values of the last received message are shown. Text messages are limited to 40 characters (in this version).
 
