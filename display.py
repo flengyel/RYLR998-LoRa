@@ -16,7 +16,7 @@ import curses as cur
 import _curses
 import curses.ascii
 
-#import datetime
+
 import locale
 locale.setlocale(locale.LC_ALL, '')
 #stdscr.addstr(0, 0, mystring.encode('UTF-8'))
@@ -244,36 +244,36 @@ class Display:
         self.derive_stwin()
         self.derive_txwin()
 
-    def xlateError(self, errCode: str) -> None:
-        match errCode:
+    def xlateError(self, err_code: str) -> None:
+        match err_code:
             case '1':
-                errStr = "AT command missing 0x0D 0x0A."
+                err_str = "AT command missing 0x0D 0x0A."
             case '2':
-                errStr = "AT command missing 'AT'."
+                err_str = "AT command missing 'AT'."
             case '4':
-                errStr = "Unknown AT command."
+                err_str = "Unknown AT command."
             case '5':
-                errStr = "Data length specified does not match the data length."
+                err_str = "Data length specified does not match the data length."
             case '10':
-                errStr = "Transmit time exceeds limit."
+                err_str = "Transmit time exceeds limit."
             case '12':
-                errStr = "CRC error on receive."
+                err_str = "CRC error on receive."
             case '13':
-                errStr = "TX data exceeds 240 bytes."
+                err_str = "TX data exceeds 240 bytes."
             case '14':
-                errStr = "Failed to write flash memory."
+                err_str = "Failed to write flash memory."
             case '15':
-                errStr = "Unknown failure."
+                err_str = "Unknown failure."
             case '17':
-                errStr = "Last TX was not completed."
+                err_str = "Last TX was not completed."
             case '18':
-                errStr = "Preamble value is not allowed."
+                err_str = "Preamble value is not allowed."
             case '19':
-                errStr = "RX failure. Header error."
+                err_str = "RX failure. Header error."
             case '20':
-                errStr = "Invalid time in MODE 2 setting."
+                err_str = "Invalid time in MODE 2 setting."
             case _:
-                errStr = "Unknown error code."
-        errString = "ERR={}: {}".format(errCode, errStr)
-        self.rxaddnstr(errString, len(errString), fg_bg=self.RED_BLACK)
+                err_str = "Unknown error code."
+        err_string = "ERR={}: {}".format(err_code, err_str)
+        self.rxaddnstr(err_string, len(err_string), fg_bg=self.RED_BLACK)
         

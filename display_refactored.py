@@ -1,3 +1,101 @@
+#!/usr/bin/env python3
+# -*- coding: utf8 -*-
+
+import curses as cur
+import curses.ascii
+import locale
+from dataclasses import dataclass
+from typing import Optional
+
+locale.setlocale(locale.LC_ALL, '')
+
+@dataclass(frozen=True)
+class WindowPosition:
+    """Window positioning constants"""
+    row: int
+    col: int
+    height: int
+    width: int
+
+class ColorScheme:
+    """Color pair management"""
+    # Original color pair definitions
+    WHITE_BLACK = 0    # built in cannot change 
+    YELLOW_BLACK = 1   # user text
+    GREEN_BLACK = 2    # our palette is off
+    BLUE_BLACK = 3     # status indicator
+    RED_BLACK = 4      # errors
+    BLACK_PINK = 5     # received text (magenta)
+    WHITE_RED = 6      # transmit indicator
+    WHITE_GREEN = 7    # receive indicator
+
+    def __init__(self):
+        cur.start_color()
+        cur.use_default_colors()
+        # Define colors
+        cur.init_color(cur.COLOR_RED, 1000, 0, 0)
+        cur.init_color(cur.COLOR_GREEN, 0, 1000, 0)
+        cur.init_color(cur.COLOR_BLUE, 0, 0, 1000)
+        # Define color pairs
+        cur.init_pair(self.YELLOW_BLACK, cur.COLOR_YELLOW, cur.COLOR_BLACK)
+        cur.init_pair(self.GREEN_BLACK, cur.COLOR_BLUE, cur.COLOR_BLACK)
+        cur.init_pair(self.BLUE_BLACK, cur.COLOR_GREEN, cur.COLOR_BLACK)
+        cur.init_pair(self.RED_BLACK, cur.COLOR_RED, cur.COLOR_BLACK)
+        cur.init_pair(self.BLACK_PINK, cur.COLOR_MAGENTA, cur.COLOR_BLACK)
+        cur.init_pair(self.WHITE_RED, cur.COLOR_WHITE, cur.COLOR_RED)
+        cur.init_pair(self.WHITE_GREEN, cur.COLOR_WHITE, cur.COLOR_GREEN)
+
+class StatusWindow:
+    """Status window handling"""
+    # Original status window label positions and content
+    TXRX_LABEL = " LoRa "
+    TXRX_LEN = 6
+    TXRX_ROW = 0
+    TXRX_COL = 0
+
+    ADDR_LABEL = "ADDR"
+    ADDR_LEN = 4
+    ADDR_COL = 8
+
+    RSSI_LABEL = "RSSI"
+    RSSI_LEN = 4
+    RSSI_COL = 21
+
+    SNR_LABEL = "SNR"
+    SNR_LEN = 3
+    SNR_COL = 32
+
+    VFO_LABEL = "VFO"
+    VFO_LEN = 3
+    VFO_ROW = 2
+    VFO_COL = 1
+
+    PWR_LABEL = "PWR"
+    PWR_LEN = 3
+    PWR_ROW = 2
+    PWR_COL = 17
+
+    NETID_LABEL = "NETWORK ID"
+    NETID_LEN = 10
+    NETID_ROW = 2
+    NETID_COL = 26
+
+    def __init__(self, parent_win, pos: WindowPosition):
+        self.window = parent_win.derwin(pos.height, pos.width, pos.row, pos.col)
+        self.window.bkgd(' ', cur.color_pair(ColorScheme.WHITE_BLACK))
+        self._draw_labels()
+
+    def _draw_labels(self):
+        """Draw all status labels"""
+        def add_label(row, col, text, length):
+            self.window.addnstr(row, col, text, length, 
+                              cur.color_pair(ColorScheme.WHITE_BLACK))
+
+        # Add all labels
+        add_label(self.TXRX_ROW, self.TXRX_COL, self.TXRX_LABEL, self.TXRX_LEN)
+        add_label(0, self.ADDR_COL, self.ADDR_LABEL, self.ADDR_LEN)
+        add_label(0, self.RSSI_COL, self.RSSI_LABEL, self.RSSI_LEN)
+        add_label(0, self.SNR_COL, self.SNR_LABEL, self.SNR_LEN)
         add_label(self.VFO_ROW, self.VFO_COL, self.VFO_LABEL, self.VFO_LEN)
         add_label(self.PWR_ROW, self.PWR_COL, self.PWR_LABEL, self.PWR_LEN)
         add_label(self.NETID_ROW, self.NETID_COL, self.NETID_LABEL, self.NETID_LEN)
