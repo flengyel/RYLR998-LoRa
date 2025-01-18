@@ -53,15 +53,16 @@ def test_receive_window(stdscr):
         curses.doupdate()
         time.sleep(1)
 
-        # Test scroll helper methods
-        for i in range(WindowDimensions.RECEIVE_HEIGHT - 2):  # Leave room for final message
+        # Test scroll helper methods - fill window and scroll past it
+        for i in range(WindowDimensions.RECEIVE_HEIGHT + 5):  # Fill window and go beyond
             receive._scroll_if_needed()
-            receive.window.addstr(receive.row, 0, f"Test line {i}")
-            
+            receive.window.addstr(receive.row, 0, f"Test line {i:2d}")  # Formatted number for alignment
             receive._advance_row()
             receive.window.noutrefresh()
             curses.doupdate()
             time.sleep(0.2)
+
+        time.sleep(1)  # Pause to see scrolling result
 
         # Final message
         receive._scroll_if_needed()
