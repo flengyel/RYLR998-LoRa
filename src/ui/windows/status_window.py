@@ -1,23 +1,25 @@
 #!/usr/bin/env python3
 # -*- coding: utf8 -*-
 
-import curses as cur
-from src.ui.constants import ColorPair, StatusLabels, WindowPosition
+import curses
+from src.ui.constants import (
+    ColorPair, StatusLabels, WindowPosition, BorderChars, WindowDimensions
+)
 
 class StatusWindow:
     """Handles the status display area"""
     def __init__(self, parent_window):
         """Create status window at the specified position in parent window"""
-        # Create derwin at the correct position
+        # derwin parameters: nlines (height), ncols (width), begin_y, begin_x
         self.window = parent_window.derwin(
-            WindowPosition.ST_HEIGHT,
-            WindowPosition.ST_WIDTH,
-            WindowPosition.ST_START_ROW,
-            WindowPosition.ST_START_COL
+            WindowDimensions.STATUS_HEIGHT, # height
+            WindowDimensions.STATUS_WIDTH,  # width
+            WindowPosition.ST_START_ROW,    # begin_y (WindowPosition.ST_START_ROW)
+            WindowPosition.ST_START_COL     # begin_x (WindowPosition.ST_START_COL)
         )
         
         # Set default background
-        self.window.bkgd(' ', cur.color_pair(ColorPair.WHITE_BLACK.value))
+        self.window.bkgd(' ', curses.color_pair(ColorPair.WHITE_BLACK.value))
         
         # Draw initial labels
         self._draw_labels()
@@ -25,60 +27,62 @@ class StatusWindow:
 
     def _draw_labels(self):
         """Draw all static status window labels"""
-        self.window.addnstr(
-            StatusLabels.TXRX_ROW, 
+        def add_label(row, col, text, length):
+            try:
+                self.window.addnstr(row, col, text, length,
+                                  curses.color_pair(ColorPair.WHITE_BLACK.value))
+            except curses.error as e:
+                print(f"Error adding label at ({row}, {col}): {e}")
+                raise
+        
+        # Add all status labels
+        add_label(
+            StatusLabels.TXRX_ROW,
             StatusLabels.TXRX_COL,
             StatusLabels.TXRX_LABEL,
-            StatusLabels.TXRX_LEN,
-            cur.color_pair(ColorPair.WHITE_BLACK.value)
+            StatusLabels.TXRX_LEN
         )
         
-        self.window.addnstr(
+        add_label(
             StatusLabels.ADDR_ROW,
             StatusLabels.ADDR_COL,
             StatusLabels.ADDR_LABEL,
-            StatusLabels.ADDR_LEN,
-            cur.color_pair(ColorPair.WHITE_BLACK.value)
+            StatusLabels.ADDR_LEN
         )
         
-        self.window.addnstr(
+        add_label(
             StatusLabels.RSSI_ROW,
             StatusLabels.RSSI_COL,
             StatusLabels.RSSI_LABEL,
-            StatusLabels.RSSI_LEN,
-            cur.color_pair(ColorPair.WHITE_BLACK.value)
+            StatusLabels.RSSI_LEN
         )
         
-        self.window.addnstr(
+        add_label(
             StatusLabels.SNR_ROW,
             StatusLabels.SNR_COL,
             StatusLabels.SNR_LABEL,
-            StatusLabels.SNR_LEN,
-            cur.color_pair(ColorPair.WHITE_BLACK.value)
+            StatusLabels.SNR_LEN
         )
         
-        self.window.addnstr(
+        add_label(
             StatusLabels.VFO_ROW,
             StatusLabels.VFO_COL,
             StatusLabels.VFO_LABEL,
-            StatusLabels.VFO_LEN,
-            cur.color_pair(ColorPair.WHITE_BLACK.value)
+            StatusLabels.VFO_LEN
         )
         
-        self.window.addnstr(
+        add_label(
             StatusLabels.PWR_ROW,
             StatusLabels.PWR_COL,
             StatusLabels.PWR_LABEL,
-            StatusLabels.PWR_LEN,
-            cur.color_pair(ColorPair.WHITE_BLACK.value)
+            StatusLabels.PWR_LEN
         )
         
-        self.window.addnstr(
+        add_label(
             StatusLabels.NETID_ROW,
             StatusLabels.NETID_COL,
             StatusLabels.NETID_LABEL,
-            StatusLabels.NETID_LEN,
-            cur.color_pair(ColorPair.WHITE_BLACK.value)
+            StatusLabels.NETID_LEN
         )
 
     def update_lora_status(self, color_pair: ColorPair):
@@ -88,7 +92,7 @@ class StatusWindow:
             StatusLabels.TXRX_COL,
             StatusLabels.TXRX_LABEL,
             StatusLabels.TXRX_LEN,
-            cur.color_pair(color_pair.value)
+            curses.color_pair(color_pair.value)
         )
         self.window.noutrefresh()
 
@@ -98,7 +102,7 @@ class StatusWindow:
             StatusLabels.ADDR_ROW,
             StatusLabels.ADDR_VAL_COL,
             addr,
-            cur.color_pair(ColorPair.BLUE_BLACK.value)
+            curses.color_pair(ColorPair.BLUE_BLACK.value)
         )
         self.window.noutrefresh()
 
@@ -108,7 +112,7 @@ class StatusWindow:
             StatusLabels.RSSI_ROW,
             StatusLabels.RSSI_VAL_COL,
             rssi,
-            cur.color_pair(ColorPair.BLUE_BLACK.value)
+            curses.color_pair(ColorPair.BLUE_BLACK.value)
         )
         self.window.noutrefresh()
 
@@ -118,7 +122,7 @@ class StatusWindow:
             StatusLabels.SNR_ROW,
             StatusLabels.SNR_VAL_COL,
             snr,
-            cur.color_pair(ColorPair.BLUE_BLACK.value)
+            curses.color_pair(ColorPair.BLUE_BLACK.value)
         )
         self.window.noutrefresh()
 
@@ -128,7 +132,7 @@ class StatusWindow:
             StatusLabels.VFO_ROW,
             StatusLabels.VFO_VAL_COL,
             freq,
-            cur.color_pair(ColorPair.WHITE_BLACK.value)
+            curses.color_pair(ColorPair.WHITE_BLACK.value)
         )
         self.window.noutrefresh()
 
@@ -138,7 +142,7 @@ class StatusWindow:
             StatusLabels.PWR_ROW,
             StatusLabels.PWR_VAL_COL,
             pwr,
-            cur.color_pair(ColorPair.WHITE_BLACK.value)
+            curses.color_pair(ColorPair.WHITE_BLACK.value)
         )
         self.window.noutrefresh()
 
@@ -148,26 +152,8 @@ class StatusWindow:
             StatusLabels.NETID_ROW,
             StatusLabels.NETID_VAL_COL,
             netid,
-            cur.color_pair(ColorPair.WHITE_BLACK.value)
+            curses.color_pair(ColorPair.WHITE_BLACK.value)
         )
         self.window.noutrefresh()
 
-# Example usage in xcvr():
-"""
-# Initialize
-status_window = StatusWindow(border_window)
 
-# When receiving:
-status_window.update_lora_status(ColorPair.WHITE_GREEN)
-status_window.update_addr(addr)
-status_window.update_rssi(rssi)
-status_window.update_snr(snr)
-
-# When transmitting:
-status_window.update_lora_status(ColorPair.WHITE_RED)
-
-# When setting parameters:
-status_window.update_vfo(freq)
-status_window.update_power(pwr)
-status_window.update_netid(netid)
-"""

@@ -4,7 +4,29 @@
 import curses
 import time
 from src.ui.windows.status_window import StatusWindow
-from src.ui.constants import ColorPair
+from src.ui.constants import ColorPair, WindowDimensions, WindowPosition
+
+class TestReceiveWindow:
+    """Simple receive window just for test messages"""
+    def __init__(self, parent_window):
+        self.window = parent_window.derwin(
+            WindowDimensions.RECEIVE_HEIGHT,
+            WindowDimensions.RECEIVE_WIDTH,
+            WindowPosition.RX_START_ROW,
+            WindowPosition.RX_START_COL
+        )
+        self.window.scrollok(True)
+        self.row = 0
+        
+    def add_message(self, msg: str):
+        """Add a message to the receive window"""
+        if self.row >= WindowDimensions.RECEIVE_HEIGHT:
+            self.window.scroll()
+            self.row = WindowDimensions.RECEIVE_HEIGHT - 1
+        
+        self.window.addstr(self.row, 0, msg)
+        self.row += 1
+        self.window.noutrefresh()
 
 def test_status_window(stdscr):
     # Initialize color pairs
@@ -15,7 +37,6 @@ def test_status_window(stdscr):
     curses.init_color(curses.COLOR_GREEN, 0, 1000, 0)
     curses.init_color(curses.COLOR_BLUE, 0, 0, 1000)
     
-    # Initialize all the color pairs
     curses.init_pair(ColorPair.YELLOW_BLACK.value, curses.COLOR_YELLOW, curses.COLOR_BLACK)
     curses.init_pair(ColorPair.GREEN_BLACK.value, curses.COLOR_BLUE, curses.COLOR_BLACK)
     curses.init_pair(ColorPair.BLUE_BLACK.value, curses.COLOR_GREEN, curses.COLOR_BLACK)
@@ -24,12 +45,17 @@ def test_status_window(stdscr):
     curses.init_pair(ColorPair.WHITE_RED.value, curses.COLOR_WHITE, curses.COLOR_RED)
     curses.init_pair(ColorPair.WHITE_GREEN.value, curses.COLOR_WHITE, curses.COLOR_GREEN)
 
-    # Create a border window (parent window for status)
+    # Get terminal size
+    max_y, max_x = stdscr.getmaxyx()
     height, width = 28, 42  # Original window dimensions
-    border_win = stdscr.derwin(height, width, 0, 0)
+    if max_y < height or max_x < width:
+        raise curses.error(f"Terminal too small. Needs at least {width}x{height}, got {max_x}x{max_y}")
+
+    # Create main border window
+    border_win = curses.newwin(height, width, 0, 0)
     border_win.border()
     
-    # Create horizontal lines for status area
+    # Draw horizontal lines for status area
     for y in [21, 23]:
         border_win.addch(y, 0, curses.ACS_LTEE)
         border_win.hline(y, 1, curses.ACS_HLINE, width-2)
@@ -37,47 +63,54 @@ def test_status_window(stdscr):
     
     border_win.noutrefresh()
 
-    # Create status window
+    # Create windows
+    receive = TestReceiveWindow(border_win)
     status = StatusWindow(border_win)
     
     # Test sequence
     def run_test():
         # Test LoRa indicator colors
-        print("Testing LoRa indicator...")
+        receive.add_message("Testing LoRa indicator...")
         status.update_lora_status(ColorPair.WHITE_BLACK)
         curses.doupdate()
         time.sleep(1)
         
-        status.update_lora_status(ColorPair.WHITE_GREEN)  # Receive
+        receive.add_message("Testing receive indicator (green)")
+        status.update_lora_status(ColorPair.WHITE_GREEN)
         curses.doupdate()
         time.sleep(1)
         
-        status.update_lora_status(ColorPair.WHITE_RED)    # Transmit
+        receive.add_message("Testing transmit indicator (red)")
+        status.update_lora_status(ColorPair.WHITE_RED)
         curses.doupdate()
         time.sleep(1)
 
         # Test value updates
-        print("Testing value updates...")
+        receive.add_message("Testing status values...")
         status.update_addr("1234")
         status.update_rssi("-120")
         status.update_snr("5.2")
         curses.doupdate()
         time.sleep(2)
 
+        receive.add_message("Testing radio parameters...")
         status.update_vfo("915000000")
         status.update_power("22")
         status.update_netid("18")
         curses.doupdate()
         time.sleep(2)
 
+        receive.add_message("Test complete - press any key to exit")
+
     try:
         run_test()
-        print("Press any key to exit...")
         stdscr.getch()
     except KeyboardInterrupt:
         pass
 
 if __name__ == "__main__":
-    print("Starting status window test...")
-    curses.wrapper(test_status_window)
-    print("Test complete.")
+    try:
+        curses.wrapper(test_status_window)
+    except Exception as e:
+        print(f"Error: {e}")
+
