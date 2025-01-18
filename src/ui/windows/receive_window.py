@@ -23,11 +23,17 @@ class ReceiveWindow:
 
     def _scroll_if_needed(self):
         """Scroll window if at maximum row"""
-        if self.row >= self.max_row:
+        if self.row > self.max_row:  # Changed from >= to >
             self.window.scroll()
-            self.row = self.max_row  # Stay on last line after scroll
-            
-    def _advance_row(self):
-        """Move to next row, handling scrolling"""
+            self.row = self.max_row
+            return True
+        return False
+
+
+    def add_line(self, msg: str):
+        """Add a line of text, always checking scroll"""
+        self._scroll_if_needed()  # Always check scroll first
+        self.window.addstr(self.row, self.col, msg)
         self.row += 1
-        self.col = 0 
+        self.window.noutrefresh()
+

@@ -23,7 +23,7 @@ class TestReceiveWindow:
         if self.row >= WindowDimensions.RECEIVE_HEIGHT:
             self.window.scroll()
             self.row = WindowDimensions.RECEIVE_HEIGHT - 1
-        
+            
         self.window.addstr(self.row, 0, msg)
         self.row += 1
         self.window.noutrefresh()
@@ -51,7 +51,7 @@ def test_status_window(stdscr):
     if max_y < height or max_x < width:
         raise curses.error(f"Terminal too small. Needs at least {width}x{height}, got {max_x}x{max_y}")
 
-    # Create main border window
+    # Create border window
     border_win = curses.newwin(height, width, 0, 0)
     border_win.border()
     
@@ -67,7 +67,6 @@ def test_status_window(stdscr):
     receive = TestReceiveWindow(border_win)
     status = StatusWindow(border_win)
     
-    # Test sequence
     def run_test():
         # Test LoRa indicator colors
         receive.add_message("Testing LoRa indicator...")
@@ -86,25 +85,24 @@ def test_status_window(stdscr):
         time.sleep(1)
 
         # Test value updates
-        receive.add_message("Testing status values...")
-        status.update_addr("1234")
-        status.update_rssi("-120")
-        status.update_snr("5.2")
-        curses.doupdate()
-        time.sleep(2)
-
         receive.add_message("Testing radio parameters...")
         status.update_vfo("915000000")
         status.update_power("22")
         status.update_netid("18")
         curses.doupdate()
-        time.sleep(2)
+        time.sleep(1)
 
-        receive.add_message("Test complete - press any key to exit")
+        status.update_lora_status(ColorPair.WHITE_BLACK)  # Reset LoRa indicator
+        curses.doupdate()
+
+        for i in range(3):
+            receive.add_message(f"Exiting in {3-i} seconds")
+            curses.doupdate()
+            time.sleep(1)
+
 
     try:
         run_test()
-        stdscr.getch()
     except KeyboardInterrupt:
         pass
 

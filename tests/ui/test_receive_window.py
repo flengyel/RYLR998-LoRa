@@ -46,34 +46,27 @@ def test_receive_window(stdscr):
     
     def run_test():
         # Test basic window creation
-        receive._scroll_if_needed()
-        receive.window.addstr(receive.row, 0, "Basic window test")
-        receive._advance_row()
-        receive.window.noutrefresh()
+        receive.add_line("Basic window test")
         curses.doupdate()
         time.sleep(1)
 
         # Test scroll helper methods - fill window and scroll past it
-        for i in range(WindowDimensions.RECEIVE_HEIGHT + 5):  # Fill window and go beyond
-            receive._scroll_if_needed()
-            receive.window.addstr(receive.row, 0, f"Test line {i:2d}")  # Formatted number for alignment
-            receive._advance_row()
-            receive.window.noutrefresh()
+        for i in range(WindowDimensions.RECEIVE_HEIGHT + 5):  
+            receive.add_line(f"Test line {i:2d}")
             curses.doupdate()
             time.sleep(0.2)
 
         time.sleep(1)  # Pause to see scrolling result
 
-        # Final message
-        receive._scroll_if_needed()
-        receive.window.addstr(receive.row, 0, "Press any key to exit")
-        receive._advance_row()
-        receive.window.noutrefresh()
-        curses.doupdate()
+
+        for i in range(3):
+            receive.add_line(f"Exiting in {3-i} seconds")
+            curses.doupdate()
+            time.sleep(1)
+
 
     try:
         run_test()
-        stdscr.getch()
     except KeyboardInterrupt:
         pass
 
@@ -82,3 +75,4 @@ if __name__ == "__main__":
         curses.wrapper(test_receive_window)
     except Exception as e:
         print(f"Error: {e}")
+
