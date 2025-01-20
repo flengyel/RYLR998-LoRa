@@ -22,7 +22,8 @@ def test_basic_window(stdscr):
 
     def run_test():
         # Get windows from initialize_display
-        _, receive, status, transmit = initialize_display(stdscr)
+        # The order is border_win, status, receive, transmit
+        _, status, receive, transmit = initialize_display(stdscr)
 
         # Test each window
         receive.add_line("Testing receive window...")
