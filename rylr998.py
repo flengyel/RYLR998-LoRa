@@ -698,15 +698,15 @@ if __name__ == "__main__":
 
     modePattern = re.compile('^(0)|(1)|(2,(\\d{2,5}),(\\d{2,5}))$')
     def modecheck(s : str) -> str:
-        p =  modePattern.match(s)
-        if p is not None:   
+        p = modePattern.match(s)
+        if p is not None:
             if p.group(1) is not None or p.group(2) is not None:
                 return s
             # mode 2
             r_ms = int(p.group(4))
-            s_ms = int(p.group(5))  # dumb bug: you overwrote s, which was an int!!
-            if (r_ms > RadioLimits.MIN_MODE_DELAY and r_ms < RadioLimits.MAX_MODE_DELAY) and \
-               (s_ms > RadioLimits.MIN_MODE_DELAY and s_ms < RadioLimits.MAX_MODE_DELAY):
+            s_ms = int(p.group(5))
+            if (RadioLimits.MIN_MODE_DELAY < r_ms < RadioLimits.MAX_MODE_DELAY) and \
+               (RadioLimits.MIN_MODE_DELAY < s_ms < RadioLimits.MAX_MODE_DELAY):
                 return s
         error_msg = "Mode must match 0|1|2,30..60000,30..60000"
         logging.error(error_msg)
