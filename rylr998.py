@@ -39,7 +39,6 @@ import _curses
 import curses.ascii
 
 from display import Display
-from src.ui.display_init import (initialize_display, DisplayInitError)
 
 DEFAULT_ADDR_INT = 0 # type int
 DEFAULT_BAND = '915000000'
@@ -266,7 +265,7 @@ class rylr998:
     # This is the main loop. The transceiver function xcvr(scr) is designed
     # to prioritize receving and parsing command responses from the RYLR998
     # over transmission and configuration. This is done one character at
-    # a time, by maintaining the receive buffer, receive window, transmit
+    # a time, by maintining the receive buffer, receive window, transmit
     # buffer and transmit windows separately.
 
     async def xcvr(self, scr : _curses.window) -> None:
@@ -280,14 +279,7 @@ class rylr998:
             count : int  = await self.aio.write_async(bytes(command, 'utf8'))
             return count
 
-        try:
-            # New display initialization
-            border_win, status, receive, transmit = initialize_display(scr)
-        except DisplayInitError as e:
-            logging.error(f"Display initialization failed: {e}")
-            return
-
-        # dsply  = Display(scr) 
+        dsply  = Display(scr) 
 
         
         # receive buffer and state reset
@@ -430,8 +422,7 @@ class rylr998:
 
                         match self.state_table:
                             case self.ADDR_table:
-                                # dsply.rxaddnstr("addr: " + self.rxbuf, self.rxlen+6)
-                                receive.add_line("addr: " + self.rxbuf)
+                                dsply.rxaddnstr("addr: " + self.rxbuf, self.rxlen+6)
                                 self.addr = self.rxbuf
                                 waitForReply = False
 
@@ -736,7 +727,7 @@ if __name__ == "__main__":
         help='RF pwr out (0..22) in dBm. Default: FACTORY setting of ' + DEFAULT_CRFOP + ' or the last configured value.')
 
 
-    modePattern = re.compile('^(0)|(1)|(2,(\\d{2,5}),(\\d{2,5}))$')
+    modePattern = re.compile('^(0)|(1)|(2,(\d{2,5}),(\d{2,5}))$')
     def modecheck(s : str) -> str:
         p =  modePattern.match(s)
         if p is not None:   
@@ -766,7 +757,7 @@ if __name__ == "__main__":
         metavar='[3..15|18]', dest='netid', default = DEFAULT_NETID,
         help='NETWORK ID. Note: PARAMETER values depend on NETWORK ID. Default: ' + DEFAULT_NETID)
 
-    paramPattern = re.compile('^([7-9]|1[01]),([7-9]),([1-4]),([4-9]|1\\d|2[0-5])$')
+    paramPattern = re.compile('^([7-9]|1[01]),([7-9]),([1-4]),([4-9]|1\d|2[0-5])$')
     def paramcheck(s : str) -> str:
         def sfbw(sf, bw):
             _sf = int(sf)
@@ -791,11 +782,11 @@ if __name__ == "__main__":
     # serial port configuration argument group
     serial_config = parser.add_argument_group('serial port config')
 
-    uartPattern = re.compile('^(/dev/tty(S|USB)|COM)\\d{1,3}$')
+    uartPattern = re.compile('^(/dev/tty(S|USB)|COM)\d{1,3}$')
     def uartcheck(s : str) -> str:
         if uartPattern.match(s):
             return s
-        raise argparse.ArgumentTypeError("Serial Port device name not of the form ^(/dev/tty(S|USB)|COM)\\d{1,3}$")
+        raise argparse.ArgumentTypeError("Serial Port device name not of the form ^(/dev/tty(S|USB)|COM)\d{1,3}$")
 
     serial_config.add_argument('--port', required=False, type=uartcheck, 
         metavar='[/dev/ttyS0../dev/ttyS999|/dev/ttyUSB0../dev/ttyUSB999|COM0..COM999]', default = DEFAULT_PORT, dest='port',
