@@ -5,6 +5,55 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Final
 
+
+@dataclass(frozen=True)
+class RadioLimits:
+    """RYLR998 Radio parameter limits"""
+    MIN_ADDR: Final[int] = 0
+    MAX_ADDR: Final[int] = 65535
+    MIN_FREQ: Final[int] = 902250000
+    MAX_FREQ: Final[int] = 927750000
+    MIN_POWER: Final[int] = 0
+    MAX_POWER: Final[int] = 22
+    MIN_MODE_DELAY: Final[int] = 30
+    MAX_MODE_DELAY: Final[int] = 60000
+    MIN_NETID: Final[int] = 3
+    MAX_NETID: Final[int] = 15
+    ALT_NETID: Final[int] = 18  # Special alternate network ID
+    MIN_SF: Final[int] = 7      # Minimum spreading factor
+    MAX_SF: Final[int] = 11     # Maximum spreading factor
+    MIN_BW: Final[int] = 7      # Minimum bandwidth setting
+    MAX_BW: Final[int] = 9      # Maximum bandwidth setting
+    MIN_CR: Final[int] = 1      # Minimum coding rate
+    MAX_CR: Final[int] = 4      # Maximum coding rate
+    MIN_PREAMBLE: Final[int] = 4
+    MAX_PREAMBLE: Final[int] = 25
+    DEFAULT_PREAMBLE: Final[int] = 12  # Required when NETID != 18
+
+@dataclass(frozen=True)
+class RadioDefaults:
+    """RYLR998 Radio default parameter values"""
+    ADDR: Final[int] = 0
+    FREQ: Final[str] = '915000000'
+    POWER: Final[str] = '22'
+    MODE: Final[str] = '0'
+    NETID: Final[str] = '18'
+    SF: Final[str] = '9'      # Spreading factor
+    BW: Final[str] = '7'      # Bandwidth (7=125kHz, 8=250kHz, 9=500kHz)
+    CR: Final[str] = '1'      # Coding rate
+    PREAMBLE: Final[str] = '12'
+
+@dataclass(frozen=True)
+class SerialDefaults:
+    """Serial port default values and options"""
+    PORT: Final[str] = '/dev/ttyS0'
+    BAUD: Final[str] = '115200'
+    VALID_BAUDRATES: Final[tuple] = (
+        '300', '1200', '4800', '9600', '19200', 
+        '28800', '38400', '57600', '115200'
+    )
+
+
 class ColorPair(Enum):
     """Color pair definitions for the display"""
     WHITE_BLACK = 0    # Built in, cannot change
@@ -51,11 +100,6 @@ class WindowSize:
     
     MAX_MSG_LEN: Final[int] = 40
     
-    
-
-
-
-
 @dataclass(frozen=True)
 class StatusLabels:
     """Status window label definitions"""
