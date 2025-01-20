@@ -11,8 +11,8 @@ class TransmitWindow:
     """Handles text input and display"""
     def __init__(self, parent_window):
         self.window = parent_window.derwin(
-            WindowSize.TRANSMIT_HEIGHT,
-            WindowSize.TRANSMIT_WIDTH,
+            WindowSize.TX_HEIGHT,
+            WindowSize.TX_WIDTH,
             WindowPosition.TX_START_ROW,
             WindowPosition.TX_START_COL
         )

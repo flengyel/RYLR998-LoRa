@@ -10,8 +10,8 @@ class ReceiveWindow:
     """Handles the message receive/display area"""
     def __init__(self, parent_window):
         self.window = parent_window.derwin(
-            WindowSize.RECEIVE_HEIGHT,
-            WindowSize.RECEIVE_WIDTH,
+            WindowSize.RX_HEIGHT,
+            WindowSize.RX_WIDTH,
             WindowPosition.RX_START_ROW,
             WindowPosition.RX_START_COL
         )
@@ -19,7 +19,7 @@ class ReceiveWindow:
         self.window.bkgd(' ', curses.color_pair(ColorPair.YELLOW_BLACK.value))
         self.row = 0
         self.col = 0
-        self.max_row = WindowSize.RECEIVE_HEIGHT - 1
+        self.max_row = WindowSize.RX_HEIGHT - 1
 
     def _scroll_if_needed(self):
         """Scroll window if at maximum row"""

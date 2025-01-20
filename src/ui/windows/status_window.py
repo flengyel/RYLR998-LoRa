@@ -12,8 +12,8 @@ class StatusWindow:
         """Create status window at the specified position in parent window"""
         # derwin parameters: nlines (height), ncols (width), begin_y, begin_x
         self.window = parent_window.derwin(
-            WindowSize.STATUS_HEIGHT, # height
-            WindowSize.STATUS_WIDTH,  # width
+            WindowSize.ST_HEIGHT, # height
+            WindowSize.ST_WIDTH,  # width
             WindowPosition.ST_START_ROW,    # begin_y (WindowPosition.ST_START_ROW)
             WindowPosition.ST_START_COL     # begin_x (WindowPosition.ST_START_COL)
         )

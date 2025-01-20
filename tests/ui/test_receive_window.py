@@ -25,7 +25,7 @@ def test_receive_window(stdscr):
 
     # Get terminal size
     max_y, max_x = stdscr.getmaxyx()
-    height, width = 28, 42  # Original window dimensions
+    height, width = WindowSize.MAX_ROW, WindowSize.MAX_COL  # Original window dimensions
     if max_y < height or max_x < width:
         raise curses.error(f"Terminal too small. Needs at least {width}x{height}, got {max_x}x{max_y}")
 
@@ -51,7 +51,7 @@ def test_receive_window(stdscr):
         time.sleep(1)
 
         # Test scroll helper methods - fill window and scroll past it
-        for i in range(WindowSize.RECEIVE_HEIGHT + 5):  
+        for i in range(WindowSize.RX_HEIGHT + 5):  
             receive.add_line(f"Test line {i:2d}")
             curses.doupdate()
             time.sleep(0.2)
