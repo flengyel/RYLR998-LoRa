@@ -683,15 +683,17 @@ if __name__ == "__main__":
     def bandcheck(n : str) -> str:
         f = int(n)
         if f < RadioLimits.MIN_FREQ or f > RadioLimits.MAX_FREQ:
-            logging.error("Frequency must be in range ({RadioLimits.MIN_FREQ}..{RadioLimits.MAX_FREQ})")
-            raise argparse.ArgumentTypeError("Frequency must be in range ({RadioLimits.MIN_FREQ}..{RadioLimits.MAX_FREQ})")
+            error_msg = f"Frequency must be in range ({RadioLimits.MIN_FREQ}..{RadioLimits.MAX_FREQ})"
+            logging.error(error_msg)
+            raise argparse.ArgumentTypeError(error_msg)
         return n
 
     def pwrcheck(n : str) -> str:
         p = int(n)
         if p < RadioLimits.MIN_POWER or p > RadioLimits.MAX_POWER:
-            logging.error("Power output must be in range ({RadioLimits.MIN_POWER}-{RadioLimits.MAX_POWER})")
-            raise argparse.ArgumentTypeError("Power output must be in range ({RadioLimits.MIN_POWER}-{RadioLimits.MAX_POWER})")
+            error_msg = f"Power output must be in range ({RadioLimits.MIN_POWER}-{RadioLimits.MAX_POWER})"
+            logging.error(error_msg)
+            raise argparse.ArgumentTypeError(error_msg)
         return n
 
     modePattern = re.compile('^(0)|(1)|(2,(\\d{2,5}),(\\d{2,5}))$')
@@ -703,17 +705,20 @@ if __name__ == "__main__":
             # mode 2
             r_ms = int(p.group(4))
             s_ms = int(p.group(5))  # dumb bug: you overwrote s, which was an int!!
-            if r_ms > 29 and r_ms < 60001 and s_ms > 29 and s_ms < 60001:
+            if (r_ms > RadioLimits.MIN_MODE_DELAY and r_ms < RadioLimits.MAX_MODE_DELAY) and \
+               (s_ms > RadioLimits.MIN_MODE_DELAY and s_ms < RadioLimits.MAX_MODE_DELAY):
                 return s
-        logging.error("Mode must match 0|1|2,30..60000,30..60000")
-        raise argparse.ArgumentTypeError("Mode must match 0|1|2,30..60000,30..60000")
+        error_msg = "Mode must match 0|1|2,30..60000,30..60000"
+        logging.error(error_msg)
+        raise argparse.ArgumentTypeError(error_msg)
 
-    netidPattern = re.compile('^3|4|5|6|7|8|9|10|11|12|13|14|15|18$')
+    netidPattern = re.compile(f'^{"|".join(str(x) for x in range(RadioLimits.MIN_NETID, RadioLimits.MAX_NETID + 1))}|{RadioLimits.ALT_NETID}$')
     def netidcheck(s : str) -> str:
         if netidPattern.match(s):
             return str(s)
-        logging.error('NETWORK ID must match (3..15|18)')
-        raise argparse.ArgumentTypeError('NETWORK ID must match (3..15|18)')
+        error_msg = f'NETWORK ID must match {RadioLimits.MIN_NETID}..{RadioLimits.MAX_NETID}|{RadioLimits.ALT_NETID}'
+        logging.error(error_msg)
+        raise argparse.ArgumentTypeError(error_msg)
 
     paramPattern = re.compile('^([7-9]|1[01]),([7-9]),([1-4]),([4-9]|1\\d|2[0-5])$')
     def paramcheck(s : str) -> str:
@@ -726,10 +731,12 @@ if __name__ == "__main__":
             sf, bw, _, _ = s.split(',')
             if sfbw(sf, bw):
                 return s
-            logging.error('Incompatible spreading factor and bandwidth values')
-            raise argparse.ArgumentTypeError('PARAMETER: incompatible spreading factor and bandwidth values')
-        logging.error('argument must match 7..11,7..9,1..4,4..24 subject to constraints on spreading factor, bandwidth and NETWORK ID')
-        raise argparse.ArgumentTypeError('argument must match 7..11,7..9,1..4,4..24 subject to constraints on spreading factor, bandwidth and NETWORK ID')
+            error_msg = 'PARAMETER: Incompatible spreading factor and bandwidth values'
+            logging.error(error_msg)
+            raise argparse.ArgumentTypeError(error_msg)
+        error_msg2 = 'PARAMETER: argument must match 7..11,7..9,1..4,4..24'
+        logging.error(error_msg2 + 'subject to constraints on spreading factor, bandwidth and NETWORK ID')
+        raise argparse.ArgumentTypeError(error_msg2 + 'subject to constraints on spreading factor, bandwidth and NETWORK ID')
 
     uartPattern = re.compile('^(/dev/tty(S|USB)|COM)\\d{1,3}$')
     def uartcheck(s : str) -> str:
@@ -752,8 +759,9 @@ if __name__ == "__main__":
     # Special parameter validation with netid
     if args.netid != RadioDefaults.NETID:
         _, _, _, preamble = args.parameter.split(',')
-        if preamble != 'RadioDefaults.PREAMBLE':
-            logging.error('Preamble must be {RadioDefaults.PREAMBLE} if NETWORKID is not equal to the default ' + RadioDefaults.NETID + '.')
+
+        if preamble != str(RadioLimits.DEFAULT_PREAMBLE):
+            logging.error(f'Preamble must be {RadioLimits.DEFAULT_PREAMBLE} if NETWORKID is not equal to the default {RadioDefaults.NETID}.')
             raise argparse.ArgumentTypeError('Preamble must be {RadioDefaults.PREAMBLE} if NETWORKID is not equal to the default ' + RadioDefaults.NETID  + '.' )
     args.parameter = paramcheck(args.parameter)
 
