@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf8 -*-
-
 import curses
 from dataclasses import dataclass
 from enum import Enum
@@ -29,29 +28,22 @@ class Timing:
 @dataclass(frozen=True)
 class WindowSize:
     """Window dimensions"""
+    # Main window dimensions
     MAX_ROW: Final[int] = 28
     MAX_COL: Final[int] = 42
-    TX_ROW: Final[int] = 26
+    
+    # Component window dimensions
     RX_ROWS: Final[int] = 20
+    RX_WIDTH: Final[int] = 40
+    
     ST_ROWS: Final[int] = 3
+    ST_WIDTH: Final[int] = 40
+    
+    TX_ROW: Final[int] = 26
     TX_ROWS: Final[int] = 1
+    TX_WIDTH: Final[int] = 40
+    
     MAX_MSG_LEN: Final[int] = 40
-
-@dataclass(frozen=True)
-class WindowDimensions:
-    """Window dimensions for each window component"""
-    STATUS_HEIGHT: Final[int] = 3
-    STATUS_WIDTH: Final[int] = 40
-    
-    RECEIVE_HEIGHT: Final[int] = 20
-    RECEIVE_WIDTH: Final[int] = 40
-    
-    TRANSMIT_HEIGHT: Final[int] = 1
-    TRANSMIT_WIDTH: Final[int] = 40
-    
-@dataclass(frozen=True)
-class WindowPosition:
-    """Window positions relative to parent"""
 
 @dataclass(frozen=True)
 class StatusLabels:
@@ -120,7 +112,6 @@ class BorderPos:
     RX_ST_DIV: Final[int] = 21   # Between receive and status
     ST_TX_DIV: Final[int] = 23   # Between status and transmit
     TX_BOT_DIV: Final[int] = 25  # Bottom of transmit window
-
     STATUS_DIV1: Final[int] = 7   # First status divider
     STATUS_DIV2: Final[int] = 20  # Second status divider
     STATUS_DIV3: Final[int] = 31  # Third status divider
@@ -144,4 +135,3 @@ class BorderChars:
             'BOTTOM_LEFT': curses.ACS_LLCORNER,
             'BOTTOM_RIGHT': curses.ACS_LRCORNER
         }
-

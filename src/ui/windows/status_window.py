@@ -3,7 +3,7 @@
 
 import curses
 from src.ui.constants import (
-    ColorPair, StatusLabels, WindowPosition, BorderChars, WindowDimensions
+    ColorPair, StatusLabels, WindowPosition, BorderChars, WindowSize
 )
 
 class StatusWindow:
@@ -12,8 +12,8 @@ class StatusWindow:
         """Create status window at the specified position in parent window"""
         # derwin parameters: nlines (height), ncols (width), begin_y, begin_x
         self.window = parent_window.derwin(
-            WindowDimensions.STATUS_HEIGHT, # height
-            WindowDimensions.STATUS_WIDTH,  # width
+            WindowSize.STATUS_HEIGHT, # height
+            WindowSize.STATUS_WIDTH,  # width
             WindowPosition.ST_START_ROW,    # begin_y (WindowPosition.ST_START_ROW)
             WindowPosition.ST_START_COL     # begin_x (WindowPosition.ST_START_COL)
         )

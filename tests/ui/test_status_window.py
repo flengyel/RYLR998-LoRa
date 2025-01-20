@@ -4,14 +4,14 @@
 import curses
 import time
 from src.ui.windows.status_window import StatusWindow
-from src.ui.constants import ColorPair, WindowDimensions, WindowPosition
+from src.ui.constants import ColorPair, WindowSize, WindowPosition
 
 class TestReceiveWindow:
     """Simple receive window just for test messages"""
     def __init__(self, parent_window):
         self.window = parent_window.derwin(
-            WindowDimensions.RECEIVE_HEIGHT,
-            WindowDimensions.RECEIVE_WIDTH,
+            WindowSize.RECEIVE_HEIGHT,
+            WindowSize.RECEIVE_WIDTH,
             WindowPosition.RX_START_ROW,
             WindowPosition.RX_START_COL
         )
@@ -20,9 +20,9 @@ class TestReceiveWindow:
         
     def add_message(self, msg: str):
         """Add a message to the receive window"""
-        if self.row >= WindowDimensions.RECEIVE_HEIGHT:
+        if self.row >= WindowSize.RECEIVE_HEIGHT:
             self.window.scroll()
-            self.row = WindowDimensions.RECEIVE_HEIGHT - 1
+            self.row = WindowSize.RECEIVE_HEIGHT - 1
             
         self.window.addstr(self.row, 0, msg)
         self.row += 1

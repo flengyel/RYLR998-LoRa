@@ -4,15 +4,15 @@
 import curses
 import curses.ascii
 from src.ui.constants import (
-    ColorPair, WindowDimensions, WindowPosition
+    ColorPair, WindowSize, WindowPosition
 )
 
 class TransmitWindow:
     """Handles text input and display"""
     def __init__(self, parent_window):
         self.window = parent_window.derwin(
-            WindowDimensions.TRANSMIT_HEIGHT,
-            WindowDimensions.TRANSMIT_WIDTH,
+            WindowSize.TRANSMIT_HEIGHT,
+            WindowSize.TRANSMIT_WIDTH,
             WindowPosition.TX_START_ROW,
             WindowPosition.TX_START_COL
         )

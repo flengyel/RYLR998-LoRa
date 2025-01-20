@@ -4,7 +4,7 @@
 import curses
 import time
 from src.ui.windows.receive_window import ReceiveWindow
-from src.ui.constants import ColorPair, WindowDimensions, WindowPosition
+from src.ui.constants import ColorPair, WindowSize, WindowPosition
 
 def test_receive_window(stdscr):
     # Initialize color pairs
@@ -51,7 +51,7 @@ def test_receive_window(stdscr):
         time.sleep(1)
 
         # Test scroll helper methods - fill window and scroll past it
-        for i in range(WindowDimensions.RECEIVE_HEIGHT + 5):  
+        for i in range(WindowSize.RECEIVE_HEIGHT + 5):  
             receive.add_line(f"Test line {i:2d}")
             curses.doupdate()
             time.sleep(0.2)

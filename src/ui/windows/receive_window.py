@@ -3,15 +3,15 @@
 
 import curses
 from src.ui.constants import (
-    ColorPair, WindowDimensions, WindowPosition
+    ColorPair, WindowSize, WindowPosition
 )
 
 class ReceiveWindow:
     """Handles the message receive/display area"""
     def __init__(self, parent_window):
         self.window = parent_window.derwin(
-            WindowDimensions.RECEIVE_HEIGHT,
-            WindowDimensions.RECEIVE_WIDTH,
+            WindowSize.RECEIVE_HEIGHT,
+            WindowSize.RECEIVE_WIDTH,
             WindowPosition.RX_START_ROW,
             WindowPosition.RX_START_COL
         )
@@ -19,7 +19,7 @@ class ReceiveWindow:
         self.window.bkgd(' ', curses.color_pair(ColorPair.YELLOW_BLACK.value))
         self.row = 0
         self.col = 0
-        self.max_row = WindowDimensions.RECEIVE_HEIGHT - 1
+        self.max_row = WindowSize.RECEIVE_HEIGHT - 1
 
     def _scroll_if_needed(self):
         """Scroll window if at maximum row"""
