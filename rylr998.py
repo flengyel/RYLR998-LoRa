@@ -678,56 +678,23 @@ class rylr998:
 
 if __name__ == "__main__":
     import re # regular expressions for argument checking
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--debug', action='store_true', help = 'log DEBUG information')
-    # reset seems to result in CRC errors on receive. Wait for firmware
-    # revision
-    #parser.add_argument('--reset', action='store_true', help = 'Software reset')
-    parser.add_argument('--factory', action='store_true', help = 'Factory reset to manufacturer defaults. BAND: 915MHz,  UART: 115200, Spreading Factor: 9, Bandwidth: 125kHz (7), Coding Rate: 1, Preamble Length: 12, Address: 0, Network ID: 18, CRFOP: 22')
-
-    parser.add_argument('--noGPIO', action='store_true', help = "Do not use rPI.GPIO module even if available. Useful if using a USB to TTL converter with the RYLR998.")
-
-    # rylr998 configuration argument group
-
-    # defined elsewhere (upstairs)
-    #DEFAULT_ADDR_INT = 0 # type int
-    #DEFAULT_BAND = '915125000'
-    #DEFAULT_PORT = '/dev/ttyS0'
-    #DEFAULT_BAUD = '115200'
-    #DEFAULT_CRFOP = '22'
-    #DEFAULT_MODE = '0'
-
-    rylr998_config = parser.add_argument_group('rylr998 config')
-
-    rylr998_config.add_argument('--addr', required=False, type=int, choices=range(0,65536),
-        metavar='[0..65535]', dest='addr', default = DEFAULT_ADDR_INT,
-        help='Module address (0..65535). Default is ' + str(DEFAULT_ADDR_INT)) 
+    from src.ui.constants import (RadioDefaults, RadioLimits)
 
     def bandcheck(n : str) -> str:
         f = int(n)
-        if f < 902250000 or f > 927750000:
-            logging.error("Frequency must be in range (902250000..927750000)")
-            raise argparse.ArgumentTypeError("Frequency must be in range (902250000..927750000)")
+        if f < RadioLimits.MIN_FREQ or f > RadioLimits.MAX_FREQ:
+            logging.error("Frequency must be in range ({RadioLimits.MIN_FREQ}..{RadioLimits.MAX_FREQ})")
+            raise argparse.ArgumentTypeError("Frequency must be in range ({RadioLimits.MIN_FREQ}..{RadioLimits.MAX_FREQ})")
         return n
-
-    rylr998_config.add_argument('--band', required=False, type=bandcheck, 
-        metavar='[902250000..927750000]', dest='band', default = DEFAULT_BAND, # subtle type
-        help='Module frequency (902250000..927750000) in Hz. NOTE: the full 33cm ISM band limits 902 MHz and 928 MHz are guarded by the maximum configurable bandwidth of 500 KHz (250 KHz on either side of the configured frequency). See PARAMETER for bandwidth configuration. Default: ' + DEFAULT_BAND) 
 
     def pwrcheck(n : str) -> str:
         p = int(n)
-        if p < 0 or p > 22:
-            logging.error("Power output must be in range (0-22)")
-            raise argparse.ArgumentTypeError("Power output must be in range (0-22)")
+        if p < RadioLimits.MIN_POWER or p > RadioLimits.MAX_POWER:
+            logging.error("Power output must be in range ({RadioLimits.MIN_POWER}-{RadioLimits.MAX_POWER})")
+            raise argparse.ArgumentTypeError("Power output must be in range ({RadioLimits.MIN_POWER}-{RadioLimits.MAX_POWER})")
         return n
 
-    rylr998_config.add_argument('--pwr', required=False, type=pwrcheck, 
-        metavar='[0..22]', dest='pwr', default = DEFAULT_CRFOP, 
-        help='RF pwr out (0..22) in dBm. Default: FACTORY setting of ' + DEFAULT_CRFOP + ' or the last configured value.')
-
-
-    modePattern = re.compile('^(0)|(1)|(2,(\d{2,5}),(\d{2,5}))$')
+    modePattern = re.compile('^(0)|(1)|(2,(\\d{2,5}),(\\d{2,5}))$')
     def modecheck(s : str) -> str:
         p =  modePattern.match(s)
         if p is not None:   
@@ -741,11 +708,6 @@ if __name__ == "__main__":
         logging.error("Mode must match 0|1|2,30..60000,30..60000")
         raise argparse.ArgumentTypeError("Mode must match 0|1|2,30..60000,30..60000")
 
-
-    rylr998_config.add_argument('--mode', required=False, type=modecheck,
-        metavar='[0|1|2,30..60000,30..60000]', dest='mode', default = DEFAULT_MODE,
-        help='Mode 0: transceiver mode. Mode 1: sleep mode. Mode 2,x,y: receive for x msec sleep for y msec and so on, indefinitely. Default: ' + DEFAULT_MODE)
-
     netidPattern = re.compile('^3|4|5|6|7|8|9|10|11|12|13|14|15|18$')
     def netidcheck(s : str) -> str:
         if netidPattern.match(s):
@@ -753,11 +715,7 @@ if __name__ == "__main__":
         logging.error('NETWORK ID must match (3..15|18)')
         raise argparse.ArgumentTypeError('NETWORK ID must match (3..15|18)')
 
-    rylr998_config.add_argument('--netid', required=False, type=netidcheck,
-        metavar='[3..15|18]', dest='netid', default = DEFAULT_NETID,
-        help='NETWORK ID. Note: PARAMETER values depend on NETWORK ID. Default: ' + DEFAULT_NETID)
-
-    paramPattern = re.compile('^([7-9]|1[01]),([7-9]),([1-4]),([4-9]|1\d|2[0-5])$')
+    paramPattern = re.compile('^([7-9]|1[01]),([7-9]),([1-4]),([4-9]|1\\d|2[0-5])$')
     def paramcheck(s : str) -> str:
         def sfbw(sf, bw):
             _sf = int(sf)
@@ -769,47 +727,40 @@ if __name__ == "__main__":
             if sfbw(sf, bw):
                 return s
             logging.error('Incompatible spreading factor and bandwidth values')
-            raise argparse.ArgumentTypeError('PARAMETER: incompatible spreading factor and bandwidth values') 
+            raise argparse.ArgumentTypeError('PARAMETER: incompatible spreading factor and bandwidth values')
         logging.error('argument must match 7..11,7..9,1..4,4..24 subject to constraints on spreading factor, bandwidth and NETWORK ID')
         raise argparse.ArgumentTypeError('argument must match 7..11,7..9,1..4,4..24 subject to constraints on spreading factor, bandwidth and NETWORK ID')
 
-    rylr998_config.add_argument('--parameter', required=False, type=paramcheck,         metavar='[7..11,7..9,1..4,4..24]', dest='parameter', default=DEFAULT_PARAMETER,
-        help='PARAMETER. Set the RF parameters Spreading Factor, Bandwidth, Coding Rate, Preamble. Spreading factor 7..11, default 9. Bandwidth 7..9, where 7 is 125 KHz (only if spreading factor is in 7..9); 8 is 250 KHz (only if spreading factor is in 7..10); 9 is 500 KHz (only if spreading factor is in 7..11). Default bandwidth is 7. Coding rate is 1..4, default 4. Preamble is 4..25 if the NETWORK ID is 18; otherwise the preamble must be 12.  Default: ' + DEFAULT_PARAMETER)
-
-    rylr998_config.add_argument('--echo',  action='store_true', help = 'Retransmit received message')
-
-
-    # serial port configuration argument group
-    serial_config = parser.add_argument_group('serial port config')
-
-    uartPattern = re.compile('^(/dev/tty(S|USB)|COM)\d{1,3}$')
+    uartPattern = re.compile('^(/dev/tty(S|USB)|COM)\\d{1,3}$')
     def uartcheck(s : str) -> str:
         if uartPattern.match(s):
             return s
-        raise argparse.ArgumentTypeError("Serial Port device name not of the form ^(/dev/tty(S|USB)|COM)\d{1,3}$")
+        raise argparse.ArgumentTypeError("Serial Port device name not of the form ^(/dev/tty(S|USB)|COM)\\d{1,3}$")
 
-    serial_config.add_argument('--port', required=False, type=uartcheck, 
-        metavar='[/dev/ttyS0../dev/ttyS999|/dev/ttyUSB0../dev/ttyUSB999|COM0..COM999]', default = DEFAULT_PORT, dest='port',
-        help='Serial port device name. Default: '+ DEFAULT_PORT)
+    # Get args from new parser
+    from src.config.parser import parse_args
+    args = parse_args()
+    
+    # Apply all validation functions to the args
+    args.band = bandcheck(args.band)
+    if args.pwr is not None:
+        args.pwr = pwrcheck(args.pwr)
+    args.mode = modecheck(args.mode)  
+    args.netid = netidcheck(args.netid)
+    args.port = uartcheck(args.port)
 
-    baudrates = ['300', '1200', '4800', '9600', '19200', '28800', '38400', '57600',  '115200']
-    baudchoices = '('+ baudrates[0]
-    for i in range(1, len(baudrates)):
-        baudchoices +=  '|' + baudrates[i]
-    baudchoices +=')'
+    # Special parameter validation with netid
+    if args.netid != RadioDefaults.NETID:
+        _, _, _, preamble = args.parameter.split(',')
+        if preamble != 'RadioDefaults.PREAMBLE':
+            logging.error('Preamble must be {RadioDefaults.PREAMBLE} if NETWORKID is not equal to the default ' + RadioDefaults.NETID + '.')
+            raise argparse.ArgumentTypeError('Preamble must be {RadioDefaults.PREAMBLE} if NETWORKID is not equal to the default ' + RadioDefaults.NETID  + '.' )
+    args.parameter = paramcheck(args.parameter)
 
-    serial_config.add_argument('--baud', required=False, type=str, 
-        metavar=baudchoices, default = DEFAULT_BAUD, dest='baud', choices = baudrates,
-        help='Serial port baudrate. Default: '+DEFAULT_BAUD)
-
-    # you aren't in curses while you parse command line args
-    args = parser.parse_args()
-    rylr  = rylr998(args) #  even here you aren't in curses
-
+    rylr  = rylr998(args)
     try:
-        asyncio.run(cur.wrapper(rylr.xcvr)) # how's this for an idiom?
-    except KeyboardInterrupt: 
-        # recall that "except Exception as e" doesn't catch KeyboardInterrupt 
+        asyncio.run(cur.wrapper(rylr.xcvr))
+    except KeyboardInterrupt:
         pass
     finally:
-        print("73!") 
+        print("73!")
