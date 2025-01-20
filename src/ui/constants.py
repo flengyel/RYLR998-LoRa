@@ -35,15 +35,26 @@ class WindowSize:
     # Component window dimensions
     RX_ROWS: Final[int] = 20
     RX_WIDTH: Final[int] = 40
+    RECEIVE_HEIGHT: Final[int] = 20
+    RECEIVE_WIDTH: Final[int] = 40
     
     ST_ROWS: Final[int] = 3
     ST_WIDTH: Final[int] = 40
-    
+    STATUS_HEIGHT: Final[int] = 3
+    STATUS_WIDTH: Final[int] = 40
+
     TX_ROW: Final[int] = 26
     TX_ROWS: Final[int] = 1
     TX_WIDTH: Final[int] = 40
+    TRANSMIT_HEIGHT: Final[int] = 1
+    TRANSMIT_WIDTH: Final[int] = 40
     
     MAX_MSG_LEN: Final[int] = 40
+    
+    
+
+
+
 
 @dataclass(frozen=True)
 class StatusLabels:
