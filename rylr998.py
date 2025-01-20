@@ -39,6 +39,7 @@ import _curses
 import curses.ascii
 
 from display import Display
+from src.ui.display_init import (initialize_display, DisplayInitError)
 
 DEFAULT_ADDR_INT = 0 # type int
 DEFAULT_BAND = '915000000'
@@ -265,7 +266,7 @@ class rylr998:
     # This is the main loop. The transceiver function xcvr(scr) is designed
     # to prioritize receving and parsing command responses from the RYLR998
     # over transmission and configuration. This is done one character at
-    # a time, by maintining the receive buffer, receive window, transmit
+    # a time, by maintaining the receive buffer, receive window, transmit
     # buffer and transmit windows separately.
 
     async def xcvr(self, scr : _curses.window) -> None:
@@ -279,7 +280,14 @@ class rylr998:
             count : int  = await self.aio.write_async(bytes(command, 'utf8'))
             return count
 
-        dsply  = Display(scr) 
+        try:
+            # New display initialization
+            border_win, status, receive, transmit = initialize_display(scr)
+        except DisplayInitError as e:
+            logging.error(f"Display initialization failed: {e}")
+            return
+
+        # dsply  = Display(scr) 
 
         
         # receive buffer and state reset
@@ -422,7 +430,8 @@ class rylr998:
 
                         match self.state_table:
                             case self.ADDR_table:
-                                dsply.rxaddnstr("addr: " + self.rxbuf, self.rxlen+6)
+                                # dsply.rxaddnstr("addr: " + self.rxbuf, self.rxlen+6)
+                                receive.add_line("addr: " + self.rxbuf)
                                 self.addr = self.rxbuf
                                 waitForReply = False
 
