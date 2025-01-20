@@ -110,13 +110,35 @@ def test_transmit_window(stdscr):
         receive.add_line(f"Buffer length after overflow attempt: {transmit.buffer_len}")
         time.sleep(1)
 
-        # Test cursor movement and insert
-        receive.add_line("Move to start and try insertions")
-        for _ in range(40):  # Move to start
+        # Test inserting while moving left
+        receive.add_line("Testing insert while moving left")
+        transmit.clear_line()
+        # First fill to almost full
+        test_text = "1234567890" * 3 + "12345"  # 35 characters
+        for ch in test_text:
+            transmit.add_char(ord(ch))
+            curses.doupdate()
+        receive.add_line(f"Initial buffer length: {transmit.buffer_len}")
+        
+        # Move left and insert
+        for _ in range(10):  # Move left 10 positions
             transmit.move_cursor(curses.KEY_LEFT)
-        receive.add_line(f"Cursor at: {transmit.col}")
-        transmit.add_char(ord('X'))  # Should insert
-        receive.add_line(f"Buffer length after insert: {transmit.buffer_len}")
+        receive.add_line(f"Cursor position after left: {transmit.col}")
+        
+        # First delete characters to make room
+        for _ in range(5):  # Delete 5 characters to make room for ABCDE
+            transmit.delete_char()
+            curses.doupdate()
+            time.sleep(0.1)
+        receive.add_line(f"Buffer length after deletes: {transmit.buffer_len}")
+        
+        # Now insert ABCDE
+        test_text = "ABCDE"  # These should all insert now that we have room
+        for ch in test_text:
+            transmit.add_char(ord(ch))
+            curses.doupdate()
+            time.sleep(0.1)
+            receive.add_line(f"After insert '{ch}': col={transmit.col} len={transmit.buffer_len}")
         time.sleep(1)
 
         # Exit countdown
