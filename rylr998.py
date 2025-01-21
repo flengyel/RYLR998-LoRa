@@ -679,22 +679,8 @@ class rylr998:
 if __name__ == "__main__":
     import re # regular expressions for argument checking
     from src.ui.constants import (RadioDefaults, RadioLimits)
+    from src.config.validators import bandcheck, pwrcheck 
 
-    def bandcheck(n : str) -> str:
-        f = int(n)
-        if f < RadioLimits.MIN_FREQ or f > RadioLimits.MAX_FREQ:
-            error_msg = f"Frequency must be in range ({RadioLimits.MIN_FREQ}..{RadioLimits.MAX_FREQ})"
-            logging.error(error_msg)
-            raise argparse.ArgumentTypeError(error_msg)
-        return n
-
-    def pwrcheck(n : str) -> str:
-        p = int(n)
-        if p < RadioLimits.MIN_POWER or p > RadioLimits.MAX_POWER:
-            error_msg = f"Power output must be in range ({RadioLimits.MIN_POWER}-{RadioLimits.MAX_POWER})"
-            logging.error(error_msg)
-            raise argparse.ArgumentTypeError(error_msg)
-        return n
 
     modePattern = re.compile('^(0)|(1)|(2,(\\d{2,5}),(\\d{2,5}))$')
     def modecheck(s : str) -> str:
