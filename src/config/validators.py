@@ -24,7 +24,7 @@ def bandcheck(n: str) -> str:
             raise argparse.ArgumentTypeError(error_msg)
         return n
     except ValueError:
-        error_msg = f"Frequency must be a number"
+        error_msg = "Frequency must be a number"
         logging.error(error_msg)
         raise argparse.ArgumentTypeError(error_msg)
 
@@ -46,7 +46,7 @@ def pwrcheck(n: str) -> str:
             raise argparse.ArgumentTypeError(error_msg)
         return n
     except ValueError:
-        error_msg = f"Power must be a number"
+        error_msg = "Power must be a number"
         logging.error(error_msg)
         raise argparse.ArgumentTypeError(error_msg)
 
@@ -110,7 +110,61 @@ def uartcheck(s: str) -> str:
         return s
     
     error_msg = "Serial Port device name not of the form ^(/dev/tty(S|USB)|COM)\\d{1,3}$"
-    
     logging.error(error_msg)
-    
     raise argparse.ArgumentTypeError(error_msg)
+
+# Pattern for parameter validation
+PARAM_PATTERN = re.compile('^([7-9]|1[01]),([7-9]),([1-4]),([4-9]|1\\d|2[0-5])$')
+
+def check_sf_bw_compatibility(sf: str, bw: str) -> bool:
+    """
+    Check if spreading factor and bandwidth values are compatible.
+    Returns True if compatible, False otherwise.
+    """
+    _sf = int(sf)
+    _bw = int(bw)
+    return (_bw == 7 and _sf < 10) or \
+           (_bw == 8 and _sf < 11) or \
+           (_bw == 9 and _sf < 12)
+
+def paramcheck(s: str) -> str:
+    """
+    Validate LoRa parameters string.
+    Args:
+        s: String containing SF,BW,CR,Preamble values
+    Returns:
+        Original string if valid
+    Raises:
+        ArgumentTypeError if parameters invalid or incompatible
+    """
+    if not PARAM_PATTERN.match(s):
+        error_msg = 'PARAMETER: argument must match 7..11,7..9,1..4,4..24'
+        logging.error(error_msg + ' subject to constraints on spreading factor, bandwidth and NETWORK ID')
+        raise argparse.ArgumentTypeError(error_msg + ' subject to constraints on spreading factor, bandwidth and NETWORK ID')
+    
+    # Check SF/BW compatibility
+    sf, bw, _, _ = s.split(',')
+    if not check_sf_bw_compatibility(sf, bw):
+        error_msg = 'PARAMETER: Incompatible spreading factor and bandwidth values'
+        logging.error(error_msg)
+        raise argparse.ArgumentTypeError(error_msg)
+    
+    return s
+
+def validate_netid_parameter(netid: str, parameter: str) -> None:
+    """
+    Validate parameter preamble when netid is not default.
+    Args:
+        netid: Network ID string
+        parameter: Full parameter string
+    Raises:
+        ArgumentTypeError if preamble invalid for non-default netid
+    """
+    from src.ui.constants import RadioDefaults
+
+    if netid != RadioDefaults.NETID:
+        _, _, _, preamble = parameter.split(',')
+        if preamble != str(RadioLimits.DEFAULT_PREAMBLE):
+            error_msg = f'Preamble must be {RadioLimits.DEFAULT_PREAMBLE} if NETWORKID is not equal to the default {RadioDefaults.NETID}'
+            logging.error(error_msg)
+            raise argparse.ArgumentTypeError(error_msg)

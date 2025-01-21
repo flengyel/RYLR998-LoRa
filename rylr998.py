@@ -680,28 +680,11 @@ if __name__ == "__main__":
     import re # regular expressions for argument checking
     from src.ui.constants import (RadioDefaults, RadioLimits)
     from src.config.validators import (
-        bandcheck, pwrcheck, modecheck, netidcheck, uartcheck
+        bandcheck, pwrcheck, modecheck, netidcheck, uartcheck,
+         paramcheck, validate_netid_parameter
     )
 
-    
-    paramPattern = re.compile('^([7-9]|1[01]),([7-9]),([1-4]),([4-9]|1\\d|2[0-5])$')
-    def paramcheck(s : str) -> str:
-        def sfbw(sf, bw):
-            _sf = int(sf)
-            _bw = int(bw)
-            return ( _bw == 7 and _sf < 10 or _bw == 8 and _sf < 11 or _bw == 9 and _sf < 12)
-        if paramPattern.match(s):
-            # check constraints other than NETWORK ID
-            sf, bw, _, _ = s.split(',')
-            if sfbw(sf, bw):
-                return s
-            error_msg = 'PARAMETER: Incompatible spreading factor and bandwidth values'
-            logging.error(error_msg)
-            raise argparse.ArgumentTypeError(error_msg)
-        error_msg2 = 'PARAMETER: argument must match 7..11,7..9,1..4,4..24'
-        logging.error(error_msg2 + 'subject to constraints on spreading factor, bandwidth and NETWORK ID')
-        raise argparse.ArgumentTypeError(error_msg2 + 'subject to constraints on spreading factor, bandwidth and NETWORK ID')
-    
+ 
     # Get args from new parser
     from src.config.parser import parse_args
     args = parse_args()
@@ -714,13 +697,8 @@ if __name__ == "__main__":
     args.netid = netidcheck(args.netid)
     args.port = uartcheck(args.port)
 
-    # Special parameter validation with netid
-    if args.netid != RadioDefaults.NETID:
-        _, _, _, preamble = args.parameter.split(',')
-
-        if preamble != str(RadioLimits.DEFAULT_PREAMBLE):
-            logging.error(f'Preamble must be {RadioLimits.DEFAULT_PREAMBLE} if NETWORKID is not equal to the default {RadioDefaults.NETID}.')
-            raise argparse.ArgumentTypeError('Preamble must be {RadioDefaults.PREAMBLE} if NETWORKID is not equal to the default ' + RadioDefaults.NETID  + '.' )
+     # Parameter validation including netid check
+    validate_netid_parameter(args.netid, args.parameter)
     args.parameter = paramcheck(args.parameter)
 
     rylr  = rylr998(args)
