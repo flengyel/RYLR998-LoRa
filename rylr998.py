@@ -31,12 +31,12 @@
 #
 
 import asyncio
-import aioserial
 from serial import EIGHTBITS, PARITY_NONE,  STOPBITS_ONE
 import logging
 import curses as cur
 import _curses
 import curses.ascii
+from src.core.serial import SerialManager  
 
 from display import Display
 
@@ -56,26 +56,24 @@ DEFAULT_PARAMETER = DEFAULT_SPREADING_FACTOR + ',' + DEFAULT_BANDWIDTH + ',' + D
 
 import locale
 locale.setlocale(locale.LC_ALL, '')
-#stdscr.addstr(0, 0, mystring.encode('UTF-8'))
 
-existGPIO = True
+exist_gpio = True
 try:
     import subprocess # for call to raspi-gpio
     import RPi.GPIO as GPIO
 except ModuleNotFoundError:
-    existGPIO = False
+    exist_gpio = False
 
 import argparse 
 import sys # needed to compensate for argparse's arg-parsing
-
         
 class rylr998:
     TXD1   = 14    # GPIO.BCM  pin 8
     RXD1   = 15    # GPIO.BCM  pin 10
     RST    = 4     # GPIO.BCM  pin 7
 
-    aio : aioserial.AioSerial   = None  # asyncio serial port
-
+    serial: SerialManager = None
+    
     debug  = False # By default, don't go into debug mode
     reset  = False
 
@@ -185,7 +183,7 @@ class rylr998:
                 self.rxbufReset() # beats me start over
 
     def gpiosetup(self) -> None:
-        if existGPIO:
+        if exist_gpio:
             GPIO.setmode(GPIO.BCM)
             GPIO.setwarnings(True)
             GPIO.setup(self.RST,GPIO.OUT,initial=GPIO.HIGH) # the default anyway
@@ -193,30 +191,23 @@ class rylr998:
                 #print('GPIO setup mode')
                 #subprocess.run(["raspi-gpio", "get", '4,14,15'])
 
-        
-
     def __del__(self):
         try:
-            self.aio.close() # close the serial port
+            if self.serial:
+                self.serial.close()
         except Exception as e:
             logging.error(str(e))
 
-        if existGPIO:
-            GPIO.cleanup()   # clean up the GPIO
+        if exist_gpio:
+            GPIO.cleanup()  # clean up the GPIO
 
-    def __init__(self, args, parity=PARITY_NONE, bytesize=EIGHTBITS,
-                       stopbits= STOPBITS_ONE, timeout=None):
+
+    def __init__(self, args):
 
         self.port = args.port     # the RYLR998 cares about this
         self.baudrate = args.baud # and this (type string!)
-        self.parity = parity      # this is fixed
-        self.bytesize = bytesize  # so is this
-        self.stopbits = stopbits  # and this
-        self.timeout = timeout    # and this
-
         self.debug = args.debug
-        #self.reset = args.reset   # not much of a command
-        self.factory = args.factory  # if factory  reset
+        self.factory = args.factory
 
         # note: self.addr is a str, args.addr is an int
         self.addr = str(args.addr) # set the default
@@ -242,23 +233,15 @@ class rylr998:
             self.preamble         = str(DEFAULT_PREAMBLE)
 
         if args.noGPIO:
-            existGPIO = False
+            exist_gpio = False
 
         self.gpiosetup()
-        
-        try:
-            self.aio: aioserial.AioSerial = aioserial.AioSerial(
-                                                 port = self.port,
-                                                 baudrate = self.baudrate,
-                                                 parity = self.parity,
-                                                 bytesize = self.bytesize,
-                                                 stopbits = self.stopbits,
-                                                 timeout = self.timeout)
 
-            logging.info('Opened port '+ self.port + ' at ' + self.baudrate + 'baud') 
+        try:
+            self.serial = SerialManager(self.port, self.baudrate)
         except Exception as e:
             logging.error(str(e))
-            exit(1) # quit at this point -- no serial port then no go
+            exit(1)
 
     # Transceiver function
     #
@@ -274,11 +257,11 @@ class rylr998:
         # so it is an inner function. The OUTER LOOP parses the response 
         # to AT commands from the RYLR998 in two phases, incidentally.
 
-        async def ATcmd(cmd: str = '') -> int:
+        async def at_cmd(cmd: str = '') -> int:
             command = 'AT' + ('+' if len(cmd) > 0 else '') + cmd + '\r\n'
-            count : int  = await self.aio.write_async(bytes(command, 'utf8'))
+            count: int = await self.serial.write(bytes(command, 'utf8'))
             return count
-
+        
         dsply  = Display(scr) 
 
         
@@ -303,11 +286,11 @@ class rylr998:
         # NOTE: AT+RCV is NOT a valid command.
         # The RYLR998 module emits "+RCV=w,x,y,z" when it receives a packet
         # To test the +ERR= logic, uncomment the following
-        # count : int  = await ATcmd('RCV')
+        # count : int  = await at_cmd('RCV')
         # This generates the response b'+ERR=4\r\n'. Else, leave commented.
 
         # this next causes trouble  debug
-        # count : int  = await ATcmd('RESET')
+        # count : int  = await at_cmd('RESET')
         # Add English interpretations of the ERR conditions
 
         # sorry, these commands have to be enqueued and dequeued
@@ -366,11 +349,9 @@ class rylr998:
                 cur.doupdate() # oh baby
                 dirty = False # reset the dirty bit
 
-            if self.aio.in_waiting > 0: # nonzero = # of characters ready
+            if self.serial.has_data():  # Changed from self.aio.in_waiting
                 # read and act one byte at a time. Be a Markov process.
-
-                data = await self.aio.read_async(size=1)
-
+                data = await self.serial.read_byte()  # Changed from self.aio.read_async
                 # you could use a debug window -- perhaps
                 if self.debug: # this is buggy
                     logging.info("read:{} state:{}".format(data, self.state))
@@ -589,7 +570,7 @@ class rylr998:
                         await asyncio.sleep(float(delay))
                         waitForReply = False # not an AT command!
                         continue # use this to escape
-                    await ATcmd( cmd ) # send command to serial port to rylr998
+                    await at_cmd( cmd ) # send command to serial port to rylr998
                 continue # remember that RCV and AT cmd responses take priority
 
             elif ch == cur.ascii.ETX: # CTRL-C
