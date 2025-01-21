@@ -679,33 +679,11 @@ class rylr998:
 if __name__ == "__main__":
     import re # regular expressions for argument checking
     from src.ui.constants import (RadioDefaults, RadioLimits)
-    from src.config.validators import bandcheck, pwrcheck 
+    from src.config.validators import (
+        bandcheck, pwrcheck, modecheck, netidcheck, uartcheck
+    )
 
-
-    modePattern = re.compile('^(0)|(1)|(2,(\\d{2,5}),(\\d{2,5}))$')
-    def modecheck(s : str) -> str:
-        p = modePattern.match(s)
-        if p is not None:
-            if p.group(1) is not None or p.group(2) is not None:
-                return s
-            # mode 2
-            r_ms = int(p.group(4))
-            s_ms = int(p.group(5))
-            if (RadioLimits.MIN_MODE_DELAY < r_ms < RadioLimits.MAX_MODE_DELAY) and \
-               (RadioLimits.MIN_MODE_DELAY < s_ms < RadioLimits.MAX_MODE_DELAY):
-                return s
-        error_msg = "Mode must match 0|1|2,30..60000,30..60000"
-        logging.error(error_msg)
-        raise argparse.ArgumentTypeError(error_msg)
-
-    netidPattern = re.compile(f'^{"|".join(str(x) for x in range(RadioLimits.MIN_NETID, RadioLimits.MAX_NETID + 1))}|{RadioLimits.ALT_NETID}$')
-    def netidcheck(s : str) -> str:
-        if netidPattern.match(s):
-            return str(s)
-        error_msg = f'NETWORK ID must match {RadioLimits.MIN_NETID}..{RadioLimits.MAX_NETID}|{RadioLimits.ALT_NETID}'
-        logging.error(error_msg)
-        raise argparse.ArgumentTypeError(error_msg)
-
+    
     paramPattern = re.compile('^([7-9]|1[01]),([7-9]),([1-4]),([4-9]|1\\d|2[0-5])$')
     def paramcheck(s : str) -> str:
         def sfbw(sf, bw):
@@ -723,13 +701,7 @@ if __name__ == "__main__":
         error_msg2 = 'PARAMETER: argument must match 7..11,7..9,1..4,4..24'
         logging.error(error_msg2 + 'subject to constraints on spreading factor, bandwidth and NETWORK ID')
         raise argparse.ArgumentTypeError(error_msg2 + 'subject to constraints on spreading factor, bandwidth and NETWORK ID')
-
-    uartPattern = re.compile('^(/dev/tty(S|USB)|COM)\\d{1,3}$')
-    def uartcheck(s : str) -> str:
-        if uartPattern.match(s):
-            return s
-        raise argparse.ArgumentTypeError("Serial Port device name not of the form ^(/dev/tty(S|USB)|COM)\\d{1,3}$")
-
+    
     # Get args from new parser
     from src.config.parser import parse_args
     args = parse_args()
