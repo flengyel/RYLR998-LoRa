@@ -57,17 +57,19 @@ DEFAULT_PARAMETER = DEFAULT_SPREADING_FACTOR + ',' + DEFAULT_BANDWIDTH + ',' + D
 import locale
 locale.setlocale(locale.LC_ALL, '')
 
-exist_gpio = True
+_exist_gpio = True
 try:
     import subprocess # for call to raspi-gpio
     import RPi.GPIO as GPIO
 except ModuleNotFoundError:
-    exist_gpio = False
+    _exist_gpio = False
 
 import argparse 
 import sys # needed to compensate for argparse's arg-parsing
         
-class rylr998:
+class RYLR998:
+
+    exist_gpio = _exist_gpio
     TXD1   = 14    # GPIO.BCM  pin 8
     RXD1   = 15    # GPIO.BCM  pin 10
     RST    = 4     # GPIO.BCM  pin 7
@@ -92,36 +94,36 @@ class rylr998:
 
     # state "machines" for various AT command and receiver responses
     
-    ADDR_table  = [b'+',b'A',b'D',b'D',b'R',b'E',b'S',b'S',b'=']
-    BAND_table  = [b'+',b'B',b'A',b'N',b'D',b'=']
-    CRFOP_table = [b'+',b'C',b'R',b'F',b'O',b'P',b'=']
-    ERR_table   = [b'+',b'E',b'R',b'R',b'=']
-    FACT_table  = [b'+',b'F',b'A',b'C',b'T',b'O',b'R',b'Y'] # reset to factory defaults
-    IPR_table   = [b'+',b'I',b'P',b'R',b'=']
-    MODE_table  = [b'+',b'M',b'O',b'D',b'E',b'=']
-    NETID_table = [b'+',b'N',b'E',b'T',b'W',b'O',b'R',b'K',b'I',b'D',b'=']
-    OK_table    = [b'+',b'O',b'K']
-    PARAM_table = [b'+',b'P',b'A',b'R',b'A',b'M',b'E',b'T',b'E',b'R',b'=']
-    RCV_table   = [b'+',b'R',b'C',b'V',b'='] # receive is the default "state"
-#    RESET_table = [b'+',b'R',b'E',b'S',b'E',b'T'] # RESET detected in state 2 if state_table == RCV_table
-#    READY_table = [b'+',b'R',b'E',b'A',b'D',b'Y'] # if RESET received, state_table = READY_table
-    UID_table   = [b'+',b'U',b'I',b'D',b'=']
-    VER_table   = [b'+',b'V',b'E',b'R',b'=']
+    ADDR_TABLE  = [b'+',b'A',b'D',b'D',b'R',b'E',b'S',b'S',b'=']
+    BAND_TABLE  = [b'+',b'B',b'A',b'N',b'D',b'=']
+    CRFOP_TABLE = [b'+',b'C',b'R',b'F',b'O',b'P',b'=']
+    ERR_TABLE   = [b'+',b'E',b'R',b'R',b'=']
+    FACT_TABLE  = [b'+',b'F',b'A',b'C',b'T',b'O',b'R',b'Y'] # reset to factory defaults
+    IPR_TABLE   = [b'+',b'I',b'P',b'R',b'=']
+    MODE_TABLE  = [b'+',b'M',b'O',b'D',b'E',b'=']
+    NETID_TABLE = [b'+',b'N',b'E',b'T',b'W',b'O',b'R',b'K',b'I',b'D',b'=']
+    OK_TABLE    = [b'+',b'O',b'K']
+    PARAM_TABLE = [b'+',b'P',b'A',b'R',b'A',b'M',b'E',b'T',b'E',b'R',b'=']
+    RCV_TABLE   = [b'+',b'R',b'C',b'V',b'=']  # receive is the default "state"
+#   RESET_table = [b'+',b'R',b'E',b'S',b'E',b'T'] # RESET detected in state 2 if state_table == RCV_table
+#   READY_table = [b'+',b'R',b'E',b'A',b'D',b'Y'] # if RESET received, state_table = READY_table
+    UID_TABLE   = [b'+',b'U',b'I',b'D',b'=']
+    VER_TABLE   = [b'+',b'V',b'E',b'R',b'=']
  
     # state machine initial state 
 
     state = 0   # index into the current state table
-    state_table = RCV_table # start state for the "machine"
+    state_table = RCV_TABLE # start state for the "machine"
 
     # initial receive buffer state
 
-    rxbuf = ''  # string response
-    rxlen = 0
+    rx_buf = ''  # string response
+    rx_len = 0
 
     # initial transmit buffer state
 
-    txbuf = ''     # tx buffer
-    txlen = 0      # tx buffer length
+    tx_buf = ''     # tx buffer
+    tx_len = 0      # tx buffer length
 
     # reset the receive buffer state
     # NOTE: the receive buffer state is part of the RYLR998 object
@@ -129,9 +131,9 @@ class rylr998:
 
     # the state table can be overriden. This is used in the transition
     # from the RESET_table state to the READY_table state.
-    def rxbufReset(self, state_table = RCV_table) -> None:
-        self.rxbuf = ''
-        self.rxlen = 0
+    def rx_buf_reset(self, state_table = RCV_TABLE) -> None:
+        self.rx_buf = ''
+        self.rx_len = 0
         self.state = 0
         self.state_table = state_table # default since RCV takes priority
 
@@ -139,14 +141,14 @@ class rylr998:
     # NOTE: the transmit buffer state is part of the RYRL998 object
     # the curses transmit window state is maintained in the xcvr() function 
 
-    def txbufReset(self) -> None:
-        self.txbuf = '' # clear tx buffer
-        self.txlen = 0  # txlen is zero
+    def tx_buf_reset(self) -> None:
+        self.tx_buf = '' # clear tx buffer
+        self.tx_len = 0  # tx_len is zero
 
     # state machine functions
 
     def in_rcv(self): # I would rather short-circuit inline
-        return self.state == 2 and self.state_table == RCV_table
+        return self.state == 2 and self.state_table == self.RCV_TABLE
   
     # character differs from RCV_table at position 1 
     # -- change the state table or start over
@@ -154,36 +156,36 @@ class rylr998:
         self.state += 1 # advance the state index
         match data:
             case b'A':
-                self.state_table = self.ADDR_table
+                self.state_table = self.ADDR_TABLE
             case b'B':
-                self.state_table = self.BAND_table
+                self.state_table = self.BAND_TABLE
             case b'C':
-                self.state_table = self.CRFOP_table
+                self.state_table = self.CRFOP_TABLE
             case b'E':
-                self.state_table = self.ERR_table
+                self.state_table = self.ERR_TABLE
             case b'F': # factory
-                self.state_table = self.FACT_table
+                self.state_table = self.FACT_TABLE
             case b'I':
-                self.state_table = self.IPR_table
+                self.state_table = self.IPR_TABLE
             case b'M':
-                self.state_table = self.MODE_table
+                self.state_table = self.MODE_TABLE
             case b'N':
-                self.state_table = self.NETID_table # like a net group
+                self.state_table = self.NETID_TABLE # like a net group
             case b'O':
-                self.state_table = self.OK_table 
+                self.state_table = self.OK_TABLE 
             case b'P':
-                self.state_table = self.PARAM_table
+                self.state_table = self.PARAM_TABLE
             case b'R':
-                self.state_table = self.RCV_table  # impossibe! 
+                self.state_table = self.RCV_TABLE  # impossibe! 
             case b'U':
-                self.state_table = self.UID_table
+                self.state_table = self.UID_TABLE
             case b'V':
-                self.state_table = self.VER_table
+                self.state_table = self.VER_TABLE
             case _:
-                self.rxbufReset() # beats me start over
+                self.rx_buf_reset() # beats me start over
 
-    def gpiosetup(self) -> None:
-        if exist_gpio:
+    def gpio_setup(self) -> None:
+        if self.exist_gpio:
             GPIO.setmode(GPIO.BCM)
             GPIO.setwarnings(True)
             GPIO.setup(self.RST,GPIO.OUT,initial=GPIO.HIGH) # the default anyway
@@ -198,7 +200,7 @@ class rylr998:
         except Exception as e:
             logging.error(str(e))
 
-        if exist_gpio:
+        if self.exist_gpio:
             GPIO.cleanup()  # clean up the GPIO
 
 
@@ -233,9 +235,9 @@ class rylr998:
             self.preamble         = str(DEFAULT_PREAMBLE)
 
         if args.noGPIO:
-            exist_gpio = False
+            self.exist_gpio = False
 
-        self.gpiosetup()
+        self.gpio_setup()
 
         try:
             self.serial = SerialManager(self.port, self.baudrate)
@@ -258,25 +260,21 @@ class rylr998:
         # to AT commands from the RYLR998 in two phases, incidentally.
 
         async def at_cmd(cmd: str = '') -> int:
-            command = 'AT' + ('+' if len(cmd) > 0 else '') + cmd + '\r\n'
+            command = f"AT{'+' if len(cmd) > 0 else ''}{cmd}\r\n"
             count: int = await self.serial.write(bytes(command, 'utf8'))
             return count
         
         dsply  = Display(scr) 
-
-        
-        # receive buffer and state reset
-        self.rxbufReset()
  
         # The LoRa® status indicator turns beet RED if the following is True
-        txflag = False # True if and only if transmitting
+        tx_flag = False # True if and only if transmitting
         # txwin cursor coordinates
-        txrow = 0   # txwin_y
-        txcol = 0   # txwin_x
-        dsply.txwin.move(txrow, txcol)
+        tx_row = 0   # txwin_y
+        tx_col = 0   # txwin_x
+        dsply.txwin.move(tx_row, tx_col)
         dsply.txwin.noutrefresh()
 
-        self.txbufReset()
+        self.tx_buf_reset()
  
         # show the rectangles etc
         scr.noutrefresh()
@@ -301,21 +299,21 @@ class rylr998:
 
         if self.factory:
             await queue.put('FACTORY')
-            await queue.put('DELAY,'+str(dsply.FOURTHSEC))
+            await queue.put(f"DELAY,{str(dsply.FOURTHSEC)}")
 
-        await queue.put('IPR='+self.baudrate) #  chicken and egg
-        await queue.put('ADDRESS='+self.addr)  
-        await queue.put('NETWORKID='+self.netid) # this is a str
-        await queue.put('BAND='+args.band)
+        await queue.put(f"IPR={self.baudrate}") #  chicken and egg
+        await queue.put(f"ADDRESS={self.addr}")  
+        await queue.put(f"NETWORKID={self.netid}") # this is a str
+        await queue.put(f"BAND={args.band}")
 
         if self.pwr:   
-            await queue.put('CRFOP='+self.pwr) # the next is needed to receive again!
-        await queue.put('PARAMETER='+self.spreading_factor+','+self.bandwidth+','+self.coding_rate+','+self.preamble)
+            await queue.put(f"CRFOP={self.pwr}") # the next is needed to receive again!
+        await queue.put(f"PARAMETER={self.spreading_factor},{self.bandwidth},{self.coding_rate},{self.preamble}")
 
         await queue.put('ADDRESS?')
         await queue.put('BAND?')
         await queue.put('CRFOP?')
-        await queue.put('MODE='+self.mode)
+        await queue.put(f"MODE={self.mode}")
         await queue.put('PARAMETER?') 
         await queue.put('UID?')
         await queue.put('VER?')
@@ -329,7 +327,7 @@ class rylr998:
         dirty = True  # transmit and RCV will set this
 
         # a state variable is enough to synchronize AT commands
-        waitForReply =  False 
+        wait_for_reply =  False 
 
         # Hold onto your chair and godspeed. 
 
@@ -337,13 +335,6 @@ class rylr998:
             # At the beginning of the xcvr loop, 
             # cur.doupdate() is called and the dirty flag is  reset,
             # provided the dirty flag is set. This speeds up the display
-
-            #if self.debug and self.txlen > 0:
-            #   s = 'txcol:'+str(txcol)+ ' txlen:'+str(self.txlen) + ' txbuf:' + self.txbuf
-            #   dsply.rxaddnstr(s, len(s))
-            #   txwin.move(txrow, txcol)
-            #   txwin.noutrefresh()
-            #   dirty = True
 
             if dirty:
                 cur.doupdate() # oh baby
@@ -359,12 +350,12 @@ class rylr998:
                 # Phase One: parse the fixed portion of the serial port response
                 if self.state < len(self.state_table):
                     if self.state_table[self.state] == data:
-                        if self.state == 2 and self.state_table == self.RCV_table:
+                        if self.state == 2 and self.state_table == self.RCV_TABLE:
                             dsply.stwin.addnstr(0,dsply.TXRX_COL, dsply.TXRX_LBL, dsply.TXRX_LEN, 
                                           cur.color_pair(dsply.WHITE_GREEN))
                             dsply.stwin.noutrefresh()
                             # cursor back to tx window to avoid flicker
-                            dsply.txwin.move(txrow, txcol)  
+                            dsply.txwin.move(tx_row, tx_col)  
                             dsply.txwin.noutrefresh()
                             dirty = True
 
@@ -378,7 +369,7 @@ class rylr998:
                         else:
                             # in this case, the state is 0 and you are lost
                             # preamble possibly -- or state > 1 and you are lost
-                            self.rxbufReset() 
+                            self.rx_buf_reset() 
 
                     continue  # parsing output takes priority over input
                 else:
@@ -386,97 +377,99 @@ class rylr998:
                     # the precondition for the second parsing phase obtains:
                     # self.state == len(self.state_table). 
 
-                    # accumulate data into rxbuf after the '=' sign until '\n'
+                    # accumulate data into rx_buf after the '=' sign until '\n'
                     # The OK does not have an equal sign, so it vanishes.
 
                     # advance the rx buffer 
-                    self.rxbuf += str(data,'utf8')
-                    self.rxlen += 1 # superior to calling len()
+                    self.rx_buf += str(data,'utf8')
+                    self.rx_len += 1 # superior to calling len()
 
                     # If you made it here, the msg is <= 240 chars
                     # the hardware ensures this
 
                     if data == b'\n':
-                        # remove the carriage return, newline from rxbuf
-                        self.rxbuf = self.rxbuf[:-2]
-                        self.rxlen -= 2
+                        # remove the carriage return, newline from rx_buf
+                        self.rx_buf = self.rx_buf[:-2]
+                        self.rx_len -= 2
 
                         match self.state_table:
-                            case self.ADDR_table:
-                                dsply.rxaddnstr("addr: " + self.rxbuf, self.rxlen+6)
-                                self.addr = self.rxbuf
-                                waitForReply = False
+                            case self.ADDR_TABLE:
+                                dsply.rxaddnstr(f"addr: {self.rx_buf}", self.rx_len+6)
+                                self.addr = self.rx_buf
+                                wait_for_reply = False
 
-                            case self.BAND_table:
-                                dsply.rxaddnstr("frequency: " + self.rxbuf +" Hz", self.rxlen+14) 
-                                self.band = self.rxbuf
+                            case self.BAND_TABLE:
+                                dsply.rxaddnstr(f"frequency: {self.rx_buf} Hz", self.rx_len+15) 
+                                self.band = self.rx_buf
                                 dsply.stwin.addnstr(dsply.VFO_ROW, dsply.VFO_COL+4,self.band, 
-                                              self.rxlen, cur.color_pair(dsply.WHITE_BLACK))
+                                              self.rx_len, cur.color_pair(dsply.WHITE_BLACK))
                                 dsply.stwin.noutrefresh()
-                                waitForReply = False
+                                wait_for_reply = False
 
-                            case self.CRFOP_table:
-                                dsply.rxaddnstr("power output: {} dBm".format(self.rxbuf), self.rxlen+14)       
-                                self.pwr = self.rxbuf
+                            case self.CRFOP_TABLE:
+                                dsply.rxaddnstr(f"power output: {self.rx_buf} dBm", self.rx_len+18)       
+                                self.pwr = self.rx_buf
                                 dsply.stwin.addnstr(dsply.PWR_ROW, dsply.PWR_COL+4,self.pwr, 
-                                              self.rxlen, cur.color_pair(dsply.WHITE_BLACK))
+                                              self.rx_len, cur.color_pair(dsply.WHITE_BLACK))
                                 dsply.stwin.noutrefresh()
-                                waitForReply = False
+                                wait_for_reply = False
 
-                            case self.ERR_table:
-                                dsply.xlateError(self.rxbuf)
-                                waitForReply = False
+                            case self.ERR_TABLE:
+                                dsply.xlateError(self.rx_buf)
+                                wait_for_reply = False
                                   
-                            case self.FACT_table:
+                            case self.FACT_TABLE:
                                 dsply.rxaddnstr("Factory defaults", 16)
-                                waitForReply = False
+                                wait_for_reply = False
 
-                            case self.IPR_table:
-                                dsply.rxaddnstr("uart: " + self.rxbuf + " baud", self.rxlen+11)
-                                self.baudrate = self.rxbuf
-                                waitForReply = False
+                            case self.IPR_TABLE:
+                                dsply.rxaddnstr(f"uart: {self.rx_buf} baud", self.rx_len+11)
+                                self.baudrate = self.rx_buf
+                                wait_for_reply = False
 
-                            case self.MODE_table:
-                                dsply.rxaddnstr("mode: " + self.rxbuf, self.rxlen+6)
-                                self.mode = self.rxbuf
-                                waitForReply = False
+                            case self.MODE_TABLE:
+                                dsply.rxaddnstr(f"mode: {self.rx_buf}", self.rx_len+6)
+                                self.mode = self.rx_buf
+                                wait_for_reply = False
+        
 
-                            case self.OK_table:
-                                if txflag:
+                            case self.OK_TABLE:
+                                if tx_flag:
                                     # turn the transmit indicator off
                                     dsply.stwin.addnstr(0,dsply.TXRX_COL, dsply.TXRX_LBL, dsply.TXRX_LEN, 
                                                   cur.color_pair(dsply.WHITE_BLACK))
                                     dsply.stwin.noutrefresh() # yes, that was it
-                                    txflag = False # will be reset below
+                                    tx_flag = False # will be reset below
                                 else:
                                     dsply.rxaddnstr("+OK", 3)
-                                waitForReply = False
-
-                            case self.NETID_table:
-                                dsply.rxaddnstr("NETWORK ID: " + self.rxbuf, self.rxlen+12) 
-                                self.netid = self.rxbuf
-                                dsply.stwin.addnstr(dsply.NETID_ROW, 37,self.netid, 
-                                              self.rxlen, cur.color_pair(dsply.WHITE_BLACK))
-                                dsply.stwin.noutrefresh()
-                                waitForReply = False
+                                wait_for_reply = False
                                 
-                            case self.PARAM_table:
-                                self.spreading_factor, self.bandwidth, self.coding_rate, self.preamble = self.rxbuf.split(',', 3)
-                                dsply.rxaddnstr("spreading factor: {}".format(self.spreading_factor), len(self.spreading_factor)+18) 
-                                dsply.rxaddnstr("bandwidth: {}".format(self.bandwidth), len(self.bandwidth)+11)  
-                                dsply.rxaddnstr("coding rate: {}".format(self.coding_rate), len(self.coding_rate)+13)  
-                                dsply.rxaddnstr("preamble: {}".format(self.preamble), len(self.preamble)+10)
-                                waitForReply = False
+                            case self.NETID_TABLE:
+                                dsply.rxaddnstr(f"NETWORK ID: {self.rx_buf}", self.rx_len+12) 
+                                self.netid = self.rx_buf
+                                dsply.stwin.addnstr(dsply.NETID_ROW, 37,self.netid, 
+                                              self.rx_len, cur.color_pair(dsply.WHITE_BLACK))
+                                dsply.stwin.noutrefresh()
+                                wait_for_reply = False
 
-                            case self.RCV_table:
+                                
+                            case self.PARAM_TABLE:
+                                self.spreading_factor, self.bandwidth, self.coding_rate, self.preamble = self.rx_buf.split(',', 3)
+                                dsply.rxaddnstr(f"spreading factor: {self.spreading_factor}", len(self.spreading_factor)+18) 
+                                dsply.rxaddnstr(f"bandwidth: {self.bandwidth}", len(self.bandwidth)+11)  
+                                dsply.rxaddnstr(f"coding rate: {self.coding_rate}", len(self.coding_rate)+13)  
+                                dsply.rxaddnstr(f"preamble: {self.preamble}", len(self.preamble)+10)
+                                wait_for_reply = False
+
+                            case self.RCV_TABLE:
                                 # The following five lines are adapted from
                                 # https://github.com/wybiral/micropython-rylr/blob/master/rylr.py
                                 
-                                addr, n, self.rxbuf = self.rxbuf.split(',', 2)
+                                addr, n, self.rx_buf = self.rx_buf.split(',', 2)
                                 n = int(n)
-                                msg = self.rxbuf[:n]
-                                self.rxbuf = self.rxbuf[n+1:]
-                                rssi, snr = self.rxbuf.split(',')
+                                msg = self.rx_buf[:n]
+                                self.rx_buf = self.rx_buf[n+1:]
+                                rssi, snr = self.rx_buf.split(',')
 
                                 if n == 40:
                                     # prevent auto scrolling if EOL at the
@@ -499,28 +492,29 @@ class rylr998:
 
                                 # if echoing the received message, delay 0.25 sec
                                 if args.echo:
-                                     await queue.put('DELAY,'+str(dsply.FOURTHSEC))
-                                     await queue.put('SEND='+addr+','+str(n)+','+msg)
+                                     await queue.put(f"DELAY,{str(dsply.FOURTHSEC)}")
+                                     await queue.put(f"SEND={addr},{str(n)},{msg}")
 
-                            case self.UID_table:
-                                dsply.rxaddnstr("UID: " + self.rxbuf, self.rxlen+5) 
-                                self.uid = self.rxbuf
-                                waitForReply = False
+                            case self.UID_TABLE:
+                                dsply.rxaddnstr(f"UID: {self.rx_buf}", self.rx_len+5) 
+                                self.uid = self.rx_buf
+                                wait_for_reply = False
 
-                            case self.VER_table:
-                                dsply.rxaddnstr("VER: " + self.rxbuf, self.rxlen+5) 
-                                self.version = self.rxbuf
-                                waitForReply = False
+
+                            case self.VER_TABLE:
+                                dsply.rxaddnstr(f"VER: {self.rx_buf}", self.rx_len+5) 
+                                self.version = self.rx_buf
+                                wait_for_reply = False
                                 
                             case _:
                                 dsply.rxaddnstr("ERROR. Call Tech Support!",25, fg_bg = dsply.RED_BLACK) 
-                                waitForReply = False
+                                wait_for_reply = False
                          
                         # also return to the txwin
-                        dsply.txwin.move(txrow, txcol)
+                        dsply.txwin.move(tx_row, tx_col)
                         dsply.txwin.noutrefresh()
 
-                        self.rxbufReset() # reset the receive buffer state and assume RCV -- this is necessary
+                        self.rx_buf_reset() # reset the receive buffer state and assume RCV -- this is necessary
 
                         dirty = True    # instead of doupdate() here, use the dirty bit
                         # RCV does not reset waitForReply, since there is no AT command 
@@ -529,7 +523,7 @@ class rylr998:
                     continue # The dirty bit logic will update the screen
 
                    # else: # not a newline yet. Prioritize receive and responses from the module
-                   #     if self.rxlen > 240: # hardware should prevent this from occurring.
+                   #     if self.rx_len > 240: # hardware should prevent this from occurring.
                    #         self.rxbufReset() # this is an error
                    #     continue # still accumulating chars from serial port, keep listening
 
@@ -540,35 +534,35 @@ class rylr998:
                 # receive will take priority if you are receiving
                 # use a waitForReply.instead of the txflag, which is for the tx indictor
                 # check if there is a command
-                if not waitForReply and  not queue.empty(): 
-                    waitForReply = True
+                if not wait_for_reply and  not queue.empty(): 
+                    wait_for_reply = True
                     cmd = await queue.get()
                     if cmd.startswith('SEND='):
                         # parse the command SEND=#,msglen,msg) 
-                        _, _msglen, msg = cmd.split(',', 2) # the 2 here accounts for commas in msg
-                        msglen = int(_msglen) # _msglen is a string
+                        _, _msg_len, msg = cmd.split(',', 2) # the 2 here accounts for commas in msg
+                        msg_len = int(_msg_len) # _msglen is a string
                         # use insnsstr() here to avoid scrolling if 40 characters (the maximum)
-                        if msglen == 40:
-                            dsply.rxinsnstr(msg, msglen, fg_bg = dsply.YELLOW_BLACK)
+                        if msg_len == 40:
+                            dsply.rxinsnstr(msg, msg_len, fg_bg = dsply.YELLOW_BLACK)
                         else:
-                            dsply.rxaddnstr(msg, msglen, fg_bg = dsply.YELLOW_BLACK)
+                            dsply.rxaddnstr(msg, msg_len, fg_bg = dsply.YELLOW_BLACK)
 
-                        txcol=0
-                        dsply.txwin.move(txrow, txcol) # cursor to tx initial input position
+                        tx_col=0  # local transmit window cursor position
+                        dsply.txwin.move(tx_row, tx_col) # cursor to tx initial input position
                         dsply.txwin.clear()
                         dsply.txwin.noutrefresh()
-                        self.txbufReset()
+                        self.tx_buf_reset()
 
                         # flash the LoRa® indicator on transmit
                         dsply.stwin.addnstr(0,dsply.TXRX_COL, dsply.TXRX_LBL, dsply.TXRX_LEN, 
                                   cur.color_pair(dsply.WHITE_RED))
                         dsply.stwin.noutrefresh()
-                        txflag = True # transmitting 
+                        tx_flag = True # transmitting 
                         dirty = True # really True this time 
                     elif cmd.startswith('DELAY,'):
                         _,delay = cmd.split(',',1)
                         await asyncio.sleep(float(delay))
-                        waitForReply = False # not an AT command!
+                        wait_for_reply = False # not an AT command!
                         continue # use this to escape
                     await at_cmd( cmd ) # send command to serial port to rylr998
                 continue # remember that RCV and AT cmd responses take priority
@@ -584,73 +578,76 @@ class rylr998:
                 dsply.draw_border()
                 # refresh the border
 
-                txcol = 0
-                dsply.txwin.move(txrow, txcol)
-                self.txbufReset()
+                tx_col = 0
+                dsply.txwin.move(tx_row, tx_col)
+                self.tx_buf_reset()
                 dsply.txwin.erase()
                 dsply.txwin.noutrefresh() # may not be needed
 
                 dirty = True
 
             elif ch == cur.ascii.LF:
-                if self.txlen > 0:
+                if self.tx_len > 0:
                     # the SEND_COMMAND includes the address 
                     # Don't be silly: you don't have to send only to your address!!!
                     # you could send to some other address
-                    await queue.put('SEND='+self.addr+','+str(self.txlen)+','+self.txbuf)
+                    await queue.put(f"SEND={self.addr},{str(self.tx_len)},{self.tx_buf}")
 
             elif ch == cur.KEY_LEFT:
-                txcol = max(0, txcol - 1)
-                dsply.txwin.move(txrow, txcol)
+                tx_col = max(0, tx_col - 1)
+                dsply.txwin.move(tx_row, tx_col)
                 dsply.txwin.noutrefresh()
                 dirty = True
 
             elif ch == cur.KEY_RIGHT:
-                txcol = min(txcol+1, self.txlen, 39)
-                dsply.txwin.move(txrow, txcol)
+                tx_col = min(tx_col+1, self.tx_len, 39)
+                dsply.txwin.move(tx_row, tx_col)
                 dsply.txwin.noutrefresh()
                 dirty = True
 
             elif ch == cur.KEY_DC: # Delete
-                if txcol >= self.txlen:
+                if tx_col >= self.tx_len:
                     continue
-                # txcol must be to the left of a character to delete somethin  to the right
-                self.txbuf = self.txbuf[0:txcol] + self.txbuf[txcol+1:min(40,self.txlen)]
-                self.txlen = max(0,min(40, self.txlen)-1)
-                txwin.delch(txrow,txcol)
-                if self.txlen < 40:
-                    dsply.txwin.addnstr(txrow, 0, self.txbuf ,self.txlen)
+                # tx_col must be to the left of a character to delete somethin  to the right
+                self.tx_buf = self.tx_buf[0:tx_col] + self.tx_buf[tx_col+1:min(40,self.tx_len)]
+                self.tx_len = max(0,min(40, self.tx_len)-1)
+                dsply.txwin.delch(tx_row,tx_col)
+                if self.tx_len < 40:
+                    dsply.txwin.addnstr(tx_row, 0, self.tx_buf ,self.tx_len)
                 else:
-                    dsply.txwin.insnstr(txrow, 0, self.txbuf, self.txlen)
-                dsply.txwin.move(txrow,txcol)
+                    dsply.txwin.insnstr(tx_row, 0, self.tx_buf, self.tx_len)
+                dsply.txwin.move(tx_row,tx_col)
                 dsply.txwin.noutrefresh()
                 dirty = True
 
             elif ch == cur.ascii.BS: # Backspace
-                self.txbuf = self.txbuf[0:max(0,txcol-1)]+self.txbuf[txcol:self.txlen]
-                self.txlen = max(0,txcol-1) + max(0, self.txlen-txcol) 
-                txcol= max(0, txcol-1)
-                dsply.txwin.delch(txrow, txcol)
-                if self.txlen < 40:
-                    dsply.txwin.addstr(txrow, 0, self.txbuf)
+                if tx_col == 0:
+                    continue # nothing to delete
+                # tx_col > 0 here: must be to the right of a character to delete something to the left
+                self.tx_buf = self.tx_buf[0:max(0,tx_col-1)]+self.tx_buf[tx_col:self.tx_len]
+                self.tx_len = len(self.tx_buf) # Don't take chances with this
+                tx_col -= 1
+                dsply.txwin.clear() # clear the transmit window
+                if self.tx_len < 40:
+                    dsply.txwin.addnstr(tx_row, 0, self.tx_buf, self.tx_len) # display the tx buffer
                 else:
-                    dsply.txwin.insstr(txrow, 0, self.txbuf)
-                dsply.txwin.move(txrow, txcol)
+                    dsply.txwin.insnstr(tx_row, 0, self.tx_buf, self.tx_len)  # display the tx buffer 
+                dsply.txwin.move(tx_row, tx_col) # move the cursor
                 dsply.txwin.noutrefresh()
                 dirty = True
 
             elif cur.ascii.isascii(ch):
-                if self.txlen == 40 and txcol < 40:
+                if self.tx_len == 40 and tx_col < 40:
                     continue   # don't change!
-                self.txbuf = self.txbuf[0:txcol] + str(chr(ch)) + self.txbuf[txcol:min(39,self.txlen)]
-                self.txlen = min(40, self.txlen+1) #  
-                #txwin.insnstr(txrow, txcol, str(chr(ch)),1)
-                if self.txlen < 40:
-                    dsply.txwin.addnstr(txrow, 0, self.txbuf ,self.txlen)
+                self.tx_buf = self.tx_buf[0:tx_col] + str(chr(ch)) + self.tx_buf[tx_col:min(39,self.tx_len)]
+                self.tx_len = min(40, self.tx_len+1) #  
+                #txwin.insnstr(tx_row, tx_col, str(chr(ch)),1)
+                if self.tx_len < 40:
+                    dsply.txwin.addnstr(tx_row, 0, self.tx_buf ,self.tx_len)
                 else:
-                    dsply.txwin.insnstr(txrow, 0, self.txbuf, self.txlen)
-                txcol = min(39, txcol+1)
-                dsply.txwin.move(txrow, txcol)
+                    dsply.txwin.insnstr(tx_row, 0, self.tx_buf, self.tx_len)
+                tx_col = min(39, tx_col+1)
+                dsply.txwin.move(tx_row, tx_col)
                 dsply.txwin.noutrefresh()
                 dirty = True
 
@@ -682,7 +679,7 @@ if __name__ == "__main__":
     validate_netid_parameter(args.netid, args.parameter)
     args.parameter = paramcheck(args.parameter)
 
-    rylr  = rylr998(args)
+    rylr  = RYLR998(args)
     try:
         asyncio.run(cur.wrapper(rylr.xcvr))
     except KeyboardInterrupt:

@@ -23,17 +23,32 @@ class ReceiveWindow:
 
     def _scroll_if_needed(self):
         """Scroll window if at maximum row"""
-        if self.row > self.max_row:  # Changed from >= to >
+        if self.row > self.max_row:
             self.window.scroll()
             self.row = self.max_row
             return True
         return False
 
-
-    def add_line(self, msg: str):
-        """Add a line of text, always checking scroll"""
-        self._scroll_if_needed()  # Always check scroll first
-        self.window.addstr(self.row, self.col, msg)
+    def add_line(self, msg: str, fg_bg: int = ColorPair.BLUE_BLACK.value):
+        """
+        Add a line of text with length control and color.
+        Uses insnstr for max-length lines to prevent scrolling,
+        addnstr otherwise.
+        
+        Args:
+            msg: String to display
+            fg_bg: Color pair to use (default BLUE_BLACK)
+        """
+        msglen = len(msg)
+        self._scroll_if_needed()
+        
+        # Use insnstr if exactly at max length to prevent scrolling
+        if msglen == WindowSize.MAX_MSG_LEN:
+            self.window.insnstr(self.row, self.col, msg, WindowSize.MAX_MSG_LEN, 
+                              curses.color_pair(fg_bg))
+        else:
+            self.window.addnstr(self.row, self.col, msg, WindowSize.MAX_MSG_LEN, 
+                              curses.color_pair(fg_bg))
+        
         self.row += 1
         self.window.noutrefresh()
-
