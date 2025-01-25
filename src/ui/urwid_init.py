@@ -6,55 +6,85 @@ from src.ui.constants import WindowSize
 
 def create_frame():
     """Create the main application frame with three panels"""
+    
     # Create placeholder widgets
-    receive_area = urwid.Filler(urwid.Text("Receive Area"))
-    status_area = urwid.Text("Status Area")
-    transmit_area = urwid.Edit("") 
+    receive_content = urwid.Text("Receive Area")
+    receive_area = urwid.Filler(receive_content, 'top', top=1)
+    
+    status_content = urwid.Columns([
+        ('fixed', 6, urwid.Text("LoRa")),
+        ('fixed', 12, urwid.Text("ADDR")),
+        ('fixed', 10, urwid.Text("RSSI")),
+        ('fixed', 8, urwid.Text("SNR")),
+    ])
+    status_area = urwid.Filler(status_content)
+    
+    transmit_edit = urwid.Edit("")
+    transmit_area = urwid.Filler(transmit_edit)
 
-    # Create the layout
-    layout = urwid.Pile([
-        # Receive window takes most space
-        ('weight', WindowSize.RX_HEIGHT, urwid.LineBox(receive_area, title="Messages")),
-        # Status area is fixed height
+    # Create the main pile with fixed dimensions
+    main_pile = urwid.Pile([
+        ('fixed', WindowSize.RX_HEIGHT, urwid.LineBox(receive_area, title="Messages")),
         ('fixed', WindowSize.ST_HEIGHT, urwid.LineBox(status_area, title="Status")),
-        # Transmit area is fixed height
         ('fixed', WindowSize.TX_HEIGHT, urwid.LineBox(transmit_area, title="Transmit"))
     ])
 
-    # Create the main frame
+    # Wrap pile in Columns for fixed width
+    main_cols = urwid.Columns([
+        ('fixed', WindowSize.MAX_COL, main_pile)
+    ])
+
+    # Create final frame with fixed dimensions
     frame = urwid.Frame(
-        body=layout,
+        body=main_cols,
         header=None,
         footer=None,
         focus_part='body'
     )
 
-    # Force minimum window size using BoxAdapter
-    frame = urwid.BoxAdapter(frame, WindowSize.MAX_ROW)
-    frame = urwid.Padding(frame, 'center', WindowSize.MAX_COL)
-
     return frame
 
 def initialize_display(event_loop):
     """Initialize the urwid display with our frame"""
-    # Create basic color palette
+    
+    # Define color palette
     palette = [
-        ('default', 'light gray', 'black'),
-        ('status', 'white', 'dark blue'),
-        ('receive', 'light cyan', 'black'),
-        ('transmit', 'yellow', 'black'),
-        ('border', 'white', 'black')
+        ('default',    'light gray', 'black'),
+        ('status',     'white',      'dark blue'),
+        ('receive',    'light cyan', 'black'),
+        ('transmit',   'yellow',     'black'),
+        ('border',     'white',      'black'),
+        ('lora_tx',    'white',      'dark red'),
+        ('lora_rx',    'white',      'dark green')
     ]
 
-    # Create the main frame
+    # Create frame with fixed dimensions
     frame = create_frame()
+    
+    # Handle input (temporary)
+    def handle_input(key):
+        if key in ('q', 'Q'):
+            raise urwid.ExitMainLoop()
+        return True
 
-    # Create and return the MainLoop
+    # Create MainLoop with explicit screen size
+    screen = urwid.raw_display.Screen()
+    screen.set_terminal_properties(WindowSize.MAX_COL)
+    
     main_loop = urwid.MainLoop(
-        frame,
+        widget=frame,
         palette=palette,
         event_loop=event_loop,
-        unhandled_input=lambda key: key == 'q'  # Temporary exit on 'q'
+        unhandled_input=handle_input,
+        screen=screen
     )
 
     return main_loop
+
+def create_placeholder_widgets():
+    """Create placeholder widgets for development/testing"""
+    receive = urwid.Text("Receive Area\n" * 3)
+    status = urwid.Text("Status Area")
+    transmit = urwid.Edit("") 
+    return receive, status, transmit
+
