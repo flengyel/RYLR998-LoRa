@@ -3,7 +3,7 @@
 
 import urwid
 from src.ui.constants import (
-    WindowSize, StatusLabels, WindowPosition, ColorPair
+    WindowSize, StatusLabels, WindowPosition, ColorPair, BorderPos, RadioDefaults
 )
 
 def create_frame():
@@ -14,29 +14,54 @@ def create_frame():
     receive_area = urwid.Filler(receive_content, 'top', top=WindowPosition.RX_START_ROW)
     
     # Status window with two rows
+   # Status window with two rows and dividers
     status_content = urwid.Pile([
-        # Top row with indicators
+        # Top row - status indicators with dividers
         urwid.Columns([
-            ('fixed', StatusLabels.TXRX_LEN, urwid.Text(StatusLabels.TXRX_LABEL)),
-            ('fixed', StatusLabels.ADDR_LEN + StatusLabels.ADDR_VAL_COL - StatusLabels.ADDR_COL,
-                urwid.Text(StatusLabels.ADDR_LABEL)),
-            ('fixed', StatusLabels.RSSI_LEN + StatusLabels.RSSI_VAL_COL - StatusLabels.RSSI_COL,
-                urwid.Text(StatusLabels.RSSI_LABEL)),
-            ('fixed', StatusLabels.SNR_LEN + StatusLabels.SNR_VAL_COL - StatusLabels.SNR_COL,
-                urwid.Text(StatusLabels.SNR_LABEL)),
+            ('fixed', BorderPos.STATUS_DIV1, 
+                urwid.Columns([
+                    ('fixed', StatusLabels.TXRX_LEN, urwid.Text(StatusLabels.TXRX_LABEL))
+                ])
+            ),
+            ('fixed', BorderPos.STATUS_DIV2 - BorderPos.STATUS_DIV1,
+                urwid.Text(StatusLabels.ADDR_LABEL)
+            ),
+            ('fixed', BorderPos.STATUS_DIV3 - BorderPos.STATUS_DIV2,
+                urwid.Text(StatusLabels.RSSI_LABEL)
+            ),
+            ('fixed', WindowSize.ST_WIDTH - BorderPos.STATUS_DIV3,
+                urwid.Text(StatusLabels.SNR_LABEL)
+            )
         ]),
-        # Bottom row with values
+        urwid.Divider('─'),  # Horizontal divider between rows
+        # Bottom row - VFO/PWR/NETWORK ID
         urwid.Columns([
-            ('fixed', StatusLabels.VFO_LEN + StatusLabels.VFO_VAL_COL - StatusLabels.VFO_COL,
-                urwid.Text(StatusLabels.VFO_LABEL)),
-            ('fixed', StatusLabels.PWR_LEN + StatusLabels.PWR_VAL_COL - StatusLabels.PWR_COL,
-                urwid.Text(StatusLabels.PWR_LABEL)),
-            ('fixed', StatusLabels.NETID_LEN + StatusLabels.NETID_VAL_COL - StatusLabels.NETID_COL,
-                urwid.Text(StatusLabels.NETID_LABEL))
+            ('fixed', StatusLabels.STATUS_ROW2_VFO,
+                urwid.Text(StatusLabels.VFO_FULL_LABEL.format(RadioDefaults.FREQ))
+            ),
+            ('fixed', StatusLabels.STATUS_ROW2_PWR,
+                urwid.Text(StatusLabels.PWR_FULL_LABEL.format(RadioDefaults.POWER))
+            ),
+            ('fixed', StatusLabels.STATUS_ROW2_NETID,
+                urwid.Text(StatusLabels.NETID_FULL_LABEL.format(RadioDefaults.NETID))
+            )
         ])
     ])
     status_area = urwid.Filler(status_content)
-    
+
+    status_box = urwid.LineBox(
+        status_area,
+        title="Status",
+        tline='─', 
+        bline='─',
+        lline='│',
+        rline='│',
+        tlcorner='┌',
+        trcorner='┐',
+        blcorner='└',
+        brcorner='┘'
+    )
+
     # Transmit area
     transmit_edit = urwid.Edit("")
     transmit_area = urwid.Filler(transmit_edit)
@@ -44,10 +69,10 @@ def create_frame():
     # Create the main pile with fixed dimensions from WindowSize
     main_pile = urwid.Pile([
         ('fixed', WindowSize.RX_HEIGHT, urwid.LineBox(receive_area, title="Messages")),
-        ('fixed', WindowSize.ST_HEIGHT, urwid.LineBox(status_area, title="Status")),
+        ('fixed', WindowSize.ST_HEIGHT, status_box),  # Use the new status_box here
         ('fixed', WindowSize.TX_HEIGHT, urwid.LineBox(transmit_area, title="Transmit"))
     ])
-
+    
     # Wrap pile in Columns for fixed width from WindowSize
     main_cols = urwid.Columns([
         ('fixed', WindowSize.MAX_COL, main_pile)

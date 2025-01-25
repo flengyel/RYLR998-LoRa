@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Final
 
-
 @dataclass(frozen=True)
 class RadioLimits:
     """RYLR998 Radio parameter limits"""
@@ -19,16 +18,120 @@ class RadioLimits:
     MAX_MODE_DELAY: Final[int] = 60000
     MIN_NETID: Final[int] = 3
     MAX_NETID: Final[int] = 15
-    ALT_NETID: Final[int] = 18  # Special alternate network ID
-    MIN_SF: Final[int] = 7      # Minimum spreading factor
-    MAX_SF: Final[int] = 11     # Maximum spreading factor
-    MIN_BW: Final[int] = 7      # Minimum bandwidth setting
-    MAX_BW: Final[int] = 9      # Maximum bandwidth setting
-    MIN_CR: Final[int] = 1      # Minimum coding rate
-    MAX_CR: Final[int] = 4      # Maximum coding rate
+    ALT_NETID: Final[int] = 18
+    MIN_SF: Final[int] = 7
+    MAX_SF: Final[int] = 11
+    MIN_BW: Final[int] = 7
+    MAX_BW: Final[int] = 9
+    MIN_CR: Final[int] = 1
+    MAX_CR: Final[int] = 4
     MIN_PREAMBLE: Final[int] = 4
     MAX_PREAMBLE: Final[int] = 25
-    DEFAULT_PREAMBLE: Final[int] = 12  # Required when NETID != 18
+    DEFAULT_PREAMBLE: Final[int] = 12
+
+@dataclass(frozen=True)
+class WindowSize:
+    """Window dimensions"""
+    # Main window dimensions
+    MAX_ROW: Final[int] = 28
+    MAX_COL: Final[int] = 42
+    
+    # Receive window dimensions
+    RX_HEIGHT: Final[int] = 20
+    RX_WIDTH: Final[int] = 40
+    
+    # Status window dimensions
+    ST_HEIGHT: Final[int] = 4  # Two content rows plus borders
+    ST_WIDTH: Final[int] = 40
+    
+    # Transmit window dimensions
+    TX_HEIGHT: Final[int] = 1
+    TX_WIDTH: Final[int] = 40
+    
+    # Maximum message length
+    MAX_MSG_LEN: Final[int] = 40
+
+@dataclass(frozen=True)
+class StatusLabels:
+    """Status window label definitions"""
+    # Row 1: Main status indicators
+    TXRX_LABEL: Final[str] = " LoRa "
+    TXRX_LEN: Final[int] = 6
+    TXRX_COL: Final[int] = 0
+
+    ADDR_LABEL: Final[str] = "ADDR"
+    ADDR_LEN: Final[int] = 4
+    ADDR_COL: Final[int] = 8
+    ADDR_VAL_COL: Final[int] = 13
+
+    RSSI_LABEL: Final[str] = "RSSI"
+    RSSI_LEN: Final[int] = 4
+    RSSI_COL: Final[int] = 21
+    RSSI_VAL_COL: Final[int] = 26
+
+    SNR_LABEL: Final[str] = "SNR"
+    SNR_LEN: Final[int] = 3
+    SNR_COL: Final[int] = 32
+    SNR_VAL_COL: Final[int] = 36
+
+    # Row 2: Settings display and formats
+    STATUS_ROW2_VFO: Final[int] = 20    # Space for "VFO 915000000"
+    STATUS_ROW2_PWR: Final[int] = 8     # Space for "PWR 22"
+    STATUS_ROW2_NETID: Final[int] = 12  # Space for "NETWORK ID 18"
+    
+    VFO_FULL_LABEL: Final[str] = "VFO {}"       # For formatting with frequency
+    PWR_FULL_LABEL: Final[str] = "PWR {}"       # For formatting with power
+    NETID_FULL_LABEL: Final[str] = "NETWORK ID {}"  # For formatting with network ID
+
+    # Row 2 widths and positions
+    VFO_LABEL: Final[str] = "VFO"
+    VFO_LEN: Final[int] = 3
+    VFO_COL: Final[int] = 0
+    VFO_VAL_COL: Final[int] = 4
+    VFO_TOTAL_WIDTH: Final[int] = 20  # Accommodate "VFO 915000000"
+
+    PWR_LABEL: Final[str] = "PWR"
+    PWR_LEN: Final[int] = 3
+    PWR_COL: Final[int] = 21
+    PWR_VAL_COL: Final[int] = 25
+    PWR_TOTAL_WIDTH: Final[int] = 8  # Accommodate "PWR 22"
+
+    NETID_LABEL: Final[str] = "NETWORK ID"
+    NETID_LEN: Final[int] = 10
+    NETID_COL: Final[int] = 30
+    NETID_VAL_COL: Final[int] = 35
+    NETID_TOTAL_WIDTH: Final[int] = 12  # Accommodate "NETWORK ID 18"
+
+@dataclass(frozen=True)
+class WindowPosition:
+    """Window positions relative to parent"""
+    RX_START_ROW: Final[int] = 1
+    RX_START_COL: Final[int] = 1
+    ST_START_ROW: Final[int] = 22
+    ST_START_COL: Final[int] = 1
+    TX_START_ROW: Final[int] = 26
+    TX_START_COL: Final[int] = 1
+
+class ColorPair(Enum):
+    """Color pair definitions"""
+    WHITE_BLACK = 0
+    YELLOW_BLACK = 1
+    GREEN_BLACK = 2
+    BLUE_BLACK = 3
+    RED_BLACK = 4
+    BLACK_PINK = 5
+    WHITE_RED = 6
+    WHITE_GREEN = 7
+
+@dataclass(frozen=True)
+class Timing:
+    """Timing constants"""
+    ONE_SEC: Final[float] = 1.0
+    HALF_SEC: Final[float] = 0.5
+    FOURTH_SEC: Final[float] = 0.25
+    TENTH_SEC: Final[float] = 0.1
+    CENTI_SEC: Final[float] = 0.01
+
 
 @dataclass(frozen=True)
 class RadioDefaults:
@@ -54,111 +157,7 @@ class SerialDefaults:
     )
 
 
-class ColorPair(Enum):
-    """Color pair definitions for the display"""
-    WHITE_BLACK = 0    # Built in, cannot change
-    YELLOW_BLACK = 1   # User text
-    GREEN_BLACK = 2    # Status indicator (our palette is off, bear with me)
-    BLUE_BLACK = 3     # Status indicator
-    RED_BLACK = 4      # Errors
-    BLACK_PINK = 5     # Received text (really magenta on black)
-    WHITE_RED = 6      # Transmit indicator
-    WHITE_GREEN = 7    # Receive indicator
-
-@dataclass(frozen=True)
-class Timing:
-    """Timing constants"""
-    ONE_SEC: Final[float] = 1.0
-    HALF_SEC: Final[float] = 0.5
-    FOURTH_SEC: Final[float] = 0.25
-    TENTH_SEC: Final[float] = 0.1
-    CENTI_SEC: Final[float] = 0.01
-
-@dataclass(frozen=True)
-class WindowSize:
-    """Window dimensions"""
-    # Main window dimensions
-    MAX_ROW: Final[int] = 28
-    MAX_COL: Final[int] = 42
-    
-    # Component window dimensions
-    RX_ROWS: Final[int] = 20
-    RX_WIDTH: Final[int] = 40
-    RX_HEIGHT: Final[int] = 20
-    RX_WIDTH: Final[int] = 40
-    
-    ST_ROWS: Final[int] = 4      # Changed to match rows needed
-    ST_HEIGHT: Final[int] = 4    # Changed to match ST_ROWS
-    ST_WIDTH: Final[int] = 40    # Removed duplicate
-    
-    TX_ROW: Final[int] = 26
-    TX_ROWS: Final[int] = 1
-    TX_WIDTH: Final[int] = 40
-    TX_HEIGHT: Final[int] = 1
-    TX_WIDTH: Final[int] = 40
-    
-    MAX_MSG_LEN: Final[int] = 40
-    
-@dataclass(frozen=True)
-class StatusLabels:
-    """Status window label definitions"""
-    # LoRa Status
-    TXRX_LABEL: Final[str] = " LoRa "
-    TXRX_LEN: Final[int] = 6
-    TXRX_ROW: Final[int] = 0
-    TXRX_COL: Final[int] = 0
-
-    # Address
-    ADDR_LABEL: Final[str] = "ADDR"
-    ADDR_LEN: Final[int] = 4
-    ADDR_ROW: Final[int] = 0
-    ADDR_COL: Final[int] = 8
-    ADDR_VAL_COL: Final[int] = 13
-
-    # RSSI
-    RSSI_LABEL: Final[str] = "RSSI"
-    RSSI_LEN: Final[int] = 4
-    RSSI_ROW: Final[int] = 0
-    RSSI_COL: Final[int] = 21
-    RSSI_VAL_COL: Final[int] = 26
-
-    # SNR
-    SNR_LABEL: Final[str] = "SNR"
-    SNR_LEN: Final[int] = 3
-    SNR_ROW: Final[int] = 0
-    SNR_COL: Final[int] = 32
-    SNR_VAL_COL: Final[int] = 36
-
-    # VFO
-    VFO_LABEL: Final[str] = "VFO"
-    VFO_LEN: Final[int] = 3
-    VFO_ROW: Final[int] = 2
-    VFO_COL: Final[int] = 1
-    VFO_VAL_COL: Final[int] = 5
-
-    # Power
-    PWR_LABEL: Final[str] = "PWR"
-    PWR_LEN: Final[int] = 3
-    PWR_ROW: Final[int] = 2
-    PWR_COL: Final[int] = 17
-    PWR_VAL_COL: Final[int] = 21
-
-    # Network ID
-    NETID_LABEL: Final[str] = "NETWORK ID"
-    NETID_LEN: Final[int] = 10
-    NETID_ROW: Final[int] = 2
-    NETID_COL: Final[int] = 26
-    NETID_VAL_COL: Final[int] = 37
-
-@dataclass(frozen=True)
-class WindowPosition:
-    """Window positions relative to parent"""
-    RX_START_ROW: Final[int] = 1
-    RX_START_COL: Final[int] = 1
-    ST_START_ROW: Final[int] = 22
-    ST_START_COL: Final[int] = 1
-    TX_START_ROW: Final[int] = 26
-    TX_START_COL: Final[int] = 1
+   
 
 @dataclass(frozen=True)
 class BorderPos:
