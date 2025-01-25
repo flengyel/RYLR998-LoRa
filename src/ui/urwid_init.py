@@ -27,21 +27,25 @@ def create_frame():
     
     # Status window with proper layout
     status_row1 = urwid.Columns([
-        ('fixed', 6, urwid.Text("LoRa")),
+        ('fixed', StatusLabels.TXRX_LEN, urwid.Text(StatusLabels.TXRX_LABEL)),
         ('fixed', 1, urwid.Text("│")),
-        ('fixed', 11, urwid.Text("ADDR")),
+        ('fixed', StatusLabels.ADDR_LEN + 7, urwid.Text(StatusLabels.ADDR_LABEL)),
         ('fixed', 1, urwid.Text("│")),
-        ('fixed', 10, urwid.Text("RSSI")),
+        ('fixed', StatusLabels.RSSI_LEN + 6, urwid.Text(StatusLabels.RSSI_LABEL)),
         ('fixed', 1, urwid.Text("│")),
-        ('fixed', 8, urwid.Text("SNR"))
+        ('fixed', StatusLabels.SNR_LEN + 5, urwid.Text(StatusLabels.SNR_LABEL))
     ])
 
     divider = urwid.Divider('─')
 
+    # Use the format strings from StatusLabels
     status_row2 = urwid.Columns([
-        ('fixed', 18, urwid.Text("915000000")),
-        ('fixed', 7, urwid.Text("22")),
-        ('fixed', 13, urwid.Text("18"))
+        ('fixed', StatusLabels.STATUS_ROW2_VFO, 
+            urwid.Text(StatusLabels.VFO_FULL_LABEL.format(RadioDefaults.FREQ))),
+        ('fixed', StatusLabels.STATUS_ROW2_PWR,
+            urwid.Text(StatusLabels.PWR_FULL_LABEL.format(RadioDefaults.POWER))),
+        ('fixed', StatusLabels.STATUS_ROW2_NETID,
+            urwid.Text(StatusLabels.NETID_FULL_LABEL.format(RadioDefaults.NETID)))
     ])
 
     status_pile = urwid.Pile([
