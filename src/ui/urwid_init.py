@@ -4,35 +4,6 @@
 import urwid
 from src.ui.constants import WindowSize
 
-class CustomScreen(urwid.raw_display.Screen):
-    """
-    CustomScreen extends urwid's raw_display.Screen to handle unexpected terminal color depths.
-    """
-    def set_terminal_properties(self, maxcol=None):
-        """
-        Override to catch KeyError and handle unexpected terminal color depths.
-        """
-        try:
-            super().set_terminal_properties(maxcol)
-        except KeyError as e:
-            print(f"Unsupported color depth detected: {self.colors}. Defaulting to 256 colors.")
-            # Set a fallback for colors if the detected value is unsupported
-            self.colors = 256
-            super().set_terminal_properties(maxcol)
-
-    def _on_update_palette_entry(self, name, *args):
-        """
-        Override Urwid's palette update to handle invalid color mappings gracefully.
-        """
-        try:
-            attrspecs = self._attrspecs
-            colors_mapping = {16: 0, 1: 1, 88: 2, 256: 3, 2**24: 4}
-            color_key = colors_mapping.get(self.colors, 3)  # Default to 256 colors
-            a = attrspecs[color_key]
-        except KeyError as e:
-            print(f"KeyError in palette entry: {e}. Defaulting to 256-color attributes.")
-            a = attrspecs[3]  # Fallback to 256-color
-        return a
 
 def create_frame():
     """Create the main application frame with three panels"""
@@ -74,6 +45,7 @@ def create_frame():
 
     return frame
 
+
 def initialize_display(event_loop):
     """Initialize the urwid display with our frame"""
     
@@ -97,16 +69,14 @@ def initialize_display(event_loop):
             raise urwid.ExitMainLoop()
         return True
 
-    # Use the custom screen class
-    screen = CustomScreen()
+    # Initialize the screen and handle unsupported color depths
+    screen = urwid.raw_display.Screen()
     
     try:
-        # Set terminal properties using the maximum column size
         screen.set_terminal_properties(WindowSize.MAX_COL)
     except KeyError as e:
-        # Catch and log any KeyError due to unsupported terminal properties
-        print(f"KeyError during terminal initialization: {e}")
-        print("Falling back to default settings for terminal properties.")
+        print(f"Unsupported terminal color depth: {e}. Defaulting to 256 colors.")
+        screen.set_terminal_properties(256)  # Explicitly set to 256-color mode
 
     main_loop = urwid.MainLoop(
         widget=frame,
@@ -125,4 +95,3 @@ def create_placeholder_widgets():
     status = urwid.Text("Status Area")
     transmit = urwid.Edit("") 
     return receive, status, transmit
-
