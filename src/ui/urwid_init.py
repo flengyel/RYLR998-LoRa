@@ -12,11 +12,21 @@ def create_frame():
     receive_content = urwid.Text("Receive Area")
     receive_area = urwid.Filler(receive_content, 'top', top=1)
     
-    status_content = urwid.Columns([
-        ('fixed', 6, urwid.Text("LoRa")),
-        ('fixed', 12, urwid.Text("ADDR")),
-        ('fixed', 10, urwid.Text("RSSI")),
-        ('fixed', 8, urwid.Text("SNR")),
+# Status window with two rows
+    status_content = urwid.Pile([
+        # Top row
+        urwid.Columns([
+            ('fixed', 6, urwid.Text("LoRa")),
+            ('fixed', 12, urwid.Text("ADDR")),
+            ('fixed', 10, urwid.Text("RSSI")),
+            ('fixed', 8, urwid.Text("SNR")),
+        ]),
+        # Bottom row
+        urwid.Columns([
+            ('fixed', 15, urwid.Text("VFO 915000000")),
+            ('fixed', 8, urwid.Text("PWR 22")),
+            ('fixed', 13, urwid.Text("NETWORK ID 18"))
+        ])
     ])
     status_area = urwid.Filler(status_content)
     

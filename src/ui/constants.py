@@ -87,7 +87,7 @@ class WindowSize:
     RX_HEIGHT: Final[int] = 20
     RX_WIDTH: Final[int] = 40
     
-    ST_ROWS: Final[int] = 3
+    ST_ROWS: Final[int] = 4
     ST_WIDTH: Final[int] = 40
     ST_HEIGHT: Final[int] = 3
     ST_WIDTH: Final[int] = 40
