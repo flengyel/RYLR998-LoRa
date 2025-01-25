@@ -15,11 +15,24 @@ class CustomScreen(urwid.raw_display.Screen):
         try:
             super().set_terminal_properties(maxcol)
         except KeyError as e:
-            print(f"Unsupported color depth detected: {self.colors}. Defaulting to 256 colors. {e}")
+            print(f"Unsupported color depth detected: {self.colors}. Defaulting to 256 colors.")
             # Set a fallback for colors if the detected value is unsupported
             self.colors = 256
             super().set_terminal_properties(maxcol)
 
+    def _on_update_palette_entry(self, name, *args):
+        """
+        Override Urwid's palette update to handle invalid color mappings gracefully.
+        """
+        try:
+            attrspecs = self._attrspecs
+            colors_mapping = {16: 0, 1: 1, 88: 2, 256: 3, 2**24: 4}
+            color_key = colors_mapping.get(self.colors, 3)  # Default to 256 colors
+            a = attrspecs[color_key]
+        except KeyError as e:
+            print(f"KeyError in palette entry: {e}. Defaulting to 256-color attributes.")
+            a = attrspecs[3]  # Fallback to 256-color
+        return a
 
 def create_frame():
     """Create the main application frame with three panels"""
@@ -60,7 +73,6 @@ def create_frame():
     )
 
     return frame
-
 
 def initialize_display(event_loop):
     """Initialize the urwid display with our frame"""
@@ -113,3 +125,4 @@ def create_placeholder_widgets():
     status = urwid.Text("Status Area")
     transmit = urwid.Edit("") 
     return receive, status, transmit
+
