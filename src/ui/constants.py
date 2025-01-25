@@ -87,11 +87,10 @@ class WindowSize:
     RX_HEIGHT: Final[int] = 20
     RX_WIDTH: Final[int] = 40
     
-    ST_ROWS: Final[int] = 4
-    ST_WIDTH: Final[int] = 40
-    ST_HEIGHT: Final[int] = 3
-    ST_WIDTH: Final[int] = 40
-
+    ST_ROWS: Final[int] = 4      # Changed to match rows needed
+    ST_HEIGHT: Final[int] = 4    # Changed to match ST_ROWS
+    ST_WIDTH: Final[int] = 40    # Removed duplicate
+    
     TX_ROW: Final[int] = 26
     TX_ROWS: Final[int] = 1
     TX_WIDTH: Final[int] = 40
