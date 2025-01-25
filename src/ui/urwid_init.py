@@ -15,53 +15,48 @@ def create_frame():
     
     # Status window with two rows
    # Status window with two rows and dividers
+# Status window with two rows and dividers
     status_content = urwid.Pile([
-        # Top row - status indicators with dividers
+        # Top row with vertical dividers
         urwid.Columns([
-            ('fixed', BorderPos.STATUS_DIV1, 
-                urwid.Columns([
-                    ('fixed', StatusLabels.TXRX_LEN, urwid.Text(StatusLabels.TXRX_LABEL))
-                ])
-            ),
-            ('fixed', BorderPos.STATUS_DIV2 - BorderPos.STATUS_DIV1,
-                urwid.Text(StatusLabels.ADDR_LABEL)
-            ),
-            ('fixed', BorderPos.STATUS_DIV3 - BorderPos.STATUS_DIV2,
-                urwid.Text(StatusLabels.RSSI_LABEL)
-            ),
-            ('fixed', WindowSize.ST_WIDTH - BorderPos.STATUS_DIV3,
-                urwid.Text(StatusLabels.SNR_LABEL)
-            )
+            ('fixed', StatusLabels.TXRX_LEN, urwid.Text(StatusLabels.TXRX_LABEL)),
+            ('fixed', 1, urwid.Text('│')),  # Vertical divider
+            ('fixed', StatusLabels.ADDR_LEN + 8, urwid.Text(StatusLabels.ADDR_LABEL)),
+            ('fixed', 1, urwid.Text('│')),  # Vertical divider
+            ('fixed', StatusLabels.RSSI_LEN + 8, urwid.Text(StatusLabels.RSSI_LABEL)),
+            ('fixed', 1, urwid.Text('│')),  # Vertical divider
+            ('fixed', StatusLabels.SNR_LEN + 5, urwid.Text(StatusLabels.SNR_LABEL))
         ]),
-        urwid.Divider('─'),  # Horizontal divider between rows
-        # Bottom row - VFO/PWR/NETWORK ID
+        urwid.Divider('─'),  # Horizontal divider
+        # Bottom row with vertical dividers
         urwid.Columns([
-            ('fixed', StatusLabels.STATUS_ROW2_VFO,
-                urwid.Text(StatusLabels.VFO_FULL_LABEL.format(RadioDefaults.FREQ))
-            ),
+            ('fixed', StatusLabels.STATUS_ROW2_VFO, 
+                urwid.Text(f"VFO {RadioDefaults.FREQ}")),
+            ('fixed', 1, urwid.Text('│')),  # Vertical divider
             ('fixed', StatusLabels.STATUS_ROW2_PWR,
-                urwid.Text(StatusLabels.PWR_FULL_LABEL.format(RadioDefaults.POWER))
-            ),
+                urwid.Text(f"PWR {RadioDefaults.POWER}")),
+            ('fixed', 1, urwid.Text('│')),  # Vertical divider
             ('fixed', StatusLabels.STATUS_ROW2_NETID,
-                urwid.Text(StatusLabels.NETID_FULL_LABEL.format(RadioDefaults.NETID))
-            )
+                urwid.Text(f"NETWORK ID {RadioDefaults.NETID}"))
         ])
     ])
-    status_area = urwid.Filler(status_content)
-
+    # Add Filler for vertical alignment
+    status_area = urwid.Filler(status_content, 'middle')
+    
+    # Use double-line box drawing characters for the outer box
     status_box = urwid.LineBox(
         status_area,
         title="Status",
-        tline='─', 
-        bline='─',
-        lline='│',
-        rline='│',
-        tlcorner='┌',
-        trcorner='┐',
-        blcorner='└',
-        brcorner='┘'
+        tline='═',  # Double line for top
+        bline='═',  # Double line for bottom
+        lline='║',  # Double line for left
+        rline='║',  # Double line for right
+        tlcorner='╔',  # Top left corner
+        trcorner='╗',  # Top right corner
+        blcorner='╚',  # Bottom left corner
+        brcorner='╝'   # Bottom right corner
     )
-
+    
     # Transmit area
     transmit_edit = urwid.Edit("")
     transmit_area = urwid.Filler(transmit_edit)
@@ -72,7 +67,7 @@ def create_frame():
         ('fixed', WindowSize.ST_HEIGHT, status_box),  # Use the new status_box here
         ('fixed', WindowSize.TX_HEIGHT, urwid.LineBox(transmit_area, title="Transmit"))
     ])
-    
+
     # Wrap pile in Columns for fixed width from WindowSize
     main_cols = urwid.Columns([
         ('fixed', WindowSize.MAX_COL, main_pile)
