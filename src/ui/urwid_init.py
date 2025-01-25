@@ -12,68 +12,93 @@ def create_frame():
     # Create receive area
     receive_content = urwid.Text("Receive Area")
     receive_area = urwid.Filler(receive_content, 'top', top=WindowPosition.RX_START_ROW)
+    receive_box = urwid.LineBox(
+        receive_area,
+        title="Messages",
+        tline='═',
+        bline='═',
+        lline='║',
+        rline='║',
+        tlcorner='╔',
+        trcorner='╗',
+        blcorner='╚',
+        brcorner='╝'
+    )
     
-    # Status window with two rows
-   # Status window with two rows and dividers
-# Status window with two rows and dividers
-    status_content = urwid.Pile([
-        # Top row with vertical dividers
-        urwid.Columns([
-            ('fixed', StatusLabels.TXRX_LEN, urwid.Text(StatusLabels.TXRX_LABEL)),
-            ('fixed', 1, urwid.Text('│')),  # Vertical divider
-            ('fixed', StatusLabels.ADDR_LEN + 8, urwid.Text(StatusLabels.ADDR_LABEL)),
-            ('fixed', 1, urwid.Text('│')),  # Vertical divider
-            ('fixed', StatusLabels.RSSI_LEN + 8, urwid.Text(StatusLabels.RSSI_LABEL)),
-            ('fixed', 1, urwid.Text('│')),  # Vertical divider
-            ('fixed', StatusLabels.SNR_LEN + 5, urwid.Text(StatusLabels.SNR_LABEL))
-        ]),
-        urwid.Divider('─'),  # Horizontal divider
-        # Bottom row with vertical dividers
-        urwid.Columns([
-            ('fixed', StatusLabels.STATUS_ROW2_VFO, 
-                urwid.Text(f"VFO {RadioDefaults.FREQ}")),
-            ('fixed', 1, urwid.Text('│')),  # Vertical divider
-            ('fixed', StatusLabels.STATUS_ROW2_PWR,
-                urwid.Text(f"PWR {RadioDefaults.POWER}")),
-            ('fixed', 1, urwid.Text('│')),  # Vertical divider
-            ('fixed', StatusLabels.STATUS_ROW2_NETID,
-                urwid.Text(f"NETWORK ID {RadioDefaults.NETID}"))
-        ])
+    # Status window with proper layout
+    status_row1 = urwid.Columns([
+        ('fixed', 6, urwid.Text("LoRa")),
+        ('fixed', 1, urwid.Text("│")),
+        ('fixed', 11, urwid.Text("ADDR")),
+        ('fixed', 1, urwid.Text("│")),
+        ('fixed', 10, urwid.Text("RSSI")),
+        ('fixed', 1, urwid.Text("│")),
+        ('fixed', 8, urwid.Text("SNR"))
     ])
-    # Add Filler for vertical alignment
-    status_area = urwid.Filler(status_content, 'middle')
-    
-    # Use double-line box drawing characters for the outer box
+
+    divider = urwid.Divider('─')
+
+    status_row2 = urwid.Columns([
+        ('fixed', 18, urwid.Text("915000000")),
+        ('fixed', 7, urwid.Text("22")),
+        ('fixed', 13, urwid.Text("18"))
+    ])
+
+    status_pile = urwid.Pile([
+        status_row1,
+        divider,
+        status_row2
+    ])
+
     status_box = urwid.LineBox(
-        status_area,
+        urwid.Filler(status_pile, 'middle'),
         title="Status",
-        tline='═',  # Double line for top
-        bline='═',  # Double line for bottom
-        lline='║',  # Double line for left
-        rline='║',  # Double line for right
-        tlcorner='╔',  # Top left corner
-        trcorner='╗',  # Top right corner
-        blcorner='╚',  # Bottom left corner
-        brcorner='╝'   # Bottom right corner
+        tline='═',
+        bline='═',
+        lline='║',
+        rline='║',
+        tlcorner='╔',
+        trcorner='╗',
+        blcorner='╚',
+        brcorner='╝'
     )
     
     # Transmit area
     transmit_edit = urwid.Edit("")
     transmit_area = urwid.Filler(transmit_edit)
+    transmit_box = urwid.LineBox(
+        transmit_area,
+        title="Transmit",
+        tline='═',
+        bline='═',
+        lline='║',
+        rline='║',
+        tlcorner='╔',
+        trcorner='╗',
+        blcorner='╚',
+        brcorner='╝'
+    )
 
-    # Create the main pile with fixed dimensions from WindowSize
+    # Create the main pile with spacing
     main_pile = urwid.Pile([
-        ('fixed', WindowSize.RX_HEIGHT, urwid.LineBox(receive_area, title="Messages")),
-        ('fixed', WindowSize.ST_HEIGHT, status_box),  # Use the new status_box here
-        ('fixed', WindowSize.TX_HEIGHT, urwid.LineBox(transmit_area, title="Transmit"))
+        # Messages window
+        ('fixed', WindowSize.RX_HEIGHT, receive_box),
+        # Space between receive and status
+        ('fixed', 1, urwid.Filler(urwid.Divider())),
+        # Status window with proper height
+        ('fixed', WindowSize.ST_HEIGHT, status_box),
+        # Space between status and transmit
+        ('fixed', 1, urwid.Filler(urwid.Divider())),
+        # Transmit window
+        ('fixed', WindowSize.TX_HEIGHT, transmit_box)
     ])
 
-    # Wrap pile in Columns for fixed width from WindowSize
+    # Wrap pile in Columns for fixed width
     main_cols = urwid.Columns([
         ('fixed', WindowSize.MAX_COL, main_pile)
     ])
 
-    # Create final frame with fixed dimensions
+    # Create final frame
     frame = urwid.Frame(
         body=main_cols,
         header=None,
