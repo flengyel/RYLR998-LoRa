@@ -40,6 +40,7 @@ import urwid
 import platform
 from src.core.serial import SerialManager
 from display import Display
+from src.ui.urwid_init import initialize_display
 
 # Platform detection
 PLATFORM = platform.system()
