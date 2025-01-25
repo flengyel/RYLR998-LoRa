@@ -278,25 +278,10 @@ class RYLR998:
         
         dsply  = Display(scr) 
 
-        # Platform-specific urwid setup
+        # Initialize urwid with asyncio event loop
         evl = urwid.AsyncioEventLoop(loop=asyncio.get_event_loop())
-        txt = urwid.Text("RYLR998")
-        widget = urwid.Filler(txt)
-        
-        if IS_WINDOWS:
-            screen = urwid.raw_display.Screen()
-        else:
-            # Linux/Raspberry Pi can use default screen
-            screen = None
-            
-        loop = urwid.MainLoop(
-            widget, 
-            event_loop=evl,
-            screen=screen
-        )
+        loop = initialize_display(evl)  # Call our new initialization
         loop.start()
-
-
          
         # The LoRa® status indicator turns beet RED if the following is True
         tx_flag = False # True if and only if transmitting
