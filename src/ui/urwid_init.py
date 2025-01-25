@@ -73,10 +73,9 @@ def initialize_display(event_loop):
     screen = urwid.raw_display.Screen()
     
     try:
-        screen.set_terminal_properties(WindowSize.MAX_COL)
+        screen.set_terminal_properties(colors=256)
     except KeyError as e:
-        print(f"Unsupported terminal color depth: {e}. Defaulting to 256 colors.")
-        screen.set_terminal_properties(256)  # Explicitly set to 256-color mode
+        print("Unsupported terminal color depth. Using default colors.")
 
     main_loop = urwid.MainLoop(
         widget=frame,
@@ -87,7 +86,6 @@ def initialize_display(event_loop):
     )
 
     return main_loop
-
 
 def create_placeholder_widgets():
     """Create placeholder widgets for development/testing"""
