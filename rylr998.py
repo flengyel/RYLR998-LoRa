@@ -31,7 +31,8 @@
 #
 
 import asyncio
-from serial import EIGHTBITS, PARITY_NONE,  STOPBITS_ONE
+from serial import EIGHTBITS, PARITY_NONE, STOPBITS_ONE
+#from serial.serialutil import EIGHTBITS, PARITY_NONE, STOPBITS_ONE
 import logging
 import curses as cur
 import _curses
